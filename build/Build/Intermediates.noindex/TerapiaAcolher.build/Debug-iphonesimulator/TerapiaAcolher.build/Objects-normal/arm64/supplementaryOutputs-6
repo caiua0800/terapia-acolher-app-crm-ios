@@ -1,0 +1,37 @@
+{
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/App/MainShellView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/MainShellView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/MainShellView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/MainShellView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/MainShellView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/MainShellView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Core/Storage/Keychain.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/Keychain.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/Keychain.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/Keychain.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/Keychain.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/Keychain.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Auth/LoginFlowView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/LoginFlowView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/LoginFlowView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/LoginFlowView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/LoginFlowView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/LoginFlowView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Notifications/NotificationsView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/NotificationsView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/NotificationsView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/NotificationsView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/NotificationsView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/NotificationsView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Patients/PatientDetailView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientDetailView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientDetailView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientDetailView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientDetailView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientDetailView.swiftdeps"
+  }
+}

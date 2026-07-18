@@ -1,0 +1,37 @@
+{
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Patients/PatientFormView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientFormView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientFormView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientFormView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientFormView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientFormView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Patients/PatientMainDataView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientMainDataView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientMainDataView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientMainDataView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientMainDataView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientMainDataView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Patients/PatientModels.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientModels.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientModels.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientModels.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientModels.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientModels.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Patients/PatientsListView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientsListView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientsListView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientsListView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientsListView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/PatientsListView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Records/RecNotesView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/RecNotesView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/RecNotesView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/RecNotesView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/RecNotesView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/RecNotesView.swiftdeps"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Core/Network/APIClient.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/APIClient.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/APIClient.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/APIClient.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/APIClient.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/APIClient.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Agenda/AgendaModels.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaModels.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaModels.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaModels.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaModels.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaModels.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Agenda/AgendaMonthView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaMonthView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaMonthView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaMonthView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaMonthView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaMonthView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Agenda/AgendaNewSessionView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaNewSessionView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaNewSessionView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaNewSessionView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaNewSessionView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaNewSessionView.swiftdeps"
+  },
+  "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/TerapiaAcolher/Features/Agenda/AgendaSessionDetailView.swift" : {
+    "const-values" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaSessionDetailView.swiftconstvalues",
+    "dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaSessionDetailView.d",
+    "diagnostics" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaSessionDetailView.dia",
+    "object" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaSessionDetailView.o",
+    "swift-dependencies" : "/Users/caiuamello/Desktop/CLIENTES/RodrigoMendes/ios-app/build/Build/Intermediates.noindex/TerapiaAcolher.build/Debug-iphonesimulator/TerapiaAcolher.build/Objects-normal/arm64/AgendaSessionDetailView.swiftdeps"
+  }
+}
