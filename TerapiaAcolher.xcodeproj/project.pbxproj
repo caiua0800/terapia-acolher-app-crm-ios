@@ -1,0 +1,392 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0BA3A80F60729B99283CC24F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99C166FA6BE1FBE9A3BFE98 /* Components.swift */; };
+		0D4AEB785038CC660BC0971E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1789733F05F834AF2551531A /* APIClient.swift */; };
+		3CCAF35FA2DC109DFB0F5732 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9668296259B004E93A2F0F89 /* Theme.swift */; };
+		68F95008DD2D9D159BD00EFC /* TerapiaAcolherApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDF870286A4B47A922F4A49 /* TerapiaAcolherApp.swift */; };
+		6E5221EDAF735C8733EE9C20 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53416F117F1C16CDACE718AB /* SessionStore.swift */; };
+		7EA5A2064CFF61D533B69F87 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF1CCAD1FB84DC6C3DB02BC /* Keychain.swift */; };
+		8F09E21C11FC26334AEB157E /* MainShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E780E491CDC3590D9A271CE /* MainShellView.swift */; };
+		BF4F690BF01E60DD8C0E2390 /* Placeholders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E319B44674B5EFEE9055B11 /* Placeholders.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1789733F05F834AF2551531A /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		2EDBFF466FB0070EAAF072E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3E780E491CDC3590D9A271CE /* MainShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainShellView.swift; sourceTree = "<group>"; };
+		53416F117F1C16CDACE718AB /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		5FDF870286A4B47A922F4A49 /* TerapiaAcolherApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerapiaAcolherApp.swift; sourceTree = "<group>"; };
+		9668296259B004E93A2F0F89 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		9E319B44674B5EFEE9055B11 /* Placeholders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Placeholders.swift; sourceTree = "<group>"; };
+		A77D84A9675752117D31F213 /* TerapiaAcolher.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TerapiaAcolher.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABF1CCAD1FB84DC6C3DB02BC /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		F99C166FA6BE1FBE9A3BFE98 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		14E151E8211DD7DBB6011011 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				3E780E491CDC3590D9A271CE /* MainShellView.swift */,
+				5FDF870286A4B47A922F4A49 /* TerapiaAcolherApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		370F68979CFB45887A50A70D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A77D84A9675752117D31F213 /* TerapiaAcolher.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		43F4B986153546FEE48E9D16 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				1789733F05F834AF2551531A /* APIClient.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+		53B99697734D99D9E07FCA03 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				ABF1CCAD1FB84DC6C3DB02BC /* Keychain.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		570CD52F39A08A87D5BBB092 /* TerapiaAcolher */ = {
+			isa = PBXGroup;
+			children = (
+				14E151E8211DD7DBB6011011 /* App */,
+				F351645D684D476BDCFAF9B2 /* Core */,
+				FE9EDEB78B588408D4BFB5B9 /* DesignSystem */,
+				570DD51071E28D1803FB97B3 /* Features */,
+				CC7AD535F1D781B134AA6685 /* Resources */,
+			);
+			path = TerapiaAcolher;
+			sourceTree = "<group>";
+		};
+		570DD51071E28D1803FB97B3 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				9E319B44674B5EFEE9055B11 /* Placeholders.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		5EAC9F04C97656F55DD2394A /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				53416F117F1C16CDACE718AB /* SessionStore.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		CC7AD535F1D781B134AA6685 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2EDBFF466FB0070EAAF072E7 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		EEBEA8B464B82E653F76F73A = {
+			isa = PBXGroup;
+			children = (
+				570CD52F39A08A87D5BBB092 /* TerapiaAcolher */,
+				370F68979CFB45887A50A70D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F351645D684D476BDCFAF9B2 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				5EAC9F04C97656F55DD2394A /* Auth */,
+				43F4B986153546FEE48E9D16 /* Network */,
+				53B99697734D99D9E07FCA03 /* Storage */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		FE9EDEB78B588408D4BFB5B9 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				F99C166FA6BE1FBE9A3BFE98 /* Components.swift */,
+				9668296259B004E93A2F0F89 /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		47E4B5D36A2452E77DF30345 /* TerapiaAcolher */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0503620DDE854C2B3A6E316C /* Build configuration list for PBXNativeTarget "TerapiaAcolher" */;
+			buildPhases = (
+				29FDFCBABEA9F716966F57D2 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TerapiaAcolher;
+			packageProductDependencies = (
+			);
+			productName = TerapiaAcolher;
+			productReference = A77D84A9675752117D31F213 /* TerapiaAcolher.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5379200F62E91B2E45A67487 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					47E4B5D36A2452E77DF30345 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 65761E342F080ACD849581E1 /* Build configuration list for PBXProject "TerapiaAcolher" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = EEBEA8B464B82E653F76F73A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 370F68979CFB45887A50A70D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				47E4B5D36A2452E77DF30345 /* TerapiaAcolher */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		29FDFCBABEA9F716966F57D2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0D4AEB785038CC660BC0971E /* APIClient.swift in Sources */,
+				0BA3A80F60729B99283CC24F /* Components.swift in Sources */,
+				7EA5A2064CFF61D533B69F87 /* Keychain.swift in Sources */,
+				8F09E21C11FC26334AEB157E /* MainShellView.swift in Sources */,
+				BF4F690BF01E60DD8C0E2390 /* Placeholders.swift in Sources */,
+				6E5221EDAF735C8733EE9C20 /* SessionStore.swift in Sources */,
+				68F95008DD2D9D159BD00EFC /* TerapiaAcolherApp.swift in Sources */,
+				3CCAF35FA2DC109DFB0F5732 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		85A1D934540809641AAEF57A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = TerapiaAcolher/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ccypher.terapiaacolher;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AFCEE3A5126BF4F3711ACEB6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = TerapiaAcolher/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ccypher.terapiaacolher;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D842E26EDAFBE2554AE3A28A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		E0C3A6F9081FC86F0FD8E651 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0503620DDE854C2B3A6E316C /* Build configuration list for PBXNativeTarget "TerapiaAcolher" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				85A1D934540809641AAEF57A /* Debug */,
+				AFCEE3A5126BF4F3711ACEB6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		65761E342F080ACD849581E1 /* Build configuration list for PBXProject "TerapiaAcolher" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E0C3A6F9081FC86F0FD8E651 /* Debug */,
+				D842E26EDAFBE2554AE3A28A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5379200F62E91B2E45A67487 /* Project object */;
+}
