@@ -13,6 +13,7 @@
 		1BB72C1B1937D3208B6B099B /* AuthForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F927E4106A52CE6F67BEAAAF /* AuthForgotPasswordView.swift */; };
 		2B6B48C42A2D06108DC9AC50 /* FilesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C1A41EBF5A17F0536A057A /* FilesHomeView.swift */; };
 		2BF58C1F88428F92113CFE20 /* SetAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53746DAEF71E1D9E71CBE881 /* SetAgendaView.swift */; };
+		33C660AED734907472507A9D /* SmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4BAD228FD3C540AF4186B1F /* SmokeUITests.swift */; };
 		3482D9BC4012A09AC56B15B7 /* PatientDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9847DB566C59DF73787EE0 /* PatientDetailView.swift */; };
 		38C921926CDF68C65473C368 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969DDEC8B91D4D2926F0F47B /* NotificationsView.swift */; };
 		3CCAF35FA2DC109DFB0F5732 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9668296259B004E93A2F0F89 /* Theme.swift */; };
@@ -61,6 +62,16 @@
 		FBB931C8CD61AF4358523439 /* AuthRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		D2818F6DE3DB2675B815E6DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5379200F62E91B2E45A67487 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47E4B5D36A2452E77DF30345;
+			remoteInfo = TerapiaAcolher;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthRegisterView.swift; sourceTree = "<group>"; };
 		072C9798DC11D2C096035921 /* PatientsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientsListView.swift; sourceTree = "<group>"; };
@@ -95,6 +106,7 @@
 		784CFCF124134E8A5792C19D /* SetGoogleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetGoogleView.swift; sourceTree = "<group>"; };
 		79EF8C44EBDA0F5548240FDD /* FinWalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinWalletView.swift; sourceTree = "<group>"; };
 		7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecNotesView.swift; sourceTree = "<group>"; };
+		82DE1635A2E3FE74AB93F382 /* TerapiaAcolherUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TerapiaAcolherUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		83BAFF89B5616319BE165106 /* FinanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceModels.swift; sourceTree = "<group>"; };
 		88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargesView.swift; sourceTree = "<group>"; };
 		8CA6E6821A5437545E324147 /* PatientMainDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientMainDataView.swift; sourceTree = "<group>"; };
@@ -107,6 +119,7 @@
 		A77D84A9675752117D31F213 /* TerapiaAcolher.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TerapiaAcolher.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A8873019933013DFFFB1133D /* LoginFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginFlowView.swift; sourceTree = "<group>"; };
 		ABF1CCAD1FB84DC6C3DB02BC /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		B4BAD228FD3C540AF4186B1F /* SmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeUITests.swift; sourceTree = "<group>"; };
 		B9C107DD9807B398A641726F /* RecordsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsHomeView.swift; sourceTree = "<group>"; };
 		BB18CE34C1D0C335D5474293 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
@@ -169,6 +182,7 @@
 			isa = PBXGroup;
 			children = (
 				A77D84A9675752117D31F213 /* TerapiaAcolher.app */,
+				82DE1635A2E3FE74AB93F382 /* TerapiaAcolherUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -291,10 +305,19 @@
 			path = Auth;
 			sourceTree = "<group>";
 		};
+		EE9ABEE0FC0585E6B63AB22F /* TerapiaAcolherUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B4BAD228FD3C540AF4186B1F /* SmokeUITests.swift */,
+			);
+			path = TerapiaAcolherUITests;
+			sourceTree = "<group>";
+		};
 		EEBEA8B464B82E653F76F73A = {
 			isa = PBXGroup;
 			children = (
 				570CD52F39A08A87D5BBB092 /* TerapiaAcolher */,
+				EE9ABEE0FC0585E6B63AB22F /* TerapiaAcolherUITests */,
 				370F68979CFB45887A50A70D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -359,6 +382,24 @@
 			productReference = A77D84A9675752117D31F213 /* TerapiaAcolher.app */;
 			productType = "com.apple.product-type.application";
 		};
+		871BCE884DEE06605F969B20 /* TerapiaAcolherUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE79BA4BD0F3490C593D5BA5 /* Build configuration list for PBXNativeTarget "TerapiaAcolherUITests" */;
+			buildPhases = (
+				F5041790510A2097FD12F552 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F6341E6A23824B78D8D80B08 /* PBXTargetDependency */,
+			);
+			name = TerapiaAcolherUITests;
+			packageProductDependencies = (
+			);
+			productName = TerapiaAcolherUITests;
+			productReference = 82DE1635A2E3FE74AB93F382 /* TerapiaAcolherUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -371,6 +412,11 @@
 					47E4B5D36A2452E77DF30345 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
+					};
+					871BCE884DEE06605F969B20 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = 47E4B5D36A2452E77DF30345;
 					};
 				};
 			};
@@ -389,6 +435,7 @@
 			projectRoot = "";
 			targets = (
 				47E4B5D36A2452E77DF30345 /* TerapiaAcolher */,
+				871BCE884DEE06605F969B20 /* TerapiaAcolherUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -453,9 +500,59 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F5041790510A2097FD12F552 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				33C660AED734907472507A9D /* SmokeUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		F6341E6A23824B78D8D80B08 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 47E4B5D36A2452E77DF30345 /* TerapiaAcolher */;
+			targetProxy = D2818F6DE3DB2675B815E6DF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		21C47E4EA88B9045BD75A18F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ccypher.terapiaacolher.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TerapiaAcolher;
+			};
+			name = Debug;
+		};
+		47DDE2CAA5EEDBE400E8770B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ccypher.terapiaacolher.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TerapiaAcolher;
+			};
+			name = Release;
+		};
 		85A1D934540809641AAEF57A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -638,6 +735,15 @@
 			buildConfigurations = (
 				E0C3A6F9081FC86F0FD8E651 /* Debug */,
 				D842E26EDAFBE2554AE3A28A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AE79BA4BD0F3490C593D5BA5 /* Build configuration list for PBXNativeTarget "TerapiaAcolherUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				21C47E4EA88B9045BD75A18F /* Debug */,
+				47DDE2CAA5EEDBE400E8770B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

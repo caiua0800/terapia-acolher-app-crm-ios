@@ -24,3 +24,27 @@ targets:
         MARKETING_VERSION: '0.1.0'
         CURRENT_PROJECT_VERSION: '1'
         INFOPLIST_FILE: TerapiaAcolher/Resources/Info.plist
+  TerapiaAcolherUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - TerapiaAcolherUITests
+    dependencies:
+      - target: TerapiaAcolher
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ccypher.terapiaacolher.uitests
+        TEST_TARGET_NAME: TerapiaAcolher
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  TerapiaAcolher:
+    build:
+      targets:
+        TerapiaAcolher: all
+        TerapiaAcolherUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - TerapiaAcolherUITests

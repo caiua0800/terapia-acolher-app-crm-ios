@@ -63,6 +63,7 @@ struct MainShellView: View {
                                 Image(systemName: "line.3.horizontal")
                                     .foregroundStyle(Theme.textPrimary)
                             }
+                            .accessibilityIdentifier("menuButton")
                         }
                         ToolbarItem(placement: .principal) {
                             Text(selection.title)
@@ -76,6 +77,7 @@ struct MainShellView: View {
                                 Image(systemName: "bell")
                                     .foregroundStyle(Theme.textPrimary)
                             }
+                            .accessibilityIdentifier("bellButton")
                         }
                     }
             }

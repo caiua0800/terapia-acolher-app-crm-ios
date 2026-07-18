@@ -4,6 +4,14 @@ import SwiftUI
 struct TerapiaAcolherApp: App {
     @State private var session = SessionStore.shared
 
+    init() {
+        // Suporte a testes de UI: estado limpo de sessão.
+        if CommandLine.arguments.contains("--reset-session") {
+            Keychain.delete("accessToken")
+            Keychain.delete("refreshToken")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
