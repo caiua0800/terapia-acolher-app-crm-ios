@@ -6,6 +6,11 @@ import SwiftUI
 struct DocPatientRef: Codable, Identifiable, Hashable {
     let id: String
     let name: String
+    let group: DocPatientGroup?
+}
+
+struct DocPatientGroup: Codable, Hashable {
+    let color: String?
 }
 
 // MARK: - Documento gerado

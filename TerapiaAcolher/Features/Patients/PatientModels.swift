@@ -76,6 +76,11 @@ struct PatientDetail: Codable, Identifiable, Hashable {
 }
 
 /// Payload de cadastro/edição (POST/PATCH /patients).
+///
+/// O PATCH do backend ignora chaves AUSENTES; limpar um campo exige `null`
+/// explícito no JSON. Como o JSONEncoder omite nil por padrão, o encode é
+/// customizado: em modo edição (`emitsExplicitNulls`), campos opcionais que o
+/// usuário limpou saem como `null`; no CREATE, nil continua omitido.
 struct PatientPayload: Encodable {
     var name: String
     var groupId: String?
@@ -93,6 +98,65 @@ struct PatientPayload: Encodable {
     var videoReminder1h: Bool?
     var registrationActive: Bool?
     var status: String?
+
+    /// true no PATCH de edição: campos limpos viram `null` explícito.
+    var emitsExplicitNulls = false
+
+    private enum CodingKeys: String, CodingKey {
+        case name, groupId, cpf, email, whatsapp, birthDate
+        case guardianName, guardianContact, guardianIsPayer
+        case sessionPrice, billingDay
+        case monthlyBillingReminder, sessionReminder24h, videoReminder1h
+        case registrationActive, status
+    }
+
+    /// birthDate é dia-calendário: serializa o dia LOCAL escolhido no picker
+    /// como "yyyy-MM-dd" (o backend interpreta como meia-noite UTC).
+    private static let isoDay: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try encodeClearable(groupId, forKey: .groupId, into: &container)
+        // CPF nunca é pré-preenchido no form: ausente = "manter" (nunca null).
+        if let cpf { try container.encode(cpf, forKey: .cpf) }
+        try encodeClearable(email, forKey: .email, into: &container)
+        try encodeClearable(whatsapp, forKey: .whatsapp, into: &container)
+        try encodeClearable(
+            birthDate.map { Self.isoDay.string(from: $0) },
+            forKey: .birthDate,
+            into: &container
+        )
+        try encodeClearable(guardianName, forKey: .guardianName, into: &container)
+        try encodeClearable(guardianContact, forKey: .guardianContact, into: &container)
+        if let guardianIsPayer { try container.encode(guardianIsPayer, forKey: .guardianIsPayer) }
+        try encodeClearable(sessionPrice, forKey: .sessionPrice, into: &container)
+        if let billingDay { try container.encode(billingDay, forKey: .billingDay) }
+        if let monthlyBillingReminder {
+            try container.encode(monthlyBillingReminder, forKey: .monthlyBillingReminder)
+        }
+        if let sessionReminder24h { try container.encode(sessionReminder24h, forKey: .sessionReminder24h) }
+        if let videoReminder1h { try container.encode(videoReminder1h, forKey: .videoReminder1h) }
+        if let registrationActive { try container.encode(registrationActive, forKey: .registrationActive) }
+        if let status { try container.encode(status, forKey: .status) }
+    }
+
+    /// Campos que o update do backend aceita limpar com null.
+    private func encodeClearable<Value: Encodable>(
+        _ value: Value?,
+        forKey key: CodingKeys,
+        into container: inout KeyedEncodingContainer<CodingKeys>
+    ) throws {
+        if let value {
+            try container.encode(value, forKey: key)
+        } else if emitsExplicitNulls {
+            try container.encodeNil(forKey: key)
+        }
+    }
 }
 
 struct PatientDeleteResponse: Decodable {
@@ -156,6 +220,23 @@ enum PatientFormat {
     static let time = formatter("HH:mm")
     static let fullDate = formatter("dd/MM/yyyy")
 
+    /// birthDate é dia-calendário gravado à meia-noite UTC — exibir em UTC
+    /// (formatar no fuso local mostraria o dia anterior no Brasil).
+    static let fullDateUTC: DateFormatter = {
+        let f = formatter("dd/MM/yyyy")
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    /// Converte um dia-calendário UTC (meia-noite UTC) pra data com o MESMO
+    /// dia no fuso local — pro DatePicker exibir/editar sem regredir 1 dia.
+    static func localDate(fromUTCCalendarDay date: Date) -> Date {
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+        let comps = utcCalendar.dateComponents([.year, .month, .day], from: date)
+        return Calendar.current.date(from: comps) ?? date
+    }
+
     /// "Qui · 14h" / "Sex · 15h30" — próxima sessão na lista.
     static func nextSessionLabel(_ session: PatientNextSession?) -> String {
         guard let session else { return "Sem próxima sessão" }
@@ -205,5 +286,14 @@ enum PatientMask {
             out.append(ch)
         }
         return out
+    }
+
+    /// Valor enviado à API: só dígitos com +55 (ex.: +5541991234567).
+    /// A máscara com parênteses/hífen é apenas exibição.
+    static func whatsappPayload(_ masked: String) -> String? {
+        var digits = String(masked.filter(\.isNumber))
+        if digits.hasPrefix("55") { digits = String(digits.dropFirst(2)) }
+        guard !digits.isEmpty else { return nil }
+        return "+55\(digits)"
     }
 }

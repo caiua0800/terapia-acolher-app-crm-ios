@@ -81,6 +81,7 @@ struct FinanceHomeView: View {
     @State private var showTransactionForm = false
     @State private var editingTransaction: FinTransaction?
     @State private var deletingTransaction: FinTransaction?
+    @State private var hasAppeared = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -113,6 +114,15 @@ struct FinanceHomeView: View {
             .padding(.bottom, 24)
         }
         .task { await model.load() }
+        // .task não roda de novo ao voltar de uma tela empurrada (a view não
+        // sai da hierarquia) — o onAppear recarrega nesses retornos. Na
+        // primeira aparição só o .task carrega (hasAppeared ainda é false).
+        .onAppear {
+            if hasAppeared {
+                Task { await model.load() }
+            }
+            hasAppeared = true
+        }
         .sheet(isPresented: $showTransactionForm) {
             FinTransactionFormView(existing: editingTransaction) {
                 Task { await model.load() }

@@ -102,7 +102,25 @@ final class SessionStore {
         clearSession()
     }
 
+    /// Refresh single-flight: N requests com 401 simultâneos aguardam UM refresh.
+    /// (O backend rotaciona o token e trata reuso como roubo — refresh duplo
+    /// revogaria todas as sessões do usuário.)
+    private var refreshTask: Task<Bool, Never>?
+
     func refreshSession() async -> Bool {
+        if let existing = refreshTask {
+            return await existing.value
+        }
+        let task = Task<Bool, Never> { [weak self] in
+            await self?.performRefresh() ?? false
+        }
+        refreshTask = task
+        let result = await task.value
+        refreshTask = nil
+        return result
+    }
+
+    private func performRefresh() async -> Bool {
         guard let refreshToken else { return false }
         struct Body: Encodable { let refreshToken: String }
         struct TokenPair: Decodable { let accessToken: String, refreshToken: String }
@@ -118,6 +136,10 @@ final class SessionStore {
             return false
         }
     }
+
+    /// Exposto pra fluxos que precisam preservar a sessão atual no backend
+    /// (ex.: troca de senha envia o refresh token pra não revogar esta sessão).
+    var currentRefreshToken: String? { refreshToken }
 
     @MainActor
     func reloadProfile() async {

@@ -62,6 +62,9 @@ struct MainShellView: View {
                             } label: {
                                 Image(systemName: "line.3.horizontal")
                                     .foregroundStyle(Theme.textPrimary)
+                                    .frame(width: 38, height: 38)
+                                    .background(Theme.surface, in: Circle())
+                                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
                             }
                             .accessibilityIdentifier("menuButton")
                         }
@@ -76,6 +79,9 @@ struct MainShellView: View {
                             } label: {
                                 Image(systemName: "bell")
                                     .foregroundStyle(Theme.textPrimary)
+                                    .frame(width: 38, height: 38)
+                                    .background(Theme.surface, in: Circle())
+                                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
                             }
                             .accessibilityIdentifier("bellButton")
                         }
@@ -160,8 +166,8 @@ struct SideMenuView: View {
         }
         .frame(width: 290)
         .frame(maxHeight: .infinity)
-        .background(Theme.ink)
-        .ignoresSafeArea()
+        // fundo estende até as bordas; conteúdo respeita a safe area (não colide com o relógio)
+        .background(Theme.ink.ignoresSafeArea())
     }
 
     private func menuRow(_ item: MenuDestination) -> some View {

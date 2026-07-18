@@ -62,7 +62,9 @@ final class PatientFormViewModel {
             cpf = "" // nunca pré-preenche CPF; só reenvia se digitado de novo
             if let birth = detail.birthDate {
                 hasBirthDate = true
-                birthDate = birth
+                // Dia-calendário UTC → mesmo dia no fuso local (round-trip
+                // sem edição preserva o dia exato).
+                birthDate = PatientFormat.localDate(fromUTCCalendarDay: birth)
             }
             if detail.guardianName != nil || detail.guardianContact != nil {
                 hasGuardian = true
@@ -143,10 +145,13 @@ final class PatientFormViewModel {
         }
 
         var payload = PatientPayload(name: name.trimmingCharacters(in: .whitespaces))
+        // Em edição, campos limpos precisam sair como null explícito no PATCH
+        // (chave ausente é ignorada pelo backend e o campo nunca seria limpo).
+        payload.emitsExplicitNulls = mode.isEdit
         payload.groupId = groupId
         payload.cpf = cpfDigits.isEmpty ? nil : cpfDigits
         payload.email = email.isEmpty ? nil : email.trimmingCharacters(in: .whitespaces)
-        payload.whatsapp = whatsapp.isEmpty ? nil : whatsapp
+        payload.whatsapp = PatientMask.whatsappPayload(whatsapp)
         payload.birthDate = hasBirthDate ? birthDate : nil
         if hasGuardian {
             payload.guardianName = guardianName.isEmpty ? nil : guardianName

@@ -255,9 +255,6 @@ struct PatientRow: View {
                 }
             }
             Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary.opacity(0.5))
         }
         .padding(.horizontal, Theme.screenPadding)
         .padding(.vertical, 12)

@@ -99,13 +99,20 @@ final class SetChangePasswordViewModel {
         struct Body: Encodable {
             let currentPassword: String
             let newPassword: String
+            /// Com o refresh token atual, o backend preserva ESTA sessão ao
+            /// revogar as demais — sem ele, o app deslogaria sozinho depois.
+            let refreshToken: String?
         }
         isSaving = true
         defer { isSaving = false }
         do {
             let _: EmptyResponse = try await APIClient.shared.post(
                 "auth/change-password",
-                body: Body(currentPassword: current, newPassword: nova)
+                body: Body(
+                    currentPassword: current,
+                    newPassword: nova,
+                    refreshToken: SessionStore.shared.currentRefreshToken
+                )
             )
             showSuccess = true
         } catch {

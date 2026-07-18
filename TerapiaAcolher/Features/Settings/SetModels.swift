@@ -242,8 +242,12 @@ enum SetAPI {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-        if status == 401, allowRetry, let refresh = APIClient.shared.refreshHandler, await refresh() {
-            return try await postQuery(path, query: query, allowRetry: false)
+        if status == 401, allowRetry, let refresh = APIClient.shared.refreshHandler {
+            if await refresh() {
+                return try await postQuery(path, query: query, allowRetry: false)
+            }
+            // Mesmo comportamento do APIClient: refresh falhou → sessão expirou.
+            APIClient.shared.onSessionExpired()
         }
         guard (200 ..< 300).contains(status) else {
             let message = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.message

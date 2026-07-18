@@ -168,7 +168,9 @@ struct FinTransactionCell: View {
         var parts: [String] = [FinFormat.relativeDay(transaction.date)]
         if let category = transaction.category, !category.isEmpty {
             parts.append(category)
-        } else if let patient = transaction.patient {
+        } else if let patient = transaction.patient,
+                  !transaction.description.localizedCaseInsensitiveContains(patient.name) {
+            // não repete o nome quando a descrição já o contém ("Sessão · Maria...")
             parts.append(patient.name)
         }
         if let source = transaction.sourceLabel { parts.append(source) }

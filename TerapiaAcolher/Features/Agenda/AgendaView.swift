@@ -34,6 +34,7 @@ final class AgendaViewModel {
     var selectedDay: Date?
     var daySessions: [AgendaSession] = []
     var isLoadingDay = false
+    var dayErrorMessage: String?
 
     var isLoading = false
     var errorMessage: String?
@@ -89,6 +90,7 @@ final class AgendaViewModel {
     func loadDay(_ day: Date) async {
         selectedDay = day
         isLoadingDay = true
+        dayErrorMessage = nil
         defer { isLoadingDay = false }
         let from = calendar.startOfDay(for: day)
         let to = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: from) ?? from
@@ -99,7 +101,11 @@ final class AgendaViewModel {
             ])
             daySessions = result.filter { $0.status != "CANCELED" }
         } catch {
+            // Erro não pode virar "lista vazia" silenciosa — exibe estado de
+            // erro com retry na seção do dia.
             daySessions = []
+            dayErrorMessage = (error as? APIError)?.message
+                ?? "Não foi possível carregar as sessões do dia."
         }
     }
 

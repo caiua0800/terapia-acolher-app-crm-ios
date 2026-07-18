@@ -421,11 +421,11 @@
 				};
 			};
 			buildConfigurationList = 65761E342F080ACD849581E1 /* Build configuration list for PBXProject "TerapiaAcolher" */;
-			developmentRegion = en;
+			developmentRegion = "pt-BR";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
-				en,
+				"pt-BR",
 			);
 			mainGroup = EEBEA8B464B82E653F76F73A;
 			minimizedProjectReferenceProxies = 1;

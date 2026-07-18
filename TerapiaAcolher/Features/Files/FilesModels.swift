@@ -6,6 +6,11 @@ import SwiftUI
 struct PFilePatientRef: Codable, Identifiable, Hashable {
     let id: String
     let name: String
+    let group: PFilePatientGroup?
+}
+
+struct PFilePatientGroup: Codable, Hashable {
+    let color: String?
 }
 
 // MARK: - Categoria de anexo (enum do backend)

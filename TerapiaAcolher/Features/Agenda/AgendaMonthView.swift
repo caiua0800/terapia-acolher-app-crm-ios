@@ -161,6 +161,11 @@ struct AgendaMonthView: View {
                     Spacer()
                 }
                 .padding(.vertical, 20)
+            } else if let dayError = model.dayErrorMessage {
+                ErrorRetryView(message: dayError) {
+                    Task { await model.loadDay(day) }
+                }
+                .padding(.vertical, 8)
             } else if model.daySessions.isEmpty {
                 Text("Nenhuma sessão neste dia.")
                     .font(Theme.body(14))

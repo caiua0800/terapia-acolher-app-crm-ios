@@ -167,7 +167,10 @@ final class APIClient {
         let (data, response) = try await session.data(for: urlRequest)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-        if status == 401, allowRetry, let refreshHandler {
+        // O próprio refresh nunca dispara refresh (evita recursão infinita
+        // quando o refresh token está expirado/revogado).
+        let isRefreshCall = path == "auth/refresh"
+        if status == 401, allowRetry, !isRefreshCall, let refreshHandler {
             if await refreshHandler() {
                 return try await rawRequest(
                     path: path, method: method, query: query,

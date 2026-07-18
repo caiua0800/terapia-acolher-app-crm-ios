@@ -230,7 +230,9 @@ struct FinTransactionFormView: View {
             partialReceived = true
             receivedText = String(format: "%.2f", received).replacingOccurrences(of: ".", with: ",")
         }
-        date = existing.date
+        // A data vem do backend como dia-calendário (meia-noite UTC); converte
+        // pro mesmo dia no fuso local pro DatePicker não regredir 1 dia.
+        date = FinFormat.localDate(fromCalendarDay: existing.date)
         category = existing.category ?? ""
         isRecurring = existing.isRecurring
         patient = existing.patient
@@ -250,6 +252,9 @@ struct FinTransactionFormView: View {
             description: descriptionText.trimmingCharacters(in: .whitespaces),
             amount: amount,
             receivedAmount: received,
+            // Serializa o dia-calendário exibido no picker (yyyy-MM-dd do dia
+            // local); o backend grava como meia-noite UTC — round-trip sem
+            // edição preserva o dia exato.
             date: FinFormat.isoDay.string(from: date),
             category: category.trimmingCharacters(in: .whitespaces).isEmpty ? nil : category.trimmingCharacters(in: .whitespaces),
             isRecurring: isRecurring,

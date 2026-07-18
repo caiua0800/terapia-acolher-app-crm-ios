@@ -10,6 +10,7 @@ struct FilesHomeView: View {
     @State private var search = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var hasAppeared = false
 
     var body: some View {
         ZStack {
@@ -49,7 +50,7 @@ struct FilesHomeView: View {
                                     selectedPatient = patient
                                 } label: {
                                     HStack(spacing: 12) {
-                                        InitialAvatar(name: patient.name, size: 40)
+                                        InitialAvatar(name: patient.name, colorHex: patient.group?.color, size: 40)
                                         Text(patient.name)
                                             .font(Theme.body(15, weight: .semibold))
                                             .foregroundStyle(Theme.textPrimary)
@@ -78,6 +79,13 @@ struct FilesHomeView: View {
             }
         }
         .task { await load() }
+        // Recarrega ao voltar da tela empurrada (.task não roda de novo).
+        .onAppear {
+            if hasAppeared {
+                Task { await load() }
+            }
+            hasAppeared = true
+        }
         .navigationDestination(item: $selectedPatient) { patient in
             PFilePatientFilesView(patient: patient)
         }
@@ -370,7 +378,7 @@ struct PFilePatientFilesView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            InitialAvatar(name: model.patient.name, size: 44)
+            InitialAvatar(name: model.patient.name, colorHex: model.patient.group?.color, size: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.patient.name)
                     .font(Theme.body(16, weight: .semibold))

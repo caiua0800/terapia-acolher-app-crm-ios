@@ -223,7 +223,8 @@ final class SettingsHomeViewModel {
             if let templates: [SetTemplate] = try? await APIClient.shared.get(
                 "templates", query: ["type": type.rawValue]
             ) {
-                templateCounts[type] = templates.filter { !$0.isSystem }.count
+                // Conta modelos disponíveis (sistema + próprios), como no design
+                templateCounts[type] = templates.count
             }
         }
         if let status: SetGoogleStatus = try? await APIClient.shared.get("integrations/google/status") {

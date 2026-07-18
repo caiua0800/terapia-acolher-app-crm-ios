@@ -240,8 +240,12 @@ enum AgendaAPI {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-        if status == 401, allowRetry, let refresh = APIClient.shared.refreshHandler, await refresh() {
-            return try await send(path: path, query: query, bodyData: bodyData, allowRetry: false)
+        if status == 401, allowRetry, let refresh = APIClient.shared.refreshHandler {
+            if await refresh() {
+                return try await send(path: path, query: query, bodyData: bodyData, allowRetry: false)
+            }
+            // Mesmo comportamento do APIClient: refresh falhou → sessão expirou.
+            APIClient.shared.onSessionExpired()
         }
         guard (200 ..< 300).contains(status) else {
             let message = (try? JSONDecoder().decode(AgendaErrorBody.self, from: data))?.message
@@ -365,9 +369,14 @@ struct AgendaDayHeader: View {
             Text(AgendaFormat.relativeDayTitle(day))
                 .font(Theme.serifTitle(19))
                 .foregroundStyle(Theme.textPrimary)
-            Text("\(AgendaFormat.weekday.string(from: day)) · \(AgendaFormat.dayMonth.string(from: day))")
-                .font(Theme.body(13))
-                .foregroundStyle(Theme.textSecondary)
+            // Hoje/Amanhã ganham o dia da semana no subtítulo; demais só a data
+            Text(
+                AgendaFormat.calendar.isDateInToday(day) || AgendaFormat.calendar.isDateInTomorrow(day)
+                    ? "\(AgendaFormat.weekday.string(from: day)) · \(AgendaFormat.dayMonth.string(from: day))"
+                    : AgendaFormat.dayMonth.string(from: day)
+            )
+            .font(Theme.body(13))
+            .foregroundStyle(Theme.textSecondary)
             Spacer()
             Text(count == 1 ? "1 SESSÃO" : "\(count) SESSÕES")
                 .font(Theme.body(10, weight: .bold))

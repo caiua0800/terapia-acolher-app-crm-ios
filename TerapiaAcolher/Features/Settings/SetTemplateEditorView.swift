@@ -376,26 +376,33 @@ struct SetTemplateEditorView: View {
 // MARK: - Editor de pergunta
 
 struct SetQuestionEditorView: View {
+    /// Rascunho de opção com identidade estável — ForEach por índice +
+    /// remove(at:) crasha quando o SwiftUI reusa linhas durante a remoção.
+    private struct OptionDraft: Identifiable {
+        let id = UUID()
+        var text: String
+    }
+
     @State var question: SetQuestion
     let isNew: Bool
     var onSave: (SetQuestion) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var options: [String]
+    @State private var optionDrafts: [OptionDraft]
     @State private var isRequired: Bool
 
     init(question: SetQuestion, isNew: Bool, onSave: @escaping (SetQuestion) -> Void) {
         _question = State(initialValue: question)
         self.isNew = isNew
         self.onSave = onSave
-        _options = State(initialValue: question.options ?? [])
+        _optionDrafts = State(initialValue: (question.options ?? []).map { OptionDraft(text: $0) })
         _isRequired = State(initialValue: question.isRequired ?? false)
     }
 
     private var canSave: Bool {
         let hasLabel = !question.label.trimmingCharacters(in: .whitespaces).isEmpty
         if question.kind == "text" { return hasLabel }
-        return hasLabel && options.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        return hasLabel && optionDrafts.contains { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
     var body: some View {
@@ -418,12 +425,13 @@ struct SetQuestionEditorView: View {
 
                 if question.kind != "text" {
                     Section {
-                        ForEach(options.indices, id: \.self) { index in
+                        ForEach($optionDrafts) { $draft in
+                            let number = (optionDrafts.firstIndex { $0.id == draft.id } ?? 0) + 1
                             HStack {
-                                TextField("Opção \(index + 1)", text: $options[index])
+                                TextField("Opção \(number)", text: $draft.text)
                                     .font(Theme.body(15))
                                 Button {
-                                    options.remove(at: index)
+                                    optionDrafts.removeAll { $0.id == draft.id }
                                 } label: {
                                     Image(systemName: "minus.circle.fill")
                                         .foregroundStyle(Theme.danger.opacity(0.7))
@@ -432,7 +440,7 @@ struct SetQuestionEditorView: View {
                             }
                         }
                         Button {
-                            options.append("")
+                            optionDrafts.append(OptionDraft(text: ""))
                         } label: {
                             Label("Adicionar opção", systemImage: "plus.circle.fill")
                                 .font(Theme.body(14, weight: .semibold))
@@ -471,8 +479,8 @@ struct SetQuestionEditorView: View {
                         saved.isRequired = isRequired
                         saved.options = question.kind == "text"
                             ? nil
-                            : options
-                                .map { $0.trimmingCharacters(in: .whitespaces) }
+                            : optionDrafts
+                                .map { $0.text.trimmingCharacters(in: .whitespaces) }
                                 .filter { !$0.isEmpty }
                         onSave(saved)
                         dismiss()

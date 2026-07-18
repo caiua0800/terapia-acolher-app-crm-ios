@@ -283,8 +283,38 @@ enum FinFormat {
         return raw.prefix(1).uppercased() + raw.dropFirst()
     }
 
+    private static let utcCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }()
+
+    /// Timestamps exatamente à meia-noite UTC são datas-calendário do backend
+    /// (transações manuais, vencimentos). Timestamps com hora (SESSION_AUTO)
+    /// são momentos reais e devem ser tratados no fuso local.
+    static func isUTCCalendarDay(_ date: Date) -> Bool {
+        let comps = utcCalendar.dateComponents([.hour, .minute, .second], from: date)
+        return comps.hour == 0 && comps.minute == 0 && comps.second == 0
+    }
+
+    /// Converte um dia-calendário UTC (meia-noite UTC) pra data no MESMO dia
+    /// do fuso local. Timestamps reais passam inalterados.
+    static func localDate(fromCalendarDay date: Date) -> Date {
+        guard isUTCCalendarDay(date) else { return date }
+        let comps = utcCalendar.dateComponents([.year, .month, .day], from: date)
+        return Calendar.current.date(from: comps) ?? date
+    }
+
     /// "Hoje", "Ontem" ou dd/MM.
+    /// Dias-calendário UTC são comparados/formatados pelo dia UTC gravado;
+    /// timestamps reais (SESSION_AUTO), pelo fuso local.
     static func relativeDay(_ date: Date) -> String {
+        if isUTCCalendarDay(date) {
+            let local = localDate(fromCalendarDay: date)
+            if Calendar.current.isDateInToday(local) { return "Hoje" }
+            if Calendar.current.isDateInYesterday(local) { return "Ontem" }
+            return dayMonthUTC.string(from: date)
+        }
         if Calendar.current.isDateInToday(date) { return "Hoje" }
         if Calendar.current.isDateInYesterday(date) { return "Ontem" }
         return dayMonth.string(from: date)

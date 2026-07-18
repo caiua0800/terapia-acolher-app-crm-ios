@@ -136,7 +136,9 @@ struct PatientMainDataView: View {
             Divider().overlay(Theme.border)
             readRow(
                 "Nascimento",
-                detail.birthDate.map { PatientFormat.fullDate.string(from: $0) } ?? "—"
+                // Dia-calendário gravado à meia-noite UTC → formatar em UTC
+                // (no fuso local mostraria o dia anterior).
+                detail.birthDate.map { PatientFormat.fullDateUTC.string(from: $0) } ?? "—"
             )
             Divider().overlay(Theme.border)
             readRow("Status", detail.status == "ACTIVE" ? "Ativo" : "Inativo")
