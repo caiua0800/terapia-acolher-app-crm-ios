@@ -52,6 +52,8 @@ struct PatientStats: Codable, Hashable {
 struct PatientDetail: Codable, Identifiable, Hashable {
     let id: String
     let name: String
+    /// URL assinada da foto (expira em 5 min) — nil quando não há foto.
+    let photoUrl: String?
     let status: String
     let group: PatientGroupRef?
     let cpfMasked: String?
@@ -202,6 +204,37 @@ enum PatientsAPI {
     static func delete(id: String) async throws -> PatientDeleteResponse {
         try await APIClient.shared.delete("patients/\(id)")
     }
+
+    // MARK: Foto
+    //
+    // Upload e remoção devolvem a ficha recarregada em vez do `{url}` cru: a
+    // `photoUrl` é assinada e expira, então a tela precisa da versão nova de
+    // qualquer forma — devolver a ficha evita uma segunda ida à rede.
+
+    static func uploadPhoto(id: String, jpeg: Data) async throws -> PatientDetail {
+        let _: PatientPhotoResponse = try await APIClient.shared.upload(
+            "patients/\(id)/photo",
+            fileData: jpeg,
+            fileName: "foto.jpg",
+            mimeType: "image/jpeg"
+        )
+        return try await detail(id: id)
+    }
+
+    static func deletePhoto(id: String) async throws -> PatientDetail {
+        let _: PatientPhotoDeleteResponse = try await APIClient.shared.delete(
+            "patients/\(id)/photo"
+        )
+        return try await detail(id: id)
+    }
+}
+
+struct PatientPhotoResponse: Decodable {
+    let url: String?
+}
+
+struct PatientPhotoDeleteResponse: Decodable {
+    let deleted: Bool
 }
 
 // MARK: - Formatação PT-BR

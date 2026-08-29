@@ -8,7 +8,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: '5.10'
-    DEVELOPMENT_TEAM: ''
+    DEVELOPMENT_TEAM: 4JAK4K7U7G
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_KEY_UILaunchScreen_Generation: true
     INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
@@ -22,9 +22,13 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ccypher.terapiaacolher
-        MARKETING_VERSION: '0.1.0'
-        CURRENT_PROJECT_VERSION: '1'
+        MARKETING_VERSION: '1.0.0'
+        CURRENT_PROJECT_VERSION: '2'
         INFOPLIST_FILE: TerapiaAcolher/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: '1'
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
   TerapiaAcolherUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -48,4 +52,11 @@ schemes:
     test:
       config: Debug
       targets:
-        - TerapiaAcolherUITests
+        - name: TerapiaAcolherUITests
+          # Varredura visual (só tira screenshots, ~3 min) fica fora da suíte
+          # padrão. Rodar sob demanda:
+          #   xcodebuild test ... -only-testing:TerapiaAcolherUITests/DesignAuditUITests
+          skippedTests:
+            - DesignAuditUITests
+            # Depende do backend LOCAL com chave de IA — não roda na suíte padrão.
+            - AiFlowUITests

@@ -1,4 +1,9 @@
 .DS_Store
 DerivedData/
+# scripts/run-sim.sh usa -derivedDataPath build
+build/
 *.xcuserstate
 xcuserdata/
+
+# Provisioning profiles (instalar localmente, nao versionar)
+*.mobileprovision

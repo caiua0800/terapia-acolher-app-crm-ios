@@ -7,6 +7,9 @@ final class RecNotesViewModel {
     let patient: RecPatientRef
     var notes: [RecNote] = []
     var isLoading = true
+    /// Anotação sendo excluída — o card mostra o estado enquanto a
+    /// requisição está em voo (antes ela sumia só quando a API respondia).
+    var deletingNoteId: String? = nil
     var errorMessage: String? = nil
 
     init(patient: RecPatientRef) {
@@ -25,6 +28,8 @@ final class RecNotesViewModel {
         errorMessage = nil
         do {
             notes = try await RecordsAPI.notes(patientId: patient.id)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -35,9 +40,13 @@ final class RecNotesViewModel {
 
     @MainActor
     func delete(_ note: RecNote) async {
+        deletingNoteId = note.id
+        defer { deletingNoteId = nil }
         do {
             try await RecordsAPI.deleteNote(patientId: patient.id, id: note.id)
             notes.removeAll { $0.id == note.id }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -147,7 +156,7 @@ struct RecNotesView: View {
                             .foregroundStyle(Theme.danger)
                     }
                     ForEach(model.notes) { note in
-                        RecNoteCard(note: note)
+                        RecNoteCard(note: note, isDeleting: model.deletingNoteId == note.id)
                             .contextMenu {
                                 Button {
                                     composerNote = RecNoteEditorContext(note: note)
@@ -183,6 +192,7 @@ struct RecNoteEditorContext: Identifiable {
 
 struct RecNoteCard: View {
     let note: RecNote
+    var isDeleting = false
 
     var body: some View {
         ThemeCard {
@@ -193,7 +203,14 @@ struct RecNoteCard: View {
                         .foregroundStyle(Theme.textSecondary)
                         .tracking(0.5)
                     Spacer()
-                    if let tag = note.tag, !tag.isEmpty {
+                    if isDeleting {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small).tint(Theme.danger)
+                            Text("Excluindo…")
+                                .font(Theme.body(12, weight: .semibold))
+                                .foregroundStyle(Theme.danger)
+                        }
+                    } else if let tag = note.tag, !tag.isEmpty {
                         StatusBadge(label: tag, color: Theme.success, background: Theme.successSoft)
                     }
                 }
@@ -248,6 +265,8 @@ final class RecNoteEditorViewModel {
                 _ = try await RecordsAPI.createNote(patientId: patient.id, payload)
             }
             return true
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {

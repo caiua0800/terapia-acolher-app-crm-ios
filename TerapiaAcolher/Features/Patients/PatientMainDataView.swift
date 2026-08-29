@@ -22,6 +22,8 @@ final class PatientMainDataViewModel {
         errorMessage = nil
         do {
             detail = try await PatientsAPI.detail(id: patientId)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -42,6 +44,8 @@ final class PatientMainDataViewModel {
             } else {
                 revealError = "CPF não cadastrado."
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             revealError = error.message
         } catch {

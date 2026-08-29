@@ -13,6 +13,18 @@ struct DocPatientGroup: Codable, Hashable {
     let color: String?
 }
 
+extension DocPatientRef {
+    /// Ponte a partir da ficha do paciente — documentos e anexos são acessados
+    /// de dentro do paciente, não por uma lista própria.
+    init(from detail: PatientDetail) {
+        self.init(
+            id: detail.id,
+            name: detail.name,
+            group: DocPatientGroup(color: detail.group?.color)
+        )
+    }
+}
+
 // MARK: - Documento gerado
 
 struct DocItem: Decodable, Identifiable {

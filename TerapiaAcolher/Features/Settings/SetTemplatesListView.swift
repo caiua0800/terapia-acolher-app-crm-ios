@@ -52,32 +52,6 @@ struct SetTemplatesListView: View {
                 }
             }
         }
-        .confirmationDialog(
-            systemActionTemplate.map { "\($0.name) · modelo do sistema" } ?? "",
-            isPresented: Binding(
-                get: { systemActionTemplate != nil },
-                set: { if !$0 { systemActionTemplate = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Duplicar para meus modelos") {
-                if let template = systemActionTemplate {
-                    Task {
-                        await viewModel.duplicate(template)
-                        onChanged()
-                    }
-                }
-            }
-            Button("Restaurar padrão original") {
-                Task {
-                    await viewModel.restoreDefaults(type: type)
-                    onChanged()
-                }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Modelos do sistema são somente leitura. Duplique para editar, ou restaure o padrão original para seus modelos.")
-        }
         .alert("Ops", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -127,7 +101,7 @@ struct SetTemplatesListView: View {
                             } label: {
                                 templateRow(template)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.pressableSubtle)
                         }
                     }
                 }
@@ -157,10 +131,36 @@ struct SetTemplatesListView: View {
                                     icon: type.icon,
                                     iconColor: Theme.textSecondary,
                                     title: "\(template.name) (original)",
-                                    subtitle: "Restaurar para o modelo original"
+                                    subtitle: "Restaurar para o modelo original",
+                                    isWorking: viewModel.workingTemplateId == template.id
                                 )
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.pressableSubtle)
+                            .disabled(viewModel.workingTemplateId != nil)
+                            .confirmationDialog(
+                                "\(template.name) · modelo do sistema",
+                                isPresented: Binding(
+                                    get: { systemActionTemplate?.id == template.id },
+                                    set: { if !$0 { systemActionTemplate = nil } }
+                                ),
+                                titleVisibility: .visible
+                            ) {
+                                Button("Duplicar para meus modelos") {
+                                    Task {
+                                        await viewModel.duplicate(template)
+                                        onChanged()
+                                    }
+                                }
+                                Button("Restaurar padrão original") {
+                                    Task {
+                                        await viewModel.restoreDefaults(type: type, from: template)
+                                        onChanged()
+                                    }
+                                }
+                                Button("Cancelar", role: .cancel) {}
+                            } message: {
+                                Text("Modelos do sistema são somente leitura. Duplique para editar, ou restaure o padrão original para seus modelos.")
+                            }
                         }
                     }
                 }
@@ -231,6 +231,8 @@ final class SetTemplatesViewModel {
     var userTemplates: [SetTemplate] = []
     var systemTemplates: [SetTemplate] = []
     var isLoading = true
+    /// Modelo do sistema com duplicar/restaurar em voo — spinner na linha.
+    var workingTemplateId: String?
     var errorMessage: String?
     var showError = false
     var showRestored = false
@@ -253,6 +255,8 @@ final class SetTemplatesViewModel {
 
     @MainActor
     func duplicate(_ template: SetTemplate) async {
+        workingTemplateId = template.id
+        defer { workingTemplateId = nil }
         do {
             let _: EmptyResponse = try await APIClient.shared.post("templates/\(template.id)/duplicate")
             await load(type: SetTemplateType(rawValue: template.type) ?? .record)
@@ -262,7 +266,9 @@ final class SetTemplatesViewModel {
     }
 
     @MainActor
-    func restoreDefaults(type: SetTemplateType) async {
+    func restoreDefaults(type: SetTemplateType, from template: SetTemplate? = nil) async {
+        workingTemplateId = template?.id
+        defer { workingTemplateId = nil }
         do {
             let result: SetRestoreResult = try await SetAPI.postQuery(
                 "templates/restore-defaults",

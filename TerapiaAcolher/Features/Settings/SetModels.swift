@@ -282,6 +282,8 @@ struct SetRow: View {
     var subtitle: String? = nil
     var trailing: String? = nil
     var showChevron = true
+    /// Ação de rede em voo nesta linha: o chevron vira spinner.
+    var isWorking = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -295,10 +297,15 @@ struct SetRow: View {
                 Text(title)
                     .font(Theme.body(15, weight: .medium))
                     .foregroundStyle(Theme.textPrimary)
+                    // Com valor à direita o título quebrava em duas linhas e
+                    // colidia com ele ("Google Calendar · Meet" / "Desconectado").
+                    .lineLimit(trailing == nil ? 2 : 1)
+                    .minimumScaleFactor(0.85)
                 if let subtitle {
                     Text(subtitle)
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(2)
                 }
             }
             Spacer(minLength: 8)
@@ -306,8 +313,12 @@ struct SetRow: View {
                 Text(trailing)
                     .font(Theme.body(14))
                     .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            if showChevron {
+            if isWorking {
+                ProgressView().controlSize(.small).tint(Theme.textSecondary)
+            } else if showChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Theme.textSecondary.opacity(0.6))
@@ -316,6 +327,7 @@ struct SetRow: View {
         .padding(.horizontal, Theme.cardPadding)
         .padding(.vertical, 13)
         .contentShape(Rectangle())
+        .animation(.easeInOut(duration: 0.15), value: isWorking)
     }
 }
 

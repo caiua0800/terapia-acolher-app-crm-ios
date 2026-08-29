@@ -269,6 +269,8 @@ struct FinTransactionFormView: View {
             }
             onSaved()
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível salvar a transação."
         }

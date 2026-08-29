@@ -23,6 +23,8 @@ final class AuthForgotModel {
                 body: Body(email: email.trimmingCharacters(in: .whitespaces))
             )
             sentMessage = response.message
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -139,6 +141,8 @@ final class AuthResetModel {
                 body: Body(token: token.trimmingCharacters(in: .whitespacesAndNewlines), newPassword: newPassword)
             )
             successMessage = response.message
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {

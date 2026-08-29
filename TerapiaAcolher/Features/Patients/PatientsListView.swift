@@ -43,6 +43,8 @@ final class PatientsListViewModel {
             let (patients, groups) = try await (patientsCall, groupsCall)
             self.patients = patients
             self.groups = groups
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -76,6 +78,8 @@ final class PatientsListViewModel {
 struct PatientsListView: View {
     @State private var model = PatientsListViewModel()
     @State private var showNewPatient = false
+    @State private var showAddOptions = false
+    @State private var showImport = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -87,7 +91,11 @@ struct PatientsListView: View {
                 content
             }
 
-            FloatingActionButton { showNewPatient = true }
+            FloatingActionButton { showAddOptions = true }
+                .confirmationDialog("Adicionar pacientes", isPresented: $showAddOptions, titleVisibility: .visible) {
+                    Button("Novo paciente") { showNewPatient = true }
+                    Button("Importar planilha (CSV/Excel)") { showImport = true }
+                }
                 .padding(.trailing, Theme.screenPadding)
                 .padding(.bottom, 24)
 
@@ -102,6 +110,12 @@ struct PatientsListView: View {
             PatientFormView(mode: .create) { _ in
                 Task { await model.load(showSpinner: false) }
                 model.showToast("Paciente cadastrado")
+            }
+        }
+        .sheet(isPresented: $showImport) {
+            PatientImportView {
+                Task { await model.load(showSpinner: false) }
+                model.showToast("Pacientes importados")
             }
         }
         .task { await model.load() }
@@ -198,10 +212,14 @@ struct PatientsListView: View {
                         } label: {
                             PatientRow(patient: patient)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressableSubtle)
                         if patient.id != model.sortedPatients.last?.id {
-                            Divider().overlay(Theme.border)
-                                .padding(.leading, Theme.screenPadding + 56)
+                            // Divisor alinhado ao texto e recuado da margem
+                            // direita — antes ele encostava na borda da tela.
+                            InsetDivider(
+                                leading: Theme.screenPadding + 58,
+                                trailing: Theme.screenPadding
+                            )
                         }
                     }
                 }

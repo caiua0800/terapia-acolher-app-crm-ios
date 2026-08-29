@@ -278,10 +278,16 @@ struct AgendaTypeBadge: View {
             .background(Color(hex: 0xDDEAF3))
             .foregroundStyle(Color(hex: 0x3E637F))
             .clipShape(Capsule())
+            // Sem isto a badge cede espaço quando o nome do paciente é longo e
+            // "Online" quebra letra a letra (O/nl/in/e) — como no Presencial abaixo.
+            .lineLimit(1)
+            .fixedSize()
         } else {
             Text("Presencial")
                 .font(Theme.body(12, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary.opacity(0.75))
+                .lineLimit(1)
+                .fixedSize()
         }
     }
 }
@@ -295,10 +301,21 @@ struct AgendaSessionCardRow: View {
     let isOnline: Bool
     let timeText: String
     var statusLabel: String? = nil // só quando != agendada
+    var recurrenceLabel: String? = nil // só quando recorrente ("Semanal" etc.)
+    /// `false` quando quem chama já desenha o card (pra encaixar ações extras
+    /// dentro do mesmo ThemeCard, como as do Meet na agenda-lista).
+    var withCard: Bool = true
 
     var body: some View {
-        ThemeCard(padding: 14) {
-            HStack(spacing: 12) {
+        if withCard {
+            ThemeCard(padding: 14) { content }
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        HStack(spacing: 12) {
                 InitialAvatar(name: name, colorHex: groupColorHex, size: 46)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(name)
@@ -313,6 +330,20 @@ struct AgendaSessionCardRow: View {
                             Text(groupName)
                                 .font(Theme.body(12, weight: .medium))
                                 .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(1)
+                        }
+                        if let recurrenceLabel {
+                            Text("·")
+                                .foregroundStyle(Theme.textSecondary)
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text(recurrenceLabel)
+                                    .font(Theme.body(12, weight: .medium))
+                                    .lineLimit(1)
+                                    .fixedSize()
+                            }
+                            .foregroundStyle(Theme.primary)
                         }
                     }
                 }
@@ -333,7 +364,6 @@ struct AgendaSessionCardRow: View {
                 }
             }
         }
-    }
 
     private var statusColor: Color {
         switch statusLabel {
@@ -346,14 +376,16 @@ struct AgendaSessionCardRow: View {
 }
 
 extension AgendaSessionCardRow {
-    init(session: AgendaSession) {
+    init(session: AgendaSession, withCard: Bool = true) {
         self.init(
             name: session.patient.name,
             groupName: session.patient.group?.name,
             groupColorHex: session.patient.group?.color,
             isOnline: session.isOnline,
             timeText: AgendaFormat.time.string(from: session.startsAt),
-            statusLabel: session.isScheduled ? nil : session.statusLabel
+            statusLabel: session.isScheduled ? nil : session.statusLabel,
+            recurrenceLabel: session.isRecurring ? session.recurrenceLabel : nil,
+            withCard: withCard
         )
     }
 }

@@ -20,13 +20,14 @@ final class FinHomeViewModel {
     }
 
     var monthDate = Date()
-    var tab: Tab = .registros
+    var tab: Tab = .balanco
     var filter: Filter = .all
     var transactions: [FinTransaction] = []
     var balance: FinBalance?
     var isLoading = false
     var errorMessage: String?
     var expandedId: String?
+    var deletingId: String? // transação com exclusão em voo (spinner na linha)
 
     var monthQuery: String { FinFormat.monthQuery.string(from: monthDate) }
     var monthTitle: String { FinFormat.monthTitleText(monthDate) }
@@ -59,15 +60,21 @@ final class FinHomeViewModel {
             async let listTask = FinanceAPI.transactions(month: month, type: type, recurring: recurring)
             balance = try await balanceTask
             transactions = try await listTask
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar o financeiro."
         }
     }
 
     func delete(_ transaction: FinTransaction) async {
+        deletingId = transaction.id
+        defer { deletingId = nil }
         do {
             _ = try await FinanceAPI.deleteTransaction(id: transaction.id)
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível excluir a transação."
         }
@@ -92,7 +99,7 @@ struct FinanceHomeView: View {
                     monthNavigator
                     quickLinks
                     FinSegmentedControl(
-                        options: [("Registros", FinHomeViewModel.Tab.registros), ("Balanço", .balanco)],
+                        options: [("Balanço", FinHomeViewModel.Tab.balanco), ("Registros", .registros)],
                         selection: $model.tab
                     )
 
@@ -107,7 +114,6 @@ struct FinanceHomeView: View {
             .refreshable { await model.load() }
 
             FloatingActionButton {
-                editingTransaction = nil
                 showTransactionForm = true
             }
             .padding(.trailing, Theme.screenPadding)
@@ -124,7 +130,15 @@ struct FinanceHomeView: View {
             hasAppeared = true
         }
         .sheet(isPresented: $showTransactionForm) {
-            FinTransactionFormView(existing: editingTransaction) {
+            FinTransactionFormView(existing: nil) {
+                Task { await model.load() }
+            }
+        }
+        // sheet(item:) garante que o form é criado já com a transação em mãos —
+        // com isPresented: o SwiftUI pode montar a view antes do estado propagar
+        // e o @State inicial fica vazio.
+        .sheet(item: $editingTransaction) { transaction in
+            FinTransactionFormView(existing: transaction) {
                 Task { await model.load() }
             }
         }
@@ -163,7 +177,7 @@ struct FinanceHomeView: View {
             Spacer()
             monthArrow("chevron.right") { model.changeMonth(1) }
         }
-        .padding(.top, 4)
+        .padding(.top, 10)
     }
 
     private func monthArrow(_ icon: String, action: @escaping () -> Void) -> some View {
@@ -323,10 +337,8 @@ struct FinanceHomeView: View {
                 FinTransactionCell(
                     transaction: transaction,
                     expandedId: $model.expandedId,
-                    onEdit: { editing in
-                        editingTransaction = editing
-                        showTransactionForm = true
-                    },
+                    isDeleting: model.deletingId == transaction.id,
+                    onEdit: { editingTransaction = $0 },
                     onDelete: { deletingTransaction = $0 }
                 )
                 if transaction.id != items.last?.id {

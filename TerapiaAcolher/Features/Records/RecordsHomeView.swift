@@ -17,6 +17,8 @@ final class RecordsHomeViewModel {
         errorMessage = nil
         do {
             patients = try await PatientsAPI.list(status: "ACTIVE", search: searchText)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -104,10 +106,12 @@ struct RecordsHomeView: View {
                         } label: {
                             PatientRow(patient: patient)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressableSubtle)
                         if patient.id != model.patients.last?.id {
-                            Divider().overlay(Theme.border)
-                                .padding(.leading, Theme.screenPadding + 56)
+                            InsetDivider(
+                                leading: Theme.screenPadding + 58,
+                                trailing: Theme.screenPadding
+                            )
                         }
                     }
                 }
@@ -139,6 +143,8 @@ final class RecTimelineViewModel {
         errorMessage = nil
         do {
             entries = try await RecordsAPI.entries(patientId: patient.id, kind: kind)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -258,7 +264,7 @@ struct RecTimelineView: View {
                         } label: {
                             RecEntryCard(entry: entry)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressableSubtle)
                     }
                 }
                 .padding(.horizontal, Theme.screenPadding)

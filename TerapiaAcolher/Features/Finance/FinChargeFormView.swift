@@ -146,6 +146,8 @@ struct FinChargeFormView: View {
             _ = try await FinanceAPI.createCharge(body)
             onSaved()
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível criar a cobrança."
         }

@@ -147,7 +147,7 @@ struct AgendaWeekView: View {
                         } label: {
                             sessionBlock(session, height: frame.height)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressableSubtle)
                         .frame(width: columnWidth - 5, height: frame.height)
                         .offset(x: frame.x, y: frame.y)
                     }

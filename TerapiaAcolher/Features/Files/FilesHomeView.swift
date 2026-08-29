@@ -2,114 +2,10 @@ import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - Home de Arquivos: escolher paciente → anexos (substitui a placeholder)
-
-struct FilesHomeView: View {
-    @State private var selectedPatient: PFilePatientRef?
-    @State private var patients: [PFilePatientRef] = []
-    @State private var search = ""
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasAppeared = false
-
-    var body: some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 12) {
-                    Text("Escolha o paciente pra ver e anexar arquivos.")
-                        .font(Theme.body(14))
-                        .foregroundStyle(Theme.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Theme.textSecondary)
-                        TextField("Buscar paciente...", text: $search)
-                            .font(Theme.body(15))
-                            .autocorrectionDisabled()
-                            .onSubmit { Task { await load() } }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .background(Theme.surface, in: Capsule())
-                    .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
-
-                    if isLoading, patients.isEmpty {
-                        ProgressView().padding(.top, 40)
-                    } else if patients.isEmpty {
-                        EmptyStateView(
-                            icon: "folder",
-                            title: "Nenhum paciente",
-                            message: "Cadastre pacientes pra guardar exames, cartas e PDFs."
-                        )
-                    } else {
-                        VStack(spacing: 0) {
-                            ForEach(patients) { patient in
-                                Button {
-                                    selectedPatient = patient
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        InitialAvatar(name: patient.name, colorHex: patient.group?.color, size: 40)
-                                        Text(patient.name)
-                                            .font(Theme.body(15, weight: .semibold))
-                                            .foregroundStyle(Theme.textPrimary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(Theme.textSecondary)
-                                    }
-                                    .padding(.vertical, 12)
-                                    .padding(.horizontal, 14)
-                                }
-                                if patient.id != patients.last?.id {
-                                    Divider().overlay(Theme.border)
-                                }
-                            }
-                        }
-                        .background(Theme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.cornerRadius)
-                                .stroke(Theme.border, lineWidth: 1)
-                        )
-                    }
-                }
-                .padding(Theme.screenPadding)
-            }
-        }
-        .task { await load() }
-        // Recarrega ao voltar da tela empurrada (.task não roda de novo).
-        .onAppear {
-            if hasAppeared {
-                Task { await load() }
-            }
-            hasAppeared = true
-        }
-        .navigationDestination(item: $selectedPatient) { patient in
-            PFilePatientFilesView(patient: patient)
-        }
-        .alert("Ops", isPresented: .init(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(errorMessage ?? "")
-        }
-    }
-
-    private func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            patients = try await PFilesAPI.patients(search: search.isEmpty ? nil : search)
-        } catch {
-            errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os pacientes."
-        }
-    }
-}
-
+// MARK: - Anexos do paciente
+//
+// A tela-seletor que existia aqui foi removida em 2026-08-30 pelo mesmo motivo dos
+// documentos: era uma terceira lista de pacientes. A entrada é a ficha do paciente.
 // MARK: - ViewModel dos anexos do paciente
 
 @MainActor
@@ -144,6 +40,8 @@ final class PFilePatientFilesViewModel {
     var totalSizeBytes = 0
     var isLoading = false
     var isUploading = false
+    /// Arquivo com ação em voo — spinner no "···" da própria linha tocada.
+    var workingFileId: String?
     var errorMessage: String?
     var webLink: PFileWebLink?
 
@@ -163,6 +61,8 @@ final class PFilePatientFilesViewModel {
             files = response.files
             count = response.count
             totalSizeBytes = response.totalSizeBytes
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os arquivos."
         }
@@ -185,12 +85,16 @@ final class PFilePatientFilesViewModel {
                 category: category
             )
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível enviar o arquivo."
         }
     }
 
     func rename(_ file: PFileItem, to newName: String) async {
+        workingFileId = file.id
+        defer { workingFileId = nil }
         do {
             _ = try await PFilesAPI.update(
                 patientId: patient.id,
@@ -198,12 +102,16 @@ final class PFilePatientFilesViewModel {
                 body: PFileUpdateBody(fileName: newName, category: nil)
             )
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível renomear o arquivo."
         }
     }
 
     func changeCategory(_ file: PFileItem, to category: PFileCategory) async {
+        workingFileId = file.id
+        defer { workingFileId = nil }
         do {
             _ = try await PFilesAPI.update(
                 patientId: patient.id,
@@ -211,26 +119,36 @@ final class PFilePatientFilesViewModel {
                 body: PFileUpdateBody(fileName: nil, category: category.rawValue)
             )
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível mudar a categoria."
         }
     }
 
     func download(_ file: PFileItem) async {
+        workingFileId = file.id
+        defer { workingFileId = nil }
         do {
             let response = try await PFilesAPI.downloadUrl(patientId: patient.id, id: file.id)
             if let url = URL(string: response.url) {
                 webLink = PFileWebLink(url: url)
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível baixar o arquivo."
         }
     }
 
     func remove(_ file: PFileItem) async {
+        workingFileId = file.id
+        defer { workingFileId = nil }
         do {
             _ = try await PFilesAPI.remove(patientId: patient.id, id: file.id)
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível excluir o arquivo."
         }
@@ -291,6 +209,27 @@ struct PFilePatientFilesView: View {
             FloatingActionButton(icon: "paperclip") {
                 showAttachDialog = true
             }
+            .confirmationDialog("Anexar arquivo", isPresented: $showAttachDialog, titleVisibility: .visible) {
+                Button("Escolher da galeria") { showPhotosPicker = true }
+                Button("Escolher PDF ou documento") { showFileImporter = true }
+                Button("Cancelar", role: .cancel) {}
+            }
+            .confirmationDialog(
+                "Categoria do anexo",
+                isPresented: .init(
+                    get: { pendingUpload != nil },
+                    set: { if !$0 { pendingUpload = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Automática") { startUpload(category: nil) }
+                ForEach(PFileCategory.allCases, id: \.self) { category in
+                    Button(category.label) { startUpload(category: category) }
+                }
+                Button("Cancelar", role: .cancel) { pendingUpload = nil }
+            } message: {
+                Text("Escolha como classificar o arquivo (opcional).")
+            }
             .padding(.trailing, Theme.screenPadding)
             .padding(.bottom, 24)
 
@@ -301,11 +240,6 @@ struct PFilePatientFilesView: View {
         .navigationTitle("Arquivos")
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.load() }
-        .confirmationDialog("Anexar arquivo", isPresented: $showAttachDialog, titleVisibility: .visible) {
-            Button("Escolher da galeria") { showPhotosPicker = true }
-            Button("Escolher PDF ou documento") { showFileImporter = true }
-            Button("Cancelar", role: .cancel) {}
-        }
         .photosPicker(isPresented: $showPhotosPicker, selection: $photoItem, matching: .images)
         .fileImporter(
             isPresented: $showFileImporter,
@@ -316,22 +250,6 @@ struct PFilePatientFilesView: View {
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task { await handlePickedPhoto(item) }
-        }
-        .confirmationDialog(
-            "Categoria do anexo",
-            isPresented: .init(
-                get: { pendingUpload != nil },
-                set: { if !$0 { pendingUpload = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Automática") { startUpload(category: nil) }
-            ForEach(PFileCategory.allCases, id: \.self) { category in
-                Button(category.label) { startUpload(category: category) }
-            }
-            Button("Cancelar", role: .cancel) { pendingUpload = nil }
-        } message: {
-            Text("Escolha como classificar o arquivo (opcional).")
         }
         .sheet(item: $model.webLink) { link in
             PFileSafariView(url: link.url).ignoresSafeArea()
@@ -520,12 +438,23 @@ struct PFilePatientFilesView: View {
                 Label("Excluir", systemImage: "trash")
             }
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 30, height: 34)
-                .contentShape(Rectangle())
+            // Baixar/renomear/categoria/excluir respondem aqui mesmo: o "···"
+            // vira spinner assim que a requisição sai.
+            ZStack {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .opacity(model.workingFileId == file.id ? 0 : 1)
+                if model.workingFileId == file.id {
+                    ProgressView().controlSize(.small).tint(Theme.textSecondary)
+                }
+            }
+            .foregroundStyle(Theme.textSecondary)
+            .frame(width: 30, height: 34)
+            .contentShape(Rectangle())
+            .animation(.easeInOut(duration: 0.15), value: model.workingFileId)
         }
+        .disabled(model.workingFileId != nil)
+        .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
     }
 
     private var uploadOverlay: some View {

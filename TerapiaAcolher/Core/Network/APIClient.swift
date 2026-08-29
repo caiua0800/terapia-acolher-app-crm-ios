@@ -2,14 +2,9 @@ import Foundation
 
 /// Configuração de ambiente da API.
 enum AppConfig {
-    /// Simulador alcança o backend local direto em localhost.
-    /// Produção: https://api.terapiaacolher.com.br (trocar no build de release).
+    /// Backend de produção (para desenvolvimento local, trocar por http://localhost:3000).
     static var apiBaseURL: URL {
-        #if DEBUG
-        URL(string: "http://localhost:3000")!
-        #else
-        URL(string: "https://api.terapiaacolher.com.br")!
-        #endif
+        URL(string: "https://acolher-api.ccypher.com.br")!
     }
 }
 
@@ -164,7 +159,16 @@ final class APIClient {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await session.data(for: urlRequest)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            // Task do SwiftUI cancelada (refresh interrompido, troca de aba/tela
+            // com load em voo) — não é falha real; propaga como cancelamento
+            // pros view models ignorarem em vez de mostrar alerta de erro.
+            throw CancellationError()
+        }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
         // O próprio refresh nunca dispara refresh (evita recursão infinita

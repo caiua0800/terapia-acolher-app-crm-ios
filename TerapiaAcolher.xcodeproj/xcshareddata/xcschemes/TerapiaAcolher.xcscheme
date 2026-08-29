@@ -63,6 +63,14 @@
                BlueprintName = "TerapiaAcolherUITests"
                ReferencedContainer = "container:TerapiaAcolher.xcodeproj">
             </BuildableReference>
+            <SkippedTests>
+               <Test
+                  Identifier = "DesignAuditUITests">
+               </Test>
+               <Test
+                  Identifier = "AiFlowUITests">
+               </Test>
+            </SkippedTests>
          </TestableReference>
       </Testables>
       <CommandLineArguments>

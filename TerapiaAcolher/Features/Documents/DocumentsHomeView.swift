@@ -1,121 +1,10 @@
 import SwiftUI
 
-// MARK: - Home de Documentos: escolher paciente → documentos (substitui a placeholder)
-
-struct DocumentsHomeView: View {
-    @State private var selectedPatient: DocPatientRef?
-    @State private var patients: [DocPatientRef] = []
-    @State private var search = ""
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var hasAppeared = false
-
-    var body: some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 12) {
-                    Text("Escolha o paciente pra ver e gerar documentos.")
-                        .font(Theme.body(14))
-                        .foregroundStyle(Theme.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    searchField
-
-                    if isLoading, patients.isEmpty {
-                        ProgressView().padding(.top, 40)
-                    } else if patients.isEmpty {
-                        EmptyStateView(
-                            icon: "doc",
-                            title: "Nenhum paciente",
-                            message: "Cadastre pacientes pra gerar recibos, atestados e contratos."
-                        )
-                    } else {
-                        patientList
-                    }
-                }
-                .padding(Theme.screenPadding)
-            }
-        }
-        .task { await load() }
-        // Recarrega ao voltar da tela empurrada (.task não roda de novo).
-        .onAppear {
-            if hasAppeared {
-                Task { await load() }
-            }
-            hasAppeared = true
-        }
-        .navigationDestination(item: $selectedPatient) { patient in
-            DocPatientDocumentsView(patient: patient)
-        }
-        .alert("Ops", isPresented: .init(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(errorMessage ?? "")
-        }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(Theme.textSecondary)
-            TextField("Buscar paciente...", text: $search)
-                .font(Theme.body(15))
-                .autocorrectionDisabled()
-                .onSubmit { Task { await load() } }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Theme.surface, in: Capsule())
-        .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
-    }
-
-    private var patientList: some View {
-        VStack(spacing: 0) {
-            ForEach(patients) { patient in
-                Button {
-                    selectedPatient = patient
-                } label: {
-                    HStack(spacing: 12) {
-                        InitialAvatar(name: patient.name, colorHex: patient.group?.color, size: 40)
-                        Text(patient.name)
-                            .font(Theme.body(15, weight: .semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 14)
-                }
-                if patient.id != patients.last?.id {
-                    Divider().overlay(Theme.border)
-                }
-            }
-        }
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.cornerRadius)
-                .stroke(Theme.border, lineWidth: 1)
-        )
-    }
-
-    private func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            patients = try await DocumentsAPI.patients(search: search.isEmpty ? nil : search)
-        } catch {
-            errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os pacientes."
-        }
-    }
-}
-
+// MARK: - Documentos do paciente
+//
+// A tela-seletor que existia aqui (menu → lista de pacientes → documentos) foi
+// removida em 2026-08-30: era uma segunda lista de pacientes. A entrada agora é
+// a própria ficha do paciente, onde o dado sempre viveu (`/patients/{id}/documents`).
 // MARK: - ViewModel dos documentos do paciente
 
 @MainActor
@@ -125,6 +14,9 @@ final class DocPatientDocumentsViewModel {
     var documents: [DocItem] = []
     var isLoading = false
     var isWorking = false
+    /// Documento com ação em voo — o spinner aparece na LINHA tocada, não
+    /// numa barra genérica: é o toque que precisa responder.
+    var workingDocumentId: String?
     var errorMessage: String?
     var webLink: DocWebLink?
 
@@ -137,6 +29,8 @@ final class DocPatientDocumentsViewModel {
         defer { isLoading = false }
         do {
             documents = try await DocumentsAPI.list(patientId: patient.id)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os documentos."
         }
@@ -144,12 +38,15 @@ final class DocPatientDocumentsViewModel {
 
     func open(_ document: DocItem) async {
         isWorking = true
-        defer { isWorking = false }
+        workingDocumentId = document.id
+        defer { isWorking = false; workingDocumentId = nil }
         do {
             let response = try await DocumentsAPI.downloadUrl(patientId: patient.id, id: document.id)
             if let url = URL(string: response.url) {
                 webLink = DocWebLink(url: url)
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível abrir o documento."
         }
@@ -157,10 +54,13 @@ final class DocPatientDocumentsViewModel {
 
     func sign(_ document: DocItem) async {
         isWorking = true
-        defer { isWorking = false }
+        workingDocumentId = document.id
+        defer { isWorking = false; workingDocumentId = nil }
         do {
             _ = try await DocumentsAPI.sign(patientId: patient.id, id: document.id)
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível assinar o documento."
         }
@@ -168,10 +68,13 @@ final class DocPatientDocumentsViewModel {
 
     func remove(_ document: DocItem) async {
         isWorking = true
-        defer { isWorking = false }
+        workingDocumentId = document.id
+        defer { isWorking = false; workingDocumentId = nil }
         do {
             _ = try await DocumentsAPI.remove(patientId: patient.id, id: document.id)
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível excluir o documento."
         }
@@ -312,15 +215,15 @@ struct DocPatientDocumentsView: View {
                 }
             }
             Spacer(minLength: 8)
-            Button {
+            AsyncIconButton(
+                icon: "square.and.arrow.up",
+                isLoading: model.workingDocumentId == document.id,
+                isEnabled: model.workingDocumentId == nil,
+                tint: Theme.textSecondary
+            ) {
                 Task { await model.open(document) }
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(width: 34, height: 34)
-                    .contentShape(Rectangle())
             }
+            .frame(width: 34, height: 34)
             documentMenu(document)
         }
         .padding(.vertical, 12)
@@ -347,11 +250,22 @@ struct DocPatientDocumentsView: View {
                 Label("Excluir", systemImage: "trash")
             }
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 26, height: 34)
-                .contentShape(Rectangle())
+            // Ações do menu (assinar/excluir) também respondem no próprio
+            // controle: o "···" vira spinner enquanto a requisição está em voo.
+            ZStack {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .opacity(model.workingDocumentId == document.id ? 0 : 1)
+                if model.workingDocumentId == document.id {
+                    ProgressView().controlSize(.small).tint(Theme.textSecondary)
+                }
+            }
+            .foregroundStyle(Theme.textSecondary)
+            .frame(width: 26, height: 34)
+            .contentShape(Rectangle())
+            .animation(.easeInOut(duration: 0.15), value: model.workingDocumentId)
         }
+        .disabled(model.workingDocumentId != nil)
+        .simultaneousGesture(TapGesture().onEnded { Haptics.tap() })
     }
 }

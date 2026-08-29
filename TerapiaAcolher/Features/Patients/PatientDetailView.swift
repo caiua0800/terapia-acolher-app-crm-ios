@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 // MARK: - ViewModel
@@ -21,12 +22,90 @@ final class PatientDetailViewModel {
         errorMessage = nil
         do {
             detail = try await PatientsAPI.detail(id: patientId)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
             errorMessage = "Não foi possível carregar a ficha."
         }
         isLoading = false
+    }
+
+    // MARK: Foto do paciente
+
+    var isWorkingPhoto = false
+    var photoError: String?
+    var showPhotoError = false
+
+    /// Lado máximo da foto enviada. A câmera do iPhone entrega ~4032×3024 e o
+    /// avatar é exibido a 96pt: enviar o original desperdiça banda do terapeuta,
+    /// tempo dele e espaço no Spaces, sem ganho visível.
+    private static let photoMaxSide: CGFloat = 1024
+
+    @MainActor
+    func uploadPhoto(from item: PhotosPickerItem) async {
+        isWorkingPhoto = true
+        defer { isWorkingPhoto = false }
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data)
+            else {
+                throw PhotoError.unreadable
+            }
+            guard let jpeg = Self.downscaledJPEG(image) else {
+                throw PhotoError.unreadable
+            }
+            detail = try await PatientsAPI.uploadPhoto(id: patientId, jpeg: jpeg)
+            Haptics.success()
+        } catch is CancellationError {
+            // cancelado pelo usuário — silencioso
+        } catch let error as APIError {
+            present(error.message)
+        } catch PhotoError.unreadable {
+            present("Não foi possível ler a imagem escolhida. Tente outra.")
+        } catch {
+            present("Não foi possível enviar a foto. Verifique sua conexão.")
+        }
+    }
+
+    @MainActor
+    func deletePhoto() async {
+        isWorkingPhoto = true
+        defer { isWorkingPhoto = false }
+        do {
+            detail = try await PatientsAPI.deletePhoto(id: patientId)
+            Haptics.success()
+        } catch is CancellationError {
+        } catch let error as APIError {
+            present(error.message)
+        } catch {
+            present("Não foi possível remover a foto.")
+        }
+    }
+
+    @MainActor
+    private func present(_ message: String) {
+        photoError = message
+        showPhotoError = true
+    }
+
+    private enum PhotoError: Error { case unreadable }
+
+    /// Redimensiona para caber em `photoMaxSide` (preservando proporção) e
+    /// comprime em JPEG. Feito no aparelho: o servidor recebe ~60KB em vez de MBs.
+    private static func downscaledJPEG(_ image: UIImage) -> Data? {
+        let maior = max(image.size.width, image.size.height)
+        let escala = maior > photoMaxSide ? photoMaxSide / maior : 1
+        let alvo = CGSize(
+            width: (image.size.width * escala).rounded(),
+            height: (image.size.height * escala).rounded()
+        )
+        let renderer = UIGraphicsImageRenderer(size: alvo)
+        let redimensionada = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: alvo))
+        }
+        return redimensionada.jpegData(compressionQuality: 0.8)
     }
 
     @MainActor
@@ -37,6 +116,8 @@ final class PatientDetailViewModel {
             _ = try await PatientsAPI.delete(id: patientId)
             isDeleting = false
             return true
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             deleteError = error.message
         } catch {
@@ -54,6 +135,7 @@ struct PatientDetailView: View {
     @State private var showDeleteModal = false
     @State private var showEdit = false
     @State private var showScheduleInfo = false
+    @State private var photoItem: PhotosPickerItem?
     @Environment(\.dismiss) private var dismiss
 
     /// Chamado após exclusão bem-sucedida (nome do paciente) — a lista mostra o toast.
@@ -149,7 +231,7 @@ struct PatientDetailView: View {
 
     private func header(_ detail: PatientDetail) -> some View {
         VStack(spacing: 14) {
-            InitialAvatar(name: detail.name, colorHex: detail.group?.color, size: 96)
+            photoAvatar(detail)
             Text(detail.name)
                 .font(Theme.serifTitle(26))
                 .foregroundStyle(Theme.textPrimary)
@@ -160,6 +242,84 @@ struct PatientDetailView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    /// Avatar com foto (quando houver) e o botão que abre o menu de foto.
+    /// Enquanto a foto não carrega, mostra as iniciais em vez de um buraco cinza.
+    @ViewBuilder
+    private func photoAvatar(_ detail: PatientDetail) -> some View {
+        let iniciais = InitialAvatar(
+            name: detail.name,
+            colorHex: detail.group?.color,
+            size: 96
+        )
+
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let urlString = detail.photoUrl, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        case .failure:
+                            iniciais
+                        default:
+                            iniciais.overlay(ProgressView().tint(.white))
+                        }
+                    }
+                    .frame(width: 96, height: 96)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+                } else {
+                    iniciais
+                }
+            }
+            .opacity(model.isWorkingPhoto ? 0.5 : 1)
+            .overlay {
+                if model.isWorkingPhoto {
+                    ProgressView().tint(Theme.primary)
+                }
+            }
+
+            photoMenu(hasPhoto: detail.photoUrl != nil)
+                .offset(x: 2, y: 2)
+        }
+        .animation(.easeInOut(duration: 0.2), value: model.isWorkingPhoto)
+        .alert("Ops", isPresented: $model.showPhotoError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.photoError ?? "Algo deu errado com a foto.")
+        }
+    }
+
+    private func photoMenu(hasPhoto: Bool) -> some View {
+        Menu {
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                Label(hasPhoto ? "Trocar foto" : "Adicionar foto", systemImage: "photo")
+            }
+            if hasPhoto {
+                Button(role: .destructive) {
+                    Task { await model.deletePhoto() }
+                } label: {
+                    Label("Remover foto", systemImage: "trash")
+                }
+            }
+        } label: {
+            Image(systemName: hasPhoto ? "pencil" : "camera.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(Theme.primary, in: Circle())
+                .overlay(Circle().stroke(Theme.background, lineWidth: 2.5))
+        }
+        .disabled(model.isWorkingPhoto)
+        .onChange(of: photoItem) { _, novo in
+            guard let novo else { return }
+            Task {
+                await model.uploadPhoto(from: novo)
+                photoItem = nil // permite reescolher a MESMA foto depois
+            }
+        }
     }
 
     private func subtitle(_ detail: PatientDetail) -> String {
@@ -263,6 +423,28 @@ struct PatientDetailView: View {
                     sectionRow(icon: "list.clipboard", tint: Theme.primary, title: "Anotações de sessão")
                 }
                 rowDivider
+                NavigationLink {
+                    DocPatientDocumentsView(patient: DocPatientRef(from: detail))
+                } label: {
+                    sectionRow(
+                        icon: "doc.badge.plus",
+                        tint: Color(hex: 0x7FA8C9),
+                        title: "Documentos",
+                        subtitle: "Recibo, atestado, contrato"
+                    )
+                }
+                rowDivider
+                NavigationLink {
+                    PFilePatientFilesView(patient: PFilePatientRef(from: detail))
+                } label: {
+                    sectionRow(
+                        icon: "paperclip",
+                        tint: Theme.warning,
+                        title: "Anexos",
+                        subtitle: "Exames, imagens e outros arquivos"
+                    )
+                }
+                rowDivider
                 sectionRow(
                     icon: "dollarsign",
                     tint: Theme.warning,
@@ -277,7 +459,13 @@ struct PatientDetailView: View {
         Divider().overlay(Theme.border).padding(.leading, 60)
     }
 
-    private func sectionRow(icon: String, tint: Color, title: String, trailing: String? = nil) -> some View {
+    private func sectionRow(
+        icon: String,
+        tint: Color,
+        title: String,
+        subtitle: String? = nil,
+        trailing: String? = nil
+    ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
@@ -285,9 +473,19 @@ struct PatientDetailView: View {
                 .frame(width: 32, height: 32)
                 .background(tint.opacity(0.14))
                 .clipShape(RoundedRectangle(cornerRadius: 9))
-            Text(title)
-                .font(Theme.body(15, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(Theme.body(15, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                // "Documentos" e "Anexos" são quase sinônimos em português — o
+                // subtítulo é o que diz qual é qual sem precisar abrir.
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+            }
             Spacer()
             if let trailing {
                 Text(trailing)

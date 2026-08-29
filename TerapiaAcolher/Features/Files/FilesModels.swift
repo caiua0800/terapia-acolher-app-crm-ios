@@ -13,6 +13,18 @@ struct PFilePatientGroup: Codable, Hashable {
     let color: String?
 }
 
+extension PFilePatientRef {
+    /// Ponte a partir da ficha do paciente — documentos e anexos são acessados
+    /// de dentro do paciente, não por uma lista própria.
+    init(from detail: PatientDetail) {
+        self.init(
+            id: detail.id,
+            name: detail.name,
+            group: PFilePatientGroup(color: detail.group?.color)
+        )
+    }
+}
+
 // MARK: - Categoria de anexo (enum do backend)
 
 enum PFileCategory: String, Codable, CaseIterable {

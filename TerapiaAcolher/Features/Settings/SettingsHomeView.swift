@@ -31,18 +31,6 @@ struct SettingsHomeView: View {
         } message: {
             Text(viewModel.errorMessage ?? "Algo deu errado.")
         }
-        .confirmationDialog(
-            "Sair da conta?",
-            isPresented: $showLogoutConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Sair", role: .destructive) {
-                Task { await SessionStore.shared.logout() }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Você vai precisar entrar de novo com e-mail e senha.")
-        }
     }
 
     // MARK: - Perfil
@@ -83,7 +71,7 @@ struct SettingsHomeView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     // MARK: - Seções
@@ -118,7 +106,7 @@ struct SettingsHomeView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     private var templatesSection: some View {
@@ -142,7 +130,7 @@ struct SettingsHomeView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     private var integracoesSection: some View {
@@ -172,7 +160,7 @@ struct SettingsHomeView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     private var contaSection: some View {
@@ -196,10 +184,22 @@ struct SettingsHomeView: View {
                             showChevron: false
                         )
                     }
+                    .confirmationDialog(
+                        "Sair da conta?",
+                        isPresented: $showLogoutConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Sair", role: .destructive) {
+                            Task { await SessionStore.shared.logout() }
+                        }
+                        Button("Cancelar", role: .cancel) {}
+                    } message: {
+                        Text("Você vai precisar entrar de novo com e-mail e senha.")
+                    }
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 }
 

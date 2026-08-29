@@ -115,6 +115,8 @@ final class SetChangePasswordViewModel {
                 )
             )
             showSuccess = true
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível trocar a senha."
             showError = true

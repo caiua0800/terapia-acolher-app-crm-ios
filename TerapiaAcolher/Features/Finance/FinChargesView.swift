@@ -56,6 +56,7 @@ final class FinChargesViewModel {
     var checkoutResult: FinCheckoutResult?
     var walletMissingMessage: String?
     var isWorking = false
+    var workingChargeId: String? // cobrança com ação em voo (spinner na linha)
 
     init(patient: FinPatientRef) {
         self.patient = patient
@@ -69,6 +70,8 @@ final class FinChargesViewModel {
             async let listTask = FinanceAPI.charges(patientId: patient.id, status: filter.status)
             summary = try await summaryTask
             charges = try await listTask
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar as cobranças."
         }
@@ -80,23 +83,29 @@ final class FinChargesViewModel {
     }
 
     func pay(_ charge: FinCharge) async {
-        await run {
+        await run(chargeId: charge.id) {
             _ = try await FinanceAPI.payCharge(id: charge.id)
         }
     }
 
     func cancel(_ charge: FinCharge) async {
-        await run {
+        await run(chargeId: charge.id) {
             _ = try await FinanceAPI.cancelCharge(id: charge.id)
         }
     }
 
     func sendReminder(_ charge: FinCharge) async {
         isWorking = true
-        defer { isWorking = false }
+        workingChargeId = charge.id
+        defer {
+            isWorking = false
+            workingChargeId = nil
+        }
         do {
             reminderResult = try await FinanceAPI.sendReminder(id: charge.id)
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível gerar o lembrete."
         }
@@ -104,7 +113,11 @@ final class FinChargesViewModel {
 
     func checkout(_ charge: FinCharge, billingType: String) async {
         isWorking = true
-        defer { isWorking = false }
+        workingChargeId = charge.id
+        defer {
+            isWorking = false
+            workingChargeId = nil
+        }
         do {
             checkoutResult = try await FinanceAPI.checkout(id: charge.id, billingType: billingType)
             await load()
@@ -115,6 +128,8 @@ final class FinChargesViewModel {
             } else {
                 errorMessage = apiError.message
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = "Não foi possível gerar a cobrança online."
         }
@@ -126,12 +141,18 @@ final class FinChargesViewModel {
         return open.min { $0.dueDate < $1.dueDate }
     }
 
-    private func run(_ operation: () async throws -> Void) async {
+    private func run(chargeId: String? = nil, _ operation: () async throws -> Void) async {
         isWorking = true
-        defer { isWorking = false }
+        workingChargeId = chargeId
+        defer {
+            isWorking = false
+            workingChargeId = nil
+        }
         do {
             try await operation()
             await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível concluir a ação."
         }
@@ -428,11 +449,13 @@ struct FinChargesView: View {
         Menu {
             if charge.status == .pending || charge.status == .overdue {
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await model.pay(charge) }
                 } label: {
                     Label("Marcar como paga", systemImage: "checkmark.circle")
                 }
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await model.sendReminder(charge) }
                 } label: {
                     Label("Enviar lembrete de cobrança", systemImage: "bell")
@@ -449,12 +472,11 @@ struct FinChargesView: View {
                         Label("Copiar link de pagamento", systemImage: "doc.on.doc")
                     }
                 } else {
-                    Menu {
-                        Button("Pix") { Task { await model.checkout(charge, billingType: "PIX") } }
-                        Button("Boleto") { Task { await model.checkout(charge, billingType: "BOLETO") } }
-                        Button("Cartão") { Task { await model.checkout(charge, billingType: "CARD") } }
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Task { await model.checkout(charge, billingType: "PIX") }
                     } label: {
-                        Label("Cobrar via Pix/Boleto/Cartão", systemImage: "qrcode")
+                        Label("Cobrar via Pix", systemImage: "qrcode")
                     }
                 }
                 Button(role: .destructive) {
@@ -471,13 +493,22 @@ struct FinChargesView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 30, height: 30)
-                .contentShape(Rectangle())
+            Group {
+                if model.workingChargeId == charge.id {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Theme.textSecondary)
+                } else {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .frame(width: 30, height: 30)
+            .contentShape(Rectangle())
         }
-        .disabled(charge.status == .canceled)
+        .disabled(charge.status == .canceled || model.isWorking)
+        .animation(.easeInOut(duration: 0.15), value: model.workingChargeId)
     }
 
     // MARK: Botão largo do rodapé (como no print)
@@ -488,15 +519,17 @@ struct FinChargesView: View {
             VStack {
                 Spacer()
                 Button {
+                    Haptics.tap()
                     Task { await model.sendReminder(target) }
                 } label: {
                     HStack(spacing: 8) {
+                        // Rótulo permanece: o spinner ocupa o lugar do ícone.
                         if model.isWorking {
-                            ProgressView().tint(.white)
+                            ProgressView().controlSize(.small).tint(.white)
                         } else {
                             Image(systemName: "text.bubble")
-                            Text("Enviar lembrete de cobrança")
                         }
+                        Text("Enviar lembrete de cobrança")
                     }
                     .font(Theme.body(16, weight: .semibold))
                     .foregroundStyle(.white)
@@ -504,7 +537,9 @@ struct FinChargesView: View {
                     .padding(.vertical, 15)
                     .background(Theme.primary, in: Capsule())
                     .shadow(color: Theme.primary.opacity(0.35), radius: 10, y: 4)
+                    .animation(.easeInOut(duration: 0.15), value: model.isWorking)
                 }
+                .buttonStyle(.pressable)
                 .disabled(model.isWorking)
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.bottom, 16)
@@ -603,6 +638,26 @@ struct FinCheckoutSheet: View {
                                 .foregroundStyle(Theme.textPrimary)
                         }
 
+                        if let fee = result.splitFeeApplied {
+                            ThemeCard {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    feeRow("Valor da cobrança", Formatters.brl(result.amount))
+                                    feeRow("Taxa do sistema", "− \(Formatters.brl(fee))")
+                                    Divider()
+                                    HStack {
+                                        Text("Você recebe")
+                                            .font(Theme.body(14, weight: .semibold))
+                                            .foregroundStyle(Theme.textPrimary)
+                                        Spacer()
+                                        Text(Formatters.brl(result.amount - fee))
+                                            .font(Theme.money(15, weight: .bold))
+                                            .foregroundStyle(Theme.success)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+
                         if let urlString = result.invoiceUrl, let url = URL(string: urlString) {
                             ThemeCard {
                                 VStack(alignment: .leading, spacing: 12) {
@@ -684,5 +739,17 @@ struct FinCheckoutSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private func feeRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(Theme.body(13))
+                .foregroundStyle(Theme.textSecondary)
+            Spacer()
+            Text(value)
+                .font(Theme.money(13))
+                .foregroundStyle(Theme.textPrimary)
+        }
     }
 }

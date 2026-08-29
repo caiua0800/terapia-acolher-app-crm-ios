@@ -17,6 +17,7 @@ final class AuthLoginModel {
     var email = ""
     var password = ""
     var isLoading = false
+    var isResending = false
     var errorMessage: String?
     /// 403 de e-mail pendente → oferece reenvio da confirmação.
     var canResendVerification = false
@@ -38,6 +39,8 @@ final class AuthLoginModel {
                 email: email.trimmingCharacters(in: .whitespaces),
                 password: password
             )
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
             if error.statusCode == 403, error.message.localizedCaseInsensitiveContains("confirme seu e-mail") {
@@ -51,8 +54,10 @@ final class AuthLoginModel {
     @MainActor
     func resendVerification() async {
         struct Body: Encodable { let email: String }
-        isLoading = true
-        defer { isLoading = false }
+        // Flag própria: usar `isLoading` acendia o spinner no botão "Entrar",
+        // que não foi o controle tocado.
+        isResending = true
+        defer { isResending = false }
         do {
             let response: MessageResponse = try await APIClient.shared.post(
                 "auth/resend-verification",
@@ -61,6 +66,8 @@ final class AuthLoginModel {
             errorMessage = nil
             canResendVerification = false
             infoMessage = response.message
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -117,12 +124,21 @@ struct LoginFlowView: View {
                             }
                             if model.canResendVerification {
                                 Button {
+                                    Haptics.tap()
                                     Task { await model.resendVerification() }
                                 } label: {
-                                    Text("Reenviar e-mail de confirmação")
-                                        .font(Theme.body(14, weight: .semibold))
-                                        .foregroundStyle(Theme.primary)
+                                    HStack(spacing: 8) {
+                                        Text("Reenviar e-mail de confirmação")
+                                        if model.isResending {
+                                            ProgressView().controlSize(.small).tint(Theme.primary)
+                                        }
+                                    }
+                                    .font(Theme.body(14, weight: .semibold))
+                                    .foregroundStyle(Theme.primary)
+                                    .animation(.easeInOut(duration: 0.15), value: model.isResending)
                                 }
+                                .buttonStyle(.pressable)
+                                .disabled(model.isResending)
                             }
 
                             PrimaryButton(

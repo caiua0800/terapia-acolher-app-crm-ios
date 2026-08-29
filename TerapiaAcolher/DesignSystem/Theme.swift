@@ -63,6 +63,14 @@ enum Theme {
         .system(size: size, weight: weight, design: .monospaced)
     }
 
+    /// Valor em destaque (receita da dashboard). A monoespaçada de `money`
+    /// alinha bem em tabela, mas em corpo grande fica datilografada e larga —
+    /// esta usa a arredondada com dígitos de largura fixa: mesmo alinhamento,
+    /// aparência de produto.
+    static func moneyDisplay(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
+        .system(size: size, weight: weight, design: .rounded)
+    }
+
     // MARK: - Métricas de layout
 
     static let cornerRadius: CGFloat = 16

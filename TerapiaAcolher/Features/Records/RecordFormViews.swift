@@ -34,6 +34,8 @@ final class RecTemplatePickerViewModel {
         errorMessage = nil
         do {
             templates = try await RecordsAPI.templates(kind: kind)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -190,7 +192,7 @@ struct RecTemplatePickerView: View {
             .padding(14)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     private func usageLabel(_ template: RecTemplate) -> String {
@@ -250,6 +252,36 @@ final class RecEntryFormViewModel {
     var errorMessage: String? = nil
     var validationMessage: String? = nil
 
+    // MARK: IA — organizar rascunho nos campos
+
+    var templateId: String? = nil
+    var aiEnabled = false
+    var isComposerOpen = false
+    var draftText = ""
+    var isDrafting = false
+    var aiError: String? = nil
+    /// Campos preenchidos pela IA nesta sessão de edição (marcados na tela).
+    var aiFilledIds: Set<String> = []
+    /// Elegíveis que a IA deixou em branco — o texto não trazia a informação.
+    var aiBlankCount = 0
+    /// Id do rascunho aceito; vai junto no salvamento pra métrica de aceitação.
+    var aiDraftId: String? = nil
+    /// Estado anterior ao "organizar", pra desfazer sem perder o que era manual.
+    private var undoSnapshot: (text: [String: String], multi: [String: Set<String>])? = nil
+
+    var canUndoAi: Bool { undoSnapshot != nil }
+    var aiExcludedQuestions: [RecQuestion] { questions.filter(\.isAiExcluded) }
+    /// Só mostra o recurso quando há campos pra preencher e IA ligada no backend.
+    var showsAiComposer: Bool {
+        aiEnabled && !isBlank && templateId != nil
+            && questions.contains { !$0.isAiExcluded }
+    }
+
+    var draftCharacterCount: Int { draftText.count }
+    var canRunDraft: Bool {
+        draftText.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20
+    }
+
     /// Registro em branco (sem modelo): título + texto livre.
     var isBlank: Bool { questions.isEmpty }
 
@@ -260,6 +292,7 @@ final class RecEntryFormViewModel {
         if case let .create(template) = mode, let template {
             questions = template.questions
             templateName = template.name
+            templateId = template.id
         }
     }
 
@@ -273,6 +306,7 @@ final class RecEntryFormViewModel {
             entry = detail
             title = detail.title
             templateName = detail.template?.name
+            templateId = detail.template?.id
             questions = detail.template?.schema?.questions ?? []
             if questions.isEmpty {
                 // Registro em branco: junta as respostas livres num texto só
@@ -288,12 +322,99 @@ final class RecEntryFormViewModel {
                     }
                 }
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
             errorMessage = "Não foi possível carregar o registro."
         }
         isLoading = false
+    }
+
+    // MARK: IA
+
+    /// Pergunta ao backend se a IA está configurada. Silencioso: se falhar, o
+    /// recurso simplesmente não aparece — não é erro que interesse ao terapeuta.
+    @MainActor
+    func loadAiStatus() async {
+        guard !isBlank, !aiEnabled else { return }
+        aiEnabled = ((try? await RecordsAPI.aiStatus())?.enabled ?? false)
+    }
+
+    /// Manda o rascunho pro backend e distribui a resposta nos campos.
+    @MainActor
+    func structureWithAI() async {
+        guard let templateId, canRunDraft, !isDrafting else { return }
+        aiError = nil
+        isDrafting = true
+        defer { isDrafting = false }
+
+        do {
+            let response = try await RecordsAPI.draftRecord(
+                patientId: patient.id,
+                RecDraftPayload(
+                    kind: kind.apiValue,
+                    templateId: templateId,
+                    text: draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            )
+            applyDraft(response)
+        } catch is CancellationError {
+            // requisição cancelada (fechou a tela) — silencioso
+        } catch let error as APIError {
+            aiError = error.message
+        } catch {
+            aiError = "Não foi possível organizar o rascunho. Tente de novo."
+        }
+    }
+
+    /// Escreve as respostas da IA por cima, guardando o estado anterior.
+    /// Campos que a IA não preencheu ficam como estavam — nada é apagado.
+    @MainActor
+    private func applyDraft(_ response: RecDraftResponse) {
+        if undoSnapshot == nil {
+            undoSnapshot = (text: textAnswers, multi: multiAnswers)
+        }
+
+        var filled: Set<String> = []
+        for (questionId, answer) in response.answers {
+            switch answer {
+            case let .text(value):
+                textAnswers[questionId] = value
+            case let .list(values):
+                multiAnswers[questionId] = Set(values)
+            }
+            filled.insert(questionId)
+        }
+
+        aiFilledIds = filled
+        aiBlankCount = response.blank.count
+        aiDraftId = response.draftId
+        isComposerOpen = false
+        Haptics.success()
+    }
+
+    /// Volta ao que estava antes de organizar — o rascunho continua disponível.
+    @MainActor
+    func undoAi() {
+        guard let snapshot = undoSnapshot else { return }
+        textAnswers = snapshot.text
+        multiAnswers = snapshot.multi
+        undoSnapshot = nil
+        aiFilledIds = []
+        aiBlankCount = 0
+        aiDraftId = nil
+        isComposerOpen = true
+        Haptics.tap()
+    }
+
+    /// Edição manual num campo tira a marca de "veio da IA" — o texto agora é
+    /// do terapeuta, e a tela precisa refletir isso.
+    @MainActor
+    func markEditedByHand(_ questionId: String) {
+        guard aiFilledIds.contains(questionId) else { return }
+        aiFilledIds.remove(questionId)
     }
 
     private func buildAnswers() -> [String: RecAnswer] {
@@ -350,7 +471,8 @@ final class RecEntryFormViewModel {
                     kind: kind.apiValue,
                     title: trimmedTitle.isEmpty ? nil : trimmedTitle,
                     answers: answers,
-                    entryDate: nil
+                    entryDate: nil,
+                    aiDraftId: aiDraftId
                 ))
             case let .edit(entryId):
                 _ = try await RecordsAPI.updateEntry(patientId: patient.id, id: entryId, RecEntryUpdatePayload(
@@ -359,6 +481,8 @@ final class RecEntryFormViewModel {
                 ))
             }
             return true
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -375,6 +499,8 @@ final class RecEntryFormViewModel {
         do {
             try await RecordsAPI.deleteEntry(patientId: patient.id, id: entryId)
             return true
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -454,8 +580,11 @@ struct RecEntryFormView: View {
             } message: {
                 Text("O registro será apagado. Esta ação não pode ser desfeita.")
             }
-            .task { await model.loadIfNeeded() }
-            .interactiveDismissDisabled(model.isSaving || model.isDeleting)
+            .task {
+                await model.loadIfNeeded()
+                await model.loadAiStatus()
+            }
+            .interactiveDismissDisabled(model.isSaving || model.isDeleting || model.isDrafting)
         }
     }
 
@@ -479,6 +608,10 @@ struct RecEntryFormView: View {
                     }
 
                     titleField
+
+                    if model.showsAiComposer {
+                        aiSection
+                    }
 
                     if model.isBlank {
                         RecQuestionCard(label: "Conteúdo", isRequired: true) {
@@ -504,6 +637,229 @@ struct RecEntryFormView: View {
         }
     }
 
+    // MARK: IA — escrever solto e deixar a IA distribuir nos campos
+
+    @ViewBuilder
+    private var aiSection: some View {
+        VStack(spacing: 10) {
+            if model.aiFilledIds.isEmpty {
+                if model.isComposerOpen {
+                    aiComposer
+                } else {
+                    aiEntryButton
+                }
+            } else {
+                aiReviewBanner
+            }
+
+            if let aiError = model.aiError {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 13))
+                    Text(aiError)
+                        .font(Theme.body(13))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(Theme.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: model.isComposerOpen)
+        .animation(.easeOut(duration: 0.25), value: model.aiFilledIds.isEmpty)
+    }
+
+    /// Estado fechado: convite discreto, não rouba a cena do formulário.
+    private var aiEntryButton: some View {
+        Button {
+            Haptics.tap()
+            model.isComposerOpen = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(RecAi.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Escrever solto e organizar")
+                        .font(Theme.body(15, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Digite como preferir — a IA distribui nos campos.")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.textSecondary.opacity(0.6))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RecAi.soft.opacity(0.14))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                    .stroke(RecAi.soft.opacity(0.45), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.pressableSubtle)
+    }
+
+    private var aiComposer: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Rascunho da sessão")
+                    .font(Theme.body(13, weight: .bold))
+                    .tracking(0.3)
+                Spacer()
+                Button {
+                    Haptics.tap()
+                    model.isComposerOpen = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressable)
+                .disabled(model.isDrafting)
+            }
+            .foregroundStyle(RecAi.accent)
+
+            RecTextArea(
+                text: $model.draftText,
+                placeholder: "Ex.: paciente chegou mais falante hoje, relatou que dormiu melhor na semana, trouxe o conflito com a irmã de novo…",
+                minHeight: 132
+            )
+            .disabled(model.isDrafting)
+
+            HStack(spacing: 10) {
+                Text(
+                    model.canRunDraft
+                        ? "Nada é salvo sem você revisar."
+                        : "Escreva um pouco mais para começar."
+                )
+                .font(Theme.body(11))
+                .foregroundStyle(Theme.textSecondary)
+                Spacer(minLength: 8)
+                Button {
+                    Haptics.tap()
+                    Task { await model.structureWithAI() }
+                } label: {
+                    HStack(spacing: 7) {
+                        if model.isDrafting {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "wand.and.stars")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        Text(model.isDrafting ? "Organizando…" : "Organizar")
+                            .font(Theme.body(14, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(model.canRunDraft ? RecAi.accent : RecAi.accent.opacity(0.4))
+                    .clipShape(Capsule())
+                    .animation(.easeInOut(duration: 0.15), value: model.isDrafting)
+                }
+                .buttonStyle(.pressable)
+                .disabled(!model.canRunDraft || model.isDrafting)
+            }
+        }
+        .padding(14)
+        .background(RecAi.soft.opacity(0.14))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                .stroke(RecAi.soft.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    /// Depois de organizar: o que fazer agora fica explícito, e dá pra voltar.
+    private var aiReviewBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(RecAi.accent)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(filledSummary)
+                        .font(Theme.body(14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Confira cada campo marcado antes de salvar — o registro é seu.")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    model.undoAi()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Desfazer")
+                            .font(Theme.body(13, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Theme.surface)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+                }
+                .buttonStyle(.pressable)
+
+                Button {
+                    Haptics.tap()
+                    model.isComposerOpen = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Editar rascunho")
+                            .font(Theme.body(13, weight: .semibold))
+                    }
+                    .foregroundStyle(RecAi.accent)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(RecAi.accent.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.pressable)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RecAi.soft.opacity(0.14))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                .stroke(RecAi.soft.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    private var filledSummary: String {
+        let count = model.aiFilledIds.count
+        let fields = count == 1 ? "1 campo preenchido" : "\(count) campos preenchidos"
+        if model.aiBlankCount > 0 {
+            let blank = model.aiBlankCount == 1
+                ? "1 ficou em branco"
+                : "\(model.aiBlankCount) ficaram em branco"
+            return "\(fields) · \(blank)"
+        }
+        return fields
+    }
+
     private var titleField: some View {
         TextField(defaultTitlePlaceholder, text: $model.title)
             .font(Theme.serifTitle(24))
@@ -524,7 +880,12 @@ struct RecEntryFormView: View {
 
     @ViewBuilder
     private func questionCard(_ question: RecQuestion) -> some View {
-        RecQuestionCard(label: question.label, isRequired: question.isRequired) {
+        RecQuestionCard(
+            label: question.label,
+            isRequired: question.isRequired,
+            isAiFilled: model.aiFilledIds.contains(question.id),
+            isAiExcluded: question.isAiExcluded && model.showsAiComposer
+        ) {
             switch question.kind {
             case "single":
                 VStack(spacing: 8) {
@@ -536,6 +897,7 @@ struct RecEntryFormView: View {
                         ) {
                             model.textAnswers[question.id] =
                                 model.textAnswers[question.id] == option ? nil : option
+                            model.markEditedByHand(question.id)
                         }
                     }
                 }
@@ -554,13 +916,17 @@ struct RecEntryFormView: View {
                                 selected.insert(option)
                             }
                             model.multiAnswers[question.id] = selected
+                            model.markEditedByHand(question.id)
                         }
                     }
                 }
             default:
                 RecTextArea(text: Binding(
                     get: { model.textAnswers[question.id] ?? "" },
-                    set: { model.textAnswers[question.id] = $0 }
+                    set: {
+                        model.textAnswers[question.id] = $0
+                        model.markEditedByHand(question.id)
+                    }
                 ))
             }
         }
@@ -591,12 +957,16 @@ struct RecEntryFormView: View {
 struct RecQuestionCard<Content: View>: View {
     let label: String
     var isRequired = false
+    /// Campo escrito pela IA nesta edição — some assim que o terapeuta digita.
+    var isAiFilled = false
+    /// Campo que a IA nunca preenche (diagnóstico).
+    var isAiExcluded = false
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         ThemeCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(label)
                         .font(Theme.body(16, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
@@ -605,26 +975,73 @@ struct RecQuestionCard<Content: View>: View {
                             .font(Theme.body(16, weight: .semibold))
                             .foregroundStyle(Theme.danger)
                     }
+                    Spacer(minLength: 8)
+                    if isAiFilled {
+                        RecAiTag(text: "Revise", icon: "sparkles", tint: RecAi.accent)
+                    } else if isAiExcluded {
+                        RecAiTag(
+                            text: "Você preenche",
+                            icon: "hand.raised",
+                            tint: Theme.textSecondary
+                        )
+                    }
                 }
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Borda lilás enquanto o texto for da IA: o campo pede revisão.
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                .stroke(isAiFilled ? RecAi.accent.opacity(0.45) : .clear, lineWidth: 1.5)
+        )
+        .animation(.easeOut(duration: 0.25), value: isAiFilled)
+    }
+}
+
+/// Identidade visual da IA no app — lilás, o mesmo tom já usado nos modelos.
+enum RecAi {
+    static let accent = Color(hex: 0x7C6BA5)
+    static let soft = Color(hex: 0xB9A6D9)
+}
+
+/// Etiqueta pequena de status do campo.
+struct RecAiTag: View {
+    let text: String
+    let icon: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .bold))
+            Text(text)
+                .font(Theme.body(10, weight: .bold))
+                .tracking(0.3)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(tint.opacity(0.12))
+        .clipShape(Capsule())
     }
 }
 
 /// Campo multilinha estilo "card bege" do print ("Queixa inicial").
 struct RecTextArea: View {
     @Binding var text: String
+    var placeholder: String = "Resposta..."
+    var minHeight: CGFloat = 110
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
-                Text("Resposta...")
+                Text(placeholder)
                     .font(Theme.body(15))
                     .foregroundStyle(Theme.textSecondary.opacity(0.7))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 13)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             TextEditor(text: $text)
                 .font(Theme.body(15))
@@ -632,7 +1049,7 @@ struct RecTextArea: View {
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 9)
                 .padding(.vertical, 5)
-                .frame(minHeight: 110)
+                .frame(minHeight: minHeight)
         }
         .background(Theme.background)
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -672,7 +1089,7 @@ struct RecChoiceRow: View {
                     .stroke(isSelected ? Theme.primary.opacity(0.5) : Theme.border, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     private var iconName: String {

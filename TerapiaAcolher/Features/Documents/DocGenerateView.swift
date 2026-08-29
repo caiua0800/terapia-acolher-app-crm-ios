@@ -106,6 +106,8 @@ struct DocGenerateFlowView: View {
         defer { isLoading = false }
         do {
             templates = try await DocumentsAPI.templates()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os modelos."
         }
@@ -124,7 +126,10 @@ struct DocGenerateView: View {
     @State private var extraValues: [String: String]
     @State private var isGenerating = false
     @State private var generated: DocItem?
-    @State private var isWorking = false
+    // Flags separadas: com um `isWorking` único, tocar em "Assinar" acendia o
+    // spinner do botão "Visualizar PDF" — feedback no controle errado.
+    @State private var isOpening = false
+    @State private var isSigning = false
     @State private var webLink: DocWebLink?
     @State private var errorMessage: String?
 
@@ -309,20 +314,23 @@ struct DocGenerateView: View {
                 }
 
                 VStack(spacing: 10) {
-                    PrimaryButton(title: "Visualizar PDF", icon: "eye", isLoading: isWorking) {
+                    PrimaryButton(
+                        title: "Visualizar PDF",
+                        icon: "eye",
+                        isLoading: isOpening,
+                        isEnabled: !isSigning
+                    ) {
                         Task { await open(document) }
                     }
                     if !document.isSigned {
-                        Button {
+                        SecondaryButton(
+                            title: "Assinar documento",
+                            icon: "signature",
+                            isLoading: isSigning,
+                            isEnabled: !isOpening,
+                            tint: Theme.primary
+                        ) {
                             Task { await sign(document) }
-                        } label: {
-                            Label("Assinar documento", systemImage: "signature")
-                                .font(Theme.body(15, weight: .semibold))
-                                .foregroundStyle(Theme.primary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Theme.surface, in: Capsule())
-                                .overlay(Capsule().stroke(Theme.primary.opacity(0.5), lineWidth: 1))
                         }
                     }
                     Button {
@@ -357,30 +365,36 @@ struct DocGenerateView: View {
         do {
             generated = try await DocumentsAPI.generate(patientId: patient.id, body: body)
             onGenerated()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível gerar o documento."
         }
     }
 
     private func open(_ document: DocItem) async {
-        isWorking = true
-        defer { isWorking = false }
+        isOpening = true
+        defer { isOpening = false }
         do {
             let response = try await DocumentsAPI.downloadUrl(patientId: patient.id, id: document.id)
             if let url = URL(string: response.url) {
                 webLink = DocWebLink(url: url)
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível abrir o documento."
         }
     }
 
     private func sign(_ document: DocItem) async {
-        isWorking = true
-        defer { isWorking = false }
+        isSigning = true
+        defer { isSigning = false }
         do {
             generated = try await DocumentsAPI.sign(patientId: patient.id, id: document.id)
             onGenerated()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível assinar o documento."
         }

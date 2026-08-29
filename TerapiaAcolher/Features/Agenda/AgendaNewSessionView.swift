@@ -130,6 +130,8 @@ final class AgendaNewSessionModel {
         } catch let error as APIError where error.statusCode == 400 && isOnline && generateMeet {
             alertTitle = "Google não conectado"
             alertMessage = "\(error.message)\n\nConecte sua conta Google em Configurações pra gerar links do Meet automaticamente — ou desligue a geração e informe o link manualmente."
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             alertTitle = "Não deu certo"
             alertMessage = error.message
@@ -533,7 +535,7 @@ struct AgendaPatientPickerView: View {
                                         }
                                     }
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.pressableSubtle)
                             }
                         }
                         .padding(Theme.screenPadding)
@@ -559,6 +561,8 @@ struct AgendaPatientPickerView: View {
         defer { isLoading = false }
         do {
             patients = try await APIClient.shared.get("patients")
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {

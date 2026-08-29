@@ -67,6 +67,8 @@ final class FinPatientPickerModel {
         defer { isLoading = false }
         do {
             patients = try await FinanceAPI.patients(search: search.isEmpty ? nil : search)
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os pacientes."
         }
@@ -112,21 +114,11 @@ struct FinPatientPickerView: View {
                                 Button {
                                     onSelect(patient)
                                 } label: {
-                                    HStack(spacing: 12) {
-                                        InitialAvatar(name: patient.name, size: 40)
-                                        Text(patient.name)
-                                            .font(Theme.body(15, weight: .semibold))
-                                            .foregroundStyle(Theme.textPrimary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(Theme.textSecondary)
-                                    }
-                                    .padding(.vertical, 12)
-                                    .padding(.horizontal, 14)
+                                    PatientPickerRow(name: patient.name)
                                 }
+                                .buttonStyle(.pressableSubtle)
                                 if patient.id != model.patients.last?.id {
-                                    Divider().overlay(Theme.border)
+                                    InsetDivider()
                                 }
                             }
                         }
@@ -158,11 +150,23 @@ struct FinPatientPickerView: View {
 struct FinTransactionCell: View {
     let transaction: FinTransaction
     @Binding var expandedId: String?
+    var isDeleting: Bool = false
     var onEdit: (FinTransaction) -> Void
     var onDelete: (FinTransaction) -> Void
 
     private var isIncome: Bool { transaction.type == .income }
     private var isExpanded: Bool { expandedId == transaction.id }
+
+    /// Valor recebido quando menor que o valor cheio (recebimento parcial).
+    private var partialReceived: Double? {
+        guard let received = transaction.receivedAmount, received < transaction.amount else {
+            return nil
+        }
+        return received
+    }
+
+    /// Entrada do gateway: a diferença é taxa retida (split), não pendência.
+    private var isGateway: Bool { transaction.source == "GATEWAY" }
 
     private var subtitle: String {
         var parts: [String] = [FinFormat.relativeDay(transaction.date)]
@@ -205,19 +209,40 @@ struct FinTransactionCell: View {
                             .lineLimit(1)
                     }
                     Spacer(minLength: 8)
-                    Text("\(isIncome ? "+" : "−") \(Formatters.brl(transaction.amount))")
-                        .font(Theme.money(15, weight: .semibold))
-                        .foregroundStyle(isIncome ? Theme.success : Theme.danger)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("\(isIncome ? "+" : "−") \(Formatters.brl(transaction.amount))")
+                            .font(Theme.money(15, weight: .semibold))
+                            .foregroundStyle(isIncome ? Theme.success : Theme.danger)
+                        if let received = partialReceived {
+                            HStack(spacing: 3) {
+                                Image(systemName: isGateway ? "percent" : "circle.lefthalf.filled")
+                                    .font(.system(size: 8, weight: .bold))
+                                Text("\(isGateway ? "Líquido" : "Recebido") \(Formatters.brl(received))")
+                                    .font(Theme.money(10, weight: .semibold))
+                            }
+                            .foregroundStyle(isGateway ? Theme.textSecondary : Theme.warning)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background((isGateway ? Theme.textSecondary : Theme.warning).opacity(0.12))
+                            .clipShape(Capsule())
+                        }
+                    }
                 }
                 .padding(.vertical, 13)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressableSubtle)
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 8) {
-                    if let received = transaction.receivedAmount, received != transaction.amount {
-                        detailRow("Valor recebido", Formatters.brl(received))
+                    if let received = partialReceived {
+                        if isGateway {
+                            detailRow("Valor líquido", Formatters.brl(received))
+                            detailRow("Taxa da transação", Formatters.brl(transaction.amount - received))
+                        } else {
+                            detailRow("Valor recebido", Formatters.brl(received))
+                            detailRow("Falta receber", Formatters.brl(transaction.amount - received))
+                        }
                     }
                     if let patient = transaction.patient {
                         detailRow("Paciente", patient.name)
@@ -229,6 +254,7 @@ struct FinTransactionCell: View {
                     if transaction.isEditable {
                         HStack(spacing: 10) {
                             Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 onEdit(transaction)
                             } label: {
                                 Label("Editar", systemImage: "pencil")
@@ -236,14 +262,26 @@ struct FinTransactionCell: View {
                                     .foregroundStyle(Theme.primary)
                             }
                             Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 onDelete(transaction)
                             } label: {
-                                Label("Excluir", systemImage: "trash")
-                                    .font(Theme.body(13, weight: .semibold))
-                                    .foregroundStyle(Theme.danger)
+                                HStack(spacing: 4) {
+                                    if isDeleting {
+                                        ProgressView()
+                                            .controlSize(.mini)
+                                            .tint(Theme.danger)
+                                        Text("Excluindo…")
+                                    } else {
+                                        Label("Excluir", systemImage: "trash")
+                                    }
+                                }
+                                .font(Theme.body(13, weight: .semibold))
+                                .foregroundStyle(Theme.danger)
                             }
+                            .disabled(isDeleting)
                         }
                         .padding(.top, 2)
+                        .animation(.easeInOut(duration: 0.15), value: isDeleting)
                     } else {
                         Text("Gerada pelo pagamento online — não pode ser editada.")
                             .font(Theme.body(12))

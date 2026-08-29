@@ -67,8 +67,11 @@ struct RecQuestion: Codable, Identifiable, Hashable {
     let kind: String // text | single | multiple
     let options: [String]?
     let required: Bool?
+    /// Pergunta vedada à IA (natureza diagnóstica) — o terapeuta preenche à mão.
+    let aiExcluded: Bool?
 
     var isRequired: Bool { required ?? false }
+    var isAiExcluded: Bool { aiExcluded ?? false }
 }
 
 struct RecSchema: Codable, Hashable {
@@ -154,6 +157,38 @@ struct RecEntryCreatePayload: Encodable {
     let title: String?
     let answers: [String: RecAnswer]
     let entryDate: Date?
+    /// Rascunho de IA que originou as respostas — alimenta a taxa de aceitação.
+    var aiDraftId: String? = nil
+}
+
+// MARK: - IA (organizar rascunho nos campos)
+
+struct RecAiStatus: Decodable {
+    let enabled: Bool
+    let model: String
+}
+
+struct RecDraftPayload: Encodable {
+    let kind: String
+    let templateId: String
+    let text: String
+}
+
+struct RecDraftExcluded: Decodable, Hashable {
+    let id: String
+    let label: String
+}
+
+struct RecDraftResponse: Decodable {
+    let draftId: String
+    let answers: [String: RecAnswer]
+    /// Ids que a IA conseguiu preencher.
+    let filled: [String]
+    /// Ids elegíveis que ficaram em branco (o texto não trazia a informação).
+    let blank: [String]
+    /// Campos que nunca vão à IA (diagnóstico).
+    let excluded: [RecDraftExcluded]
+    let model: String
 }
 
 struct RecEntryUpdatePayload: Encodable {
@@ -209,6 +244,21 @@ enum RecordsAPI {
 
     static func deleteEntry(patientId: String, id: String) async throws {
         let _: RecDeletedResponse = try await APIClient.shared.delete("patients/\(patientId)/records/\(id)")
+    }
+
+    /// Cacheado no processo: o status não muda durante a sessão do app.
+    private static var cachedAiStatus: RecAiStatus?
+
+    static func aiStatus() async throws -> RecAiStatus {
+        if let cachedAiStatus { return cachedAiStatus }
+        let status: RecAiStatus = try await APIClient.shared.get("ai/status")
+        cachedAiStatus = status
+        return status
+    }
+
+    /// Organiza o rascunho digitado nos campos do modelo. Não salva nada.
+    static func draftRecord(patientId: String, _ payload: RecDraftPayload) async throws -> RecDraftResponse {
+        try await APIClient.shared.post("patients/\(patientId)/records/draft", body: payload)
     }
 
     static func notes(patientId: String) async throws -> [RecNote] {

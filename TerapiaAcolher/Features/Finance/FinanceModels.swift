@@ -128,6 +128,8 @@ struct FinReminderResult: Decodable {
 struct FinCheckoutResult: Decodable {
     let id: String
     let status: FinChargeStatus
+    let amount: Double
+    let splitFeeApplied: Double?
     let invoiceUrl: String?
     let pixQrCode: String?
     let pixQrCodeImage: String?

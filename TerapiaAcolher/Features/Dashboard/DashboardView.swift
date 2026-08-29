@@ -8,14 +8,20 @@ final class DashboardViewModel {
     var payload: DashPayload?
     var isLoading = false
     var errorMessage: String?
+    /// Nova tentativa a partir do estado de erro — alimenta o spinner do
+    /// próprio botão "Tentar de novo" (o spinner central já saiu de cena).
+    var isRetrying = false
 
     @MainActor
     func load() async {
         if payload == nil { isLoading = true }
+        if errorMessage != nil { isRetrying = true }
         errorMessage = nil
-        defer { isLoading = false }
+        defer { isLoading = false; isRetrying = false }
         do {
             payload = try await APIClient.shared.get("dashboard")
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -45,16 +51,8 @@ struct DashboardView: View {
                         title: "Ops, não carregou",
                         message: error
                     )
-                    Button {
+                    RetryButton(isLoading: model.isRetrying) {
                         Task { await model.load() }
-                    } label: {
-                        Text("Tentar de novo")
-                            .font(Theme.body(15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(Theme.primary)
-                            .clipShape(Capsule())
                     }
                 }
             }
@@ -68,7 +66,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 greetingCard(payload)
-                metricsGrid(payload.month)
+                monthSection(payload.month)
                 nextSessionsSection(payload.nextSessions)
             }
             .padding(.horizontal, Theme.screenPadding)
@@ -91,18 +89,46 @@ struct DashboardView: View {
                     .font(.system(size: 22))
             }
 
-            Text("\(AgendaFormat.capitalizedFirst(AgendaFormat.fullDate.string(from: .now))) · você tem \(payload.today.total) \(payload.today.total == 1 ? "sessão" : "sessões") hoje")
+            Text(AgendaFormat.capitalizedFirst(AgendaFormat.fullDate.string(from: .now)))
                 .font(Theme.body(14))
                 .foregroundStyle(Theme.textPrimary.opacity(0.72))
                 .fixedSize(horizontal: false, vertical: true)
 
+            Text("HOJE")
+                .font(Theme.body(10, weight: .semibold))
+                .tracking(1.2)
+                .foregroundStyle(Theme.textPrimary.opacity(0.45))
+                .padding(.top, 12)
+
             HStack(spacing: 8) {
                 miniStat(value: "\(payload.today.total)", label: "Sessões")
                 miniStat(value: "\(payload.today.online)", label: "Online")
-                miniStat(value: "\(payload.today.toCharge)", label: "Cobrar")
-                miniStat(value: "\(payload.today.unreadNotifications)", label: "Não lidas")
+                miniStat(value: "\(payload.today.toCharge)", label: "A cobrar")
             }
-            .padding(.top, 10)
+
+            if payload.today.unreadNotifications > 0 {
+                NavigationLink {
+                    NotificationsView()
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(payload.today.unreadNotifications == 1
+                             ? "1 notificação não lida"
+                             : "\(payload.today.unreadNotifications) notificações não lidas")
+                            .font(Theme.body(13, weight: .medium))
+                        Spacer(minLength: 4)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.textPrimary.opacity(0.72))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.pressableSubtle)
+                .padding(.top, 8)
+            }
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,40 +160,146 @@ struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: Grid 2x2 de métricas do mês
+    // MARK: Este mês — receita em destaque + faixa compacta
+    //
+    // A receita saiu do grid 2x2: num card de meia largura o valor encolhia com
+    // minimumScaleFactor e ficava ilegível em receitas altas. É a métrica que o
+    // terapeuta mais olha, então ganha largura inteira e a tipografia arredondada.
 
-    private func metricsGrid(_ month: DashMonth) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())], spacing: 12) {
-            MetricCard(
-                icon: "calendar",
-                iconColor: Theme.primary,
-                label: "Sessões · mês",
-                value: "\(month.sessions)",
-                caption: variationCaption(month.sessionsVariationPercent, suffix: " vs \(previousMonthName())"),
-                captionColor: month.sessionsVariationPercent < 0 ? Theme.danger : Theme.success
+    private func monthSection(_ month: DashMonth) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 5) {
+                Text("ESTE MÊS")
+                    .font(Theme.body(11, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.textSecondary)
+                Text("·")
+                    .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                Text(AgendaFormat.capitalizedFirst(AgendaFormat.monthName.string(from: .now)))
+                    .font(Theme.body(11, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary.opacity(0.8))
+            }
+            .padding(.leading, 2)
+
+            revenueCard(month)
+            countsStrip(month)
+        }
+    }
+
+    private func revenueCard(_ month: DashMonth) -> some View {
+        ThemeCard(padding: 18) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("RECEITA")
+                        .font(Theme.body(11, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    variationChip(month.revenueVariationPercent)
+                }
+
+                Text(Formatters.brl(month.revenue))
+                    .font(Theme.moneyDisplay(34))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text(month.attended == 1
+                     ? "de 1 sessão atendida"
+                     : "de \(month.attended) sessões atendidas")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Chip de variação. Sem mês anterior (0%) não mostra nada: uma seta em 0%
+    /// sugere estabilidade onde na verdade não há com o que comparar.
+    @ViewBuilder
+    private func variationChip(_ percent: Int) -> some View {
+        if percent != 0 {
+            let positivo = percent > 0
+            HStack(spacing: 3) {
+                Image(systemName: positivo ? "arrow.up.right" : "arrow.down.right")
+                    .font(.system(size: 10, weight: .bold))
+                Text("\(abs(percent))%")
+                    .font(Theme.body(12, weight: .semibold))
+                Text("vs \(previousMonthName())")
+                    .font(Theme.body(12))
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(positivo ? Theme.success : Theme.danger)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(
+                (positivo ? Theme.successSoft : Theme.dangerSoft),
+                in: Capsule()
             )
-            MetricCard(
-                icon: "checkmark.circle",
-                iconColor: Color(hex: 0xB9A6D9),
-                label: "Atendidas",
+        }
+    }
+
+    private func countsStrip(_ month: DashMonth) -> some View {
+        HStack(spacing: 10) {
+            countTile(
+                value: "\(month.sessions)",
+                label: "Sessões",
+                caption: month.sessionsVariationPercent == 0
+                    ? "no mês"
+                    : variationCaption(month.sessionsVariationPercent),
+                captionColor: month.sessionsVariationPercent == 0
+                    ? Theme.textSecondary
+                    : (month.sessionsVariationPercent < 0 ? Theme.danger : Theme.success)
+            )
+            countTile(
                 value: "\(month.attended)",
-                caption: "\(month.attendanceRate)% taxa",
+                label: "Atendidas",
+                caption: "\(month.attendanceRate)% de presença",
                 captionColor: Theme.success
             )
-            MetricCard(
-                icon: "exclamationmark.circle",
-                iconColor: Theme.warning,
+            countTile(
+                value: "\(month.missed)",
                 label: "Faltas",
-                value: "\(month.missed)"
+                caption: missedCaption(month),
+                captionColor: month.missed == 0 ? Theme.success : Theme.warning
             )
-            MetricCard(
-                icon: "clock",
-                iconColor: Color(hex: 0x7FA8C9),
-                label: "Receita",
-                value: Formatters.brl(month.revenue),
-                caption: variationCaption(month.revenueVariationPercent),
-                captionColor: month.revenueVariationPercent < 0 ? Theme.danger : Theme.success
-            )
+        }
+    }
+
+    /// "nenhuma" quando zerado; senão a taxa, que é o dado acionável — 4 faltas
+    /// em 26 sessões e 4 em 6 são situações completamente diferentes.
+    private func missedCaption(_ month: DashMonth) -> String {
+        guard month.missed > 0 else { return "nenhuma" }
+        guard month.sessions > 0 else { return "no mês" }
+        return "\(Int((Double(month.missed) / Double(month.sessions) * 100).rounded()))% do mês"
+    }
+
+    private func countTile(
+        value: String,
+        label: String,
+        caption: String,
+        captionColor: Color
+    ) -> some View {
+        ThemeCard(padding: 13) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(value)
+                    .font(Theme.moneyDisplay(25))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(label)
+                    .font(Theme.body(12, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary.opacity(0.8))
+                    .lineLimit(1)
+                Text(caption)
+                    .font(Theme.body(10, weight: .medium))
+                    .foregroundStyle(captionColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -219,7 +351,7 @@ struct DashboardView: View {
                             timeText: AgendaFormat.time.string(from: session.startsAt)
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressableSubtle)
                 }
             }
         }
@@ -232,6 +364,7 @@ struct DashUpcomingSessionsView: View {
     @State private var sessions: [AgendaSession] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var isRetrying = false
 
     var body: some View {
         ZStack {
@@ -242,8 +375,7 @@ struct DashUpcomingSessionsView: View {
             } else if let errorMessage {
                 VStack(spacing: 14) {
                     EmptyStateView(icon: "wifi.exclamationmark", title: "Ops, não carregou", message: errorMessage)
-                    Button("Tentar de novo") { Task { await load() } }
-                        .font(Theme.body(15, weight: .semibold))
+                    RetryButton(isLoading: isRetrying) { Task { await load() } }
                 }
             } else if sessions.isEmpty {
                 EmptyStateView(
@@ -263,7 +395,7 @@ struct DashUpcomingSessionsView: View {
                                 } label: {
                                     AgendaSessionCardRow(session: session)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.pressableSubtle)
                             }
                         }
                     }
@@ -272,27 +404,25 @@ struct DashUpcomingSessionsView: View {
                 }
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Próximas sessões")
-                    .font(Theme.serifTitle(19))
-                    .foregroundStyle(Theme.textPrimary)
-            }
-        }
+        .setToolbarTitle("Próximas sessões")
+        .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
     }
 
     @MainActor
     private func load() async {
-        isLoading = sessions.isEmpty
+        isLoading = sessions.isEmpty && errorMessage == nil
+        if errorMessage != nil { isRetrying = true }
         errorMessage = nil
-        defer { isLoading = false }
+        defer { isLoading = false; isRetrying = false }
         do {
             let result: [AgendaSession] = try await APIClient.shared.get("sessions", query: [
                 "from": AgendaFormat.isoQuery.string(from: .now),
                 "status": "SCHEDULED",
             ])
             sessions = result
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {

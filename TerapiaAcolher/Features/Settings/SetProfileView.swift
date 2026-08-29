@@ -65,18 +65,6 @@ struct SetProfileView: View {
                 Task { await viewModel.uploadSignaturePNG(pngData) }
             }
         }
-        .confirmationDialog(
-            "Sair da conta?",
-            isPresented: $showLogoutConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Sair", role: .destructive) {
-                Task { await SessionStore.shared.logout() }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Você vai precisar entrar de novo com e-mail e senha.")
-        }
         .alert("Ops", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -258,6 +246,18 @@ struct SetProfileView: View {
                 .padding(.vertical, 14)
                 .background(Theme.dangerSoft)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        }
+        .confirmationDialog(
+            "Sair da conta?",
+            isPresented: $showLogoutConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Sair", role: .destructive) {
+                Task { await SessionStore.shared.logout() }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Você vai precisar entrar de novo com e-mail e senha.")
         }
         .padding(.top, 4)
     }

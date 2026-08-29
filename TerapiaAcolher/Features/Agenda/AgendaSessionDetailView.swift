@@ -3,6 +3,10 @@ import Observation
 
 // MARK: - ViewModel do detalhe
 
+enum AgendaSessionAction {
+    case attend, miss, cancel
+}
+
 @Observable
 final class AgendaSessionDetailModel {
     let sessionId: String
@@ -11,7 +15,10 @@ final class AgendaSessionDetailModel {
     var errorMessage: String?
     var actionError: String?
     var toast: AgendaToastData?
-    var isActing = false
+    var actingAction: AgendaSessionAction?
+    var isActing: Bool { actingAction != nil }
+    /// Nova tentativa a partir do estado de erro — spinner no próprio botão.
+    var isRetrying = false
 
     init(sessionId: String, preloaded: AgendaSession?) {
         self.sessionId = sessionId
@@ -20,11 +27,14 @@ final class AgendaSessionDetailModel {
 
     @MainActor
     func load() async {
-        isLoading = session == nil
+        isLoading = session == nil && errorMessage == nil
+        if errorMessage != nil { isRetrying = true }
         errorMessage = nil
-        defer { isLoading = false }
+        defer { isLoading = false; isRetrying = false }
         do {
             session = try await APIClient.shared.get("sessions/\(sessionId)")
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             if session == nil { errorMessage = error.message }
         } catch {
@@ -34,7 +44,7 @@ final class AgendaSessionDetailModel {
 
     @MainActor
     func markAttended() async {
-        await performAction {
+        await performAction(.attend) {
             let updated: AgendaSession = try await APIClient.shared.patch("sessions/\(self.sessionId)/attend")
             self.session = updated
             self.toast = AgendaToastData(message: "Sessão marcada como atendida")
@@ -43,7 +53,7 @@ final class AgendaSessionDetailModel {
 
     @MainActor
     func markMissed() async {
-        await performAction {
+        await performAction(.miss) {
             let updated: AgendaSession = try await APIClient.shared.patch("sessions/\(self.sessionId)/miss")
             self.session = updated
             self.toast = AgendaToastData(message: "Falta registrada")
@@ -53,7 +63,7 @@ final class AgendaSessionDetailModel {
     /// scope: "this" | "future" (recorrentes)
     @MainActor
     func cancel(scope: String) async {
-        await performAction {
+        await performAction(.cancel) {
             let _: AgendaCancelResult = try await AgendaAPI.patch(
                 "sessions/\(self.sessionId)/cancel",
                 query: ["scope": scope]
@@ -64,12 +74,14 @@ final class AgendaSessionDetailModel {
     }
 
     @MainActor
-    private func performAction(_ action: @escaping () async throws -> Void) async {
+    private func performAction(_ kind: AgendaSessionAction, _ action: @escaping () async throws -> Void) async {
         actionError = nil
-        isActing = true
-        defer { isActing = false }
+        actingAction = kind
+        defer { actingAction = nil }
         do {
             try await action()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             actionError = error.message
         } catch {
@@ -101,18 +113,12 @@ struct AgendaSessionDetailView: View {
             } else if let error = model.errorMessage {
                 VStack(spacing: 14) {
                     EmptyStateView(icon: "calendar.badge.exclamationmark", title: "Ops", message: error)
-                    Button("Tentar de novo") { Task { await model.load() } }
-                        .font(Theme.body(15, weight: .semibold))
+                    RetryButton(isLoading: model.isRetrying) { Task { await model.load() } }
                 }
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Sessão")
-                    .font(Theme.serifTitle(20))
-                    .foregroundStyle(Theme.textPrimary)
-            }
-        }
+        .setToolbarTitle("Sessão")
+        .navigationBarTitleDisplayMode(.inline)
         .task { await model.load() }
         .agendaToast(Bindable(model).toast)
         .alert("Não deu certo", isPresented: .init(
@@ -122,31 +128,6 @@ struct AgendaSessionDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(model.actionError ?? "")
-        }
-        .confirmationDialog(
-            "Cancelar sessão",
-            isPresented: $showCancelDialog,
-            titleVisibility: .visible
-        ) {
-            if model.session?.isRecurring == true {
-                Button("Cancelar somente esta", role: .destructive) {
-                    Task { await model.cancel(scope: "this") }
-                }
-                Button("Cancelar esta e as futuras", role: .destructive) {
-                    Task { await model.cancel(scope: "future") }
-                }
-            } else {
-                Button("Cancelar sessão", role: .destructive) {
-                    Task { await model.cancel(scope: "this") }
-                }
-            }
-            Button("Voltar", role: .cancel) {}
-        } message: {
-            if model.session?.isRecurring == true {
-                Text("Esta sessão faz parte de uma recorrência. O que você quer cancelar?")
-            } else {
-                Text("A sessão será cancelada na agenda.")
-            }
         }
         .sheet(isPresented: $showRescheduleSheet, onDismiss: {
             Task { await model.load() }
@@ -319,7 +300,8 @@ struct AgendaSessionDetailView: View {
                     icon: "checkmark",
                     foreground: .white,
                     background: Theme.primary,
-                    disabled: session.status == "ATTENDED" || session.status == "CANCELED"
+                    disabled: session.status == "ATTENDED" || session.status == "CANCELED",
+                    isLoading: model.actingAction == .attend
                 ) {
                     Task { await model.markAttended() }
                 }
@@ -328,7 +310,8 @@ struct AgendaSessionDetailView: View {
                     icon: "xmark.circle",
                     foreground: Theme.danger,
                     background: Theme.dangerSoft,
-                    disabled: !session.isScheduled
+                    disabled: !session.isScheduled,
+                    isLoading: model.actingAction == .miss
                 ) {
                     Task { await model.markMissed() }
                 }
@@ -350,9 +333,35 @@ struct AgendaSessionDetailView: View {
                     foreground: Theme.textPrimary,
                     background: Theme.surface,
                     bordered: true,
-                    disabled: !session.isScheduled
+                    disabled: !session.isScheduled,
+                    isLoading: model.actingAction == .cancel
                 ) {
                     showCancelDialog = true
+                }
+                .confirmationDialog(
+                    "Cancelar sessão",
+                    isPresented: $showCancelDialog,
+                    titleVisibility: .visible
+                ) {
+                    if model.session?.isRecurring == true {
+                        Button("Cancelar somente esta", role: .destructive) {
+                            Task { await model.cancel(scope: "this") }
+                        }
+                        Button("Cancelar esta e as futuras", role: .destructive) {
+                            Task { await model.cancel(scope: "future") }
+                        }
+                    } else {
+                        Button("Cancelar sessão", role: .destructive) {
+                            Task { await model.cancel(scope: "this") }
+                        }
+                    }
+                    Button("Voltar", role: .cancel) {}
+                } message: {
+                    if model.session?.isRecurring == true {
+                        Text("Esta sessão faz parte de uma recorrência. O que você quer cancelar?")
+                    } else {
+                        Text("A sessão será cancelada na agenda.")
+                    }
                 }
             }
         }
@@ -365,29 +374,46 @@ struct AgendaSessionDetailView: View {
         background: Color,
         bordered: Bool = false,
         disabled: Bool = false,
+        isLoading: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        // Ação indisponível fica neutra em vez de "verde apagado": cor cheia
+        // num botão morto faz o bloco inteiro parecer clicável.
+        let isMuted = disabled && !isLoading
+        let effectiveForeground = isMuted ? Theme.textSecondary.opacity(0.7) : foreground
+        let effectiveBackground = isMuted ? Theme.surface.opacity(0.6) : background
+
+        return Button {
+            Haptics.tap()
+            action()
+        } label: {
             HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(foreground)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                }
                 Text(title)
                     .font(Theme.body(14, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(foreground)
+            .foregroundStyle(effectiveForeground)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
-            .background(background)
+            .background(effectiveBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(bordered ? Theme.border : .clear, lineWidth: 1)
+                    .stroke(bordered || isMuted ? Theme.border : .clear, lineWidth: 1)
             )
-            .opacity(disabled ? 0.45 : 1)
         }
+        .buttonStyle(.pressable)
         .disabled(disabled || model.isActing)
+        .animation(.easeInOut(duration: 0.15), value: isLoading)
     }
 
     // MARK: Detalhes
@@ -566,6 +592,8 @@ struct AgendaRescheduleSheet: View {
                 body: Body(startsAt: newStart, durationMinutes: durationMinutes)
             )
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {

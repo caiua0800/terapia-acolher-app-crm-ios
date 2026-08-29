@@ -172,6 +172,8 @@ struct FinWalletView: View {
             async let guideTask = FinanceAPI.walletGuide()
             status = try await statusTask
             guide = try await guideTask
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar a carteira."
         }
@@ -190,6 +192,8 @@ struct FinWalletView: View {
                 try? await Task.sleep(for: .seconds(2))
                 withAnimation { savedFeedback = false }
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível salvar o Wallet ID."
         }

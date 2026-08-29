@@ -47,6 +47,8 @@ final class AuthRegisterModel {
                 )
             )
             return true
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -190,6 +192,8 @@ struct AuthCheckEmailView: View {
                 body: Body(email: email)
             )
             feedback = response.message
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             resendError = error.message
         } catch {

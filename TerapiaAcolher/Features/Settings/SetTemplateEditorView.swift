@@ -88,18 +88,6 @@ struct SetTemplateEditorView: View {
                     }
                 }
             }
-            .confirmationDialog(
-                "Excluir este modelo?",
-                isPresented: $showDeleteConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Excluir", role: .destructive) {
-                    Task { await deleteTemplate() }
-                }
-                Button("Cancelar", role: .cancel) {}
-            } message: {
-                Text("Se o modelo já foi usado, ele é arquivado e os registros preenchidos são preservados.")
-            }
             .alert("Ops", isPresented: $showError) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -126,7 +114,7 @@ struct SetTemplateEditorView: View {
                     } label: {
                         questionRow(question, position: index + 1)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressableSubtle)
                 }
                 .onDelete { offsets in
                     questions.remove(atOffsets: offsets)
@@ -286,6 +274,18 @@ struct SetTemplateEditorView: View {
             }
         }
         .disabled(isDeleting)
+        .confirmationDialog(
+            "Excluir este modelo?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Excluir", role: .destructive) {
+                Task { await deleteTemplate() }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Se o modelo já foi usado, ele é arquivado e os registros preenchidos são preservados.")
+        }
     }
 
     // MARK: - Persistência
@@ -352,6 +352,8 @@ struct SetTemplateEditorView: View {
             }
             onSaved()
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível salvar o modelo."
             showError = true
@@ -366,6 +368,8 @@ struct SetTemplateEditorView: View {
             let _: EmptyResponse = try await APIClient.shared.delete("templates/\(existing.id)")
             onSaved()
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível excluir o modelo."
             showError = true
@@ -436,7 +440,7 @@ struct SetQuestionEditorView: View {
                                     Image(systemName: "minus.circle.fill")
                                         .foregroundStyle(Theme.danger.opacity(0.7))
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.pressableSubtle)
                             }
                         }
                         Button {

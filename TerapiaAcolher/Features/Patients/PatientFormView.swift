@@ -122,6 +122,8 @@ final class PatientFormViewModel {
             if groupId == nil, case .create = mode {
                 groupId = groups.first?.id
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             groupsError = error.message
         } catch {
@@ -177,6 +179,8 @@ final class PatientFormViewModel {
                 payload.status = registrationActive ? "ACTIVE" : "INACTIVE"
                 return try await PatientsAPI.update(id: detail.id, payload)
             }
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
         } catch {
@@ -358,11 +362,16 @@ struct PatientFormView: View {
                 }
                 Divider().overlay(Theme.border)
                 PatientFieldRow(label: "E-mail") {
-                    TextField("email@exemplo.com", text: $model.email)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .multilineTextAlignment(.trailing)
+                    // Sanitiza no binding, não só no teclado: `.textInputAutocapitalization`
+                    // não alcança texto colado nem teclado físico (iPad/Mac).
+                    TextField("email@exemplo.com", text: Binding(
+                        get: { model.email },
+                        set: { model.email = $0.lowercased().filter { !$0.isWhitespace } }
+                    ))
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .multilineTextAlignment(.trailing)
                 }
                 Divider().overlay(Theme.border)
                 PatientFieldRow(label: "CPF") {

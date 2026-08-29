@@ -4,8 +4,8 @@ import XCTest
 /// Valida o fluxo real: login → dashboard → menu → seções principais.
 /// Screenshots anexadas em cada etapa (exportadas do .xcresult).
 final class SmokeUITests: XCTestCase {
-    let email = "ios.demo@teste-interno.ccypher.com.br"
-    let password = "SenhaForte#2026"
+    let email = "acolher@gmail.com"
+    let password = "Acolher@2026"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -64,8 +64,8 @@ final class SmokeUITests: XCTestCase {
         openSection("Agenda", shot: "03-agenda")
         openSection("Pacientes", shot: "04-pacientes")
         openSection("Financeiro", shot: "05-financeiro")
-        openSection("Documentos", shot: "06-documentos")
-        openSection("Arquivos", shot: "07-arquivos")
+        // Documentos e Anexos saíram do menu em 2026-08-30 — agora se acessam
+        // pela ficha do paciente (ver DesignAuditUITests, que entra por lá).
         openSection("Configurações", shot: "08-configuracoes")
 
         // ── Notificações (sino) — tela empurrada; voltar antes de seguir

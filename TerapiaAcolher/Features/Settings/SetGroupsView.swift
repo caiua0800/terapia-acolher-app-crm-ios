@@ -36,7 +36,7 @@ struct SetGroupsView: View {
                                     } label: {
                                         groupRow(group)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.pressableSubtle)
                                 }
                             }
                         }
@@ -202,6 +202,18 @@ struct SetGroupFormView: View {
                                 .background(Theme.dangerSoft)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
                             }
+                            .confirmationDialog(
+                                "Excluir este grupo?",
+                                isPresented: $showDeleteConfirm,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Excluir", role: .destructive) {
+                                    Task { await deleteGroup() }
+                                }
+                                Button("Cancelar", role: .cancel) {}
+                            } message: {
+                                Text("Só é possível excluir grupos sem pacientes vinculados.")
+                            }
                             .disabled(isDeleting)
                         }
                     }
@@ -231,18 +243,6 @@ struct SetGroupFormView: View {
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
                 }
             }
-            .confirmationDialog(
-                "Excluir este grupo?",
-                isPresented: $showDeleteConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Excluir", role: .destructive) {
-                    Task { await deleteGroup() }
-                }
-                Button("Cancelar", role: .cancel) {}
-            } message: {
-                Text("Só é possível excluir grupos sem pacientes vinculados.")
-            }
             .alert("Ops", isPresented: $showError) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -267,6 +267,8 @@ struct SetGroupFormView: View {
             }
             onSaved()
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível salvar o grupo."
             showError = true
@@ -281,6 +283,8 @@ struct SetGroupFormView: View {
             let _: EmptyResponse = try await APIClient.shared.delete("patient-groups/\(group.id)")
             onSaved()
             dismiss()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             // 409 do backend: grupo com pacientes vinculados.
             errorMessage = (error as? APIError)?.message ?? "Não foi possível excluir o grupo."
@@ -301,6 +305,8 @@ final class SetGroupsViewModel {
         do {
             groups = try await APIClient.shared.get("patient-groups")
             isLoading = false
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             isLoading = false
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os grupos."

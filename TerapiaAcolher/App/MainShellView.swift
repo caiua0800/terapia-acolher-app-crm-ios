@@ -1,10 +1,15 @@
 import SwiftUI
 
-/// Destinos do menu lateral (fiel ao MVP — módulo Atendimento foi CORTADO do escopo).
+/// Destinos do menu lateral.
+/// - Atendimento: CORTADO do escopo (veto permanente).
+/// - Documentos e Anexos: saíram do menu em 2026-08-30 e passaram a viver dentro da
+///   ficha do paciente. Toda rota deles no backend é `/patients/{id}/...` — no menu
+///   eram só uma segunda e terceira lista de pacientes, e a ficha, que é onde o
+///   terapeuta está quando precisa deles, não tinha entrada nenhuma.
 enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses
-    case financeiro, documentos, arquivos
+    case financeiro
     case configuracoes
 
     var id: String { rawValue }
@@ -17,8 +22,6 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "Prontuários"
         case .anamneses: "Anamneses"
         case .financeiro: "Financeiro"
-        case .documentos: "Documentos"
-        case .arquivos: "Arquivos"
         case .configuracoes: "Configurações"
         }
     }
@@ -31,8 +34,6 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "doc.text"
         case .anamneses: "pencil.line"
         case .financeiro: "dollarsign"
-        case .documentos: "doc"
-        case .arquivos: "folder"
         case .configuracoes: "gearshape"
         }
     }
@@ -41,7 +42,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
     static let sections: [(header: String, items: [MenuDestination])] = [
         ("PRINCIPAL", [.inicio, .agenda]),
         ("PACIENTES", [.pacientes, .prontuarios, .anamneses]),
-        ("GESTÃO", [.financeiro, .documentos, .arquivos]),
+        ("GESTÃO", [.financeiro]),
         ("CONTA", [.configuracoes]),
     ]
 }
@@ -55,6 +56,10 @@ struct MainShellView: View {
         ZStack(alignment: .leading) {
             NavigationStack {
                 destinationView
+                    // Sem isto a barra fica em modo "large title" com o título
+                    // VAZIO (o título real vai no item .principal) e reserva ~52pt
+                    // de espaço morto no topo de todas as seções.
+                    .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button {
@@ -109,8 +114,6 @@ struct MainShellView: View {
         case .prontuarios: RecordsHomeView(kind: .record)
         case .anamneses: RecordsHomeView(kind: .anamnesis)
         case .financeiro: FinanceHomeView()
-        case .documentos: DocumentsHomeView()
-        case .arquivos: FilesHomeView()
         case .configuracoes: SettingsHomeView()
         }
     }
@@ -124,14 +127,16 @@ struct SideMenuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.primary, Color(hex: 0xB9A6D9)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
+                Image("LogoAcolher")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 42, height: 42)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(.white.opacity(0.14), lineWidth: 1)
                     )
-                    .frame(width: 40, height: 40)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Terapia Acolher")
                         .font(Theme.serifTitle(18))

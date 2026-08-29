@@ -34,21 +34,6 @@ struct SetGoogleView: View {
         .setToolbarTitle("Google Calendar · Meet")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
-        .confirmationDialog(
-            "Desconectar a conta Google?",
-            isPresented: $showDisconnectConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Desconectar", role: .destructive) {
-                Task {
-                    await viewModel.disconnect()
-                    onChanged()
-                }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Novas sessões online não vão mais gerar link do Google Meet.")
-        }
         .alert("Ops", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -114,6 +99,21 @@ struct SetGoogleView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
             }
             .disabled(viewModel.isWorking)
+            .confirmationDialog(
+                "Desconectar a conta Google?",
+                isPresented: $showDisconnectConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Desconectar", role: .destructive) {
+                    Task {
+                        await viewModel.disconnect()
+                        onChanged()
+                    }
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Novas sessões online não vão mais gerar link do Google Meet.")
+            }
         }
     }
 
@@ -142,19 +142,30 @@ struct SetGoogleView: View {
                             .font(Theme.body(13))
                             .foregroundStyle(Theme.textSecondary)
                         Button {
+                            Haptics.tap()
                             Task {
-                                await viewModel.load()
+                                await viewModel.refreshStatus()
                                 onChanged()
                             }
                         } label: {
-                            Label("Já autorizei — atualizar", systemImage: "arrow.clockwise")
-                                .font(Theme.body(14, weight: .semibold))
-                                .foregroundStyle(Theme.primary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                                .background(Theme.primarySoft)
-                                .clipShape(Capsule())
+                            HStack(spacing: 8) {
+                                if viewModel.isRefreshingStatus {
+                                    ProgressView().controlSize(.small).tint(Theme.primary)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                }
+                                Text("Já autorizei — atualizar")
+                            }
+                            .font(Theme.body(14, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(Theme.primarySoft)
+                            .clipShape(Capsule())
+                            .animation(.easeInOut(duration: 0.15), value: viewModel.isRefreshingStatus)
                         }
+                        .buttonStyle(.pressable)
+                        .disabled(viewModel.isRefreshingStatus)
                     }
                 }
             }
@@ -167,6 +178,8 @@ final class SetGoogleViewModel {
     var status: SetGoogleStatus?
     var isLoading = true
     var isWorking = false
+    /// Recheque manual do status ("Já autorizei") — spinner no próprio botão.
+    var isRefreshingStatus = false
     var didOpenAuth = false
     var errorMessage: String?
     var showError = false
@@ -181,6 +194,13 @@ final class SetGoogleViewModel {
             isLoading = false
             present(error)
         }
+    }
+
+    @MainActor
+    func refreshStatus() async {
+        isRefreshingStatus = true
+        defer { isRefreshingStatus = false }
+        await load()
     }
 
     @MainActor

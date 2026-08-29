@@ -112,18 +112,18 @@ struct NotificationsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
+                // Texto em duas linhas era truncado pela barra ("MARCAR…").
+                // Ícone único: cabe sempre e vira spinner enquanto marca.
+                AsyncIconButton(
+                    icon: "checkmark.circle",
+                    isLoading: viewModel.isMarkingAll,
+                    isEnabled: viewModel.hasUnread,
+                    tint: Theme.textPrimary,
+                    size: 17
+                ) {
                     Task { await viewModel.markAllRead() }
-                } label: {
-                    Text("MARCAR\nTODAS")
-                        .font(Theme.body(10, weight: .bold))
-                        .tracking(0.5)
-                        .multilineTextAlignment(.trailing)
-                        .foregroundStyle(
-                            viewModel.hasUnread ? Theme.textPrimary : Theme.textSecondary.opacity(0.5)
-                        )
                 }
-                .disabled(!viewModel.hasUnread)
+                .accessibilityLabel("Marcar todas como lidas")
             }
         }
         .task { await viewModel.load() }
@@ -157,8 +157,11 @@ struct NotificationsView: View {
                     } label: {
                         NotifCell(item: item)
                     }
-                    .buttonStyle(.plain)
-                    Divider().padding(.leading, 68)
+                    .buttonStyle(.pressableSubtle)
+                    InsetDivider(
+                        leading: Theme.screenPadding + 50,
+                        trailing: Theme.screenPadding
+                    )
                 }
             }
         }
@@ -273,6 +276,7 @@ final class NotificationsViewModel {
     var items: [NotifItem] = []
     var filter: NotifFilter = .tudo
     var isLoading = true
+    var isMarkingAll = false
     var errorMessage: String?
     var showError = false
 
@@ -312,6 +316,8 @@ final class NotificationsViewModel {
     func markAllRead() async {
         let previous = items
         let now = Date()
+        isMarkingAll = true
+        defer { isMarkingAll = false }
         items = items.map { item in
             var copy = item
             if copy.isUnread { copy.readAt = now }

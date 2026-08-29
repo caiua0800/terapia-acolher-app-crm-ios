@@ -100,6 +100,7 @@ struct AgendaMonthView: View {
         let isSelected = model.selectedDay.map { calendar.isDate($0, inSameDayAs: date) } ?? false
 
         return Button {
+            Haptics.tap()
             Task { await model.loadDay(date) }
         } label: {
             VStack(spacing: 4) {
@@ -109,7 +110,14 @@ struct AgendaMonthView: View {
                     .frame(width: 24, height: 24)
                     .background(isToday ? Theme.primary : Color.clear, in: Circle())
 
-                if count > 0 {
+                // Enquanto o dia carrega, o spinner fica na própria célula
+                // tocada — a lista de sessões aparece bem abaixo do calendário.
+                if isSelected, model.isLoadingDay {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(Theme.primary)
+                        .frame(height: 15)
+                } else if count > 0 {
                     Text("\(count) sess")
                         .font(Theme.body(9, weight: .bold))
                         .foregroundStyle(Theme.success)
@@ -129,8 +137,9 @@ struct AgendaMonthView: View {
                 isSelected ? Theme.primarySoft.opacity(0.55) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 8)
             )
+            .animation(.easeInOut(duration: 0.15), value: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableSubtle)
     }
 
     private func dateFor(day: Int) -> Date {
@@ -179,7 +188,7 @@ struct AgendaMonthView: View {
                     } label: {
                         AgendaSessionCardRow(session: session)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressableSubtle)
                 }
             }
         }
