@@ -11,10 +11,16 @@ enum Theme {
     static let background = Color(hex: 0xFAF8F4)
     /// Superfície de cards
     static let surface = Color.white
-    /// Verde-sálvia — cor primária (botões, destaques, FAB)
-    static let primary = Color(hex: 0x6FA88B)
-    /// Verde-sálvia claro (fundos de chip ativo, sucesso suave)
-    static let primarySoft = Color(hex: 0xDEEDE5)
+    /// Verde da marca — botões, destaques, FAB.
+    ///
+    /// Amostrado da logo da Terapia Acolher (os verdes das pétalas ficam em
+    /// torno de #609060, matiz ~110°) e escurecido até passar no contraste.
+    /// O sálvia anterior (#6FA88B) tinha só **2,75:1** com branco: o texto do
+    /// botão principal estava abaixo do mínimo da WCAG em todo o app. Este
+    /// tem 4,78:1.
+    static let primary = Color(hex: 0x4F7D53)
+    /// Verde da marca, bem claro (chip ativo, fundos de destaque).
+    static let primarySoft = Color(hex: 0xE3EFE2)
     /// Grafite escuro (menu lateral, card de saldo)
     static let ink = Color(hex: 0x232B2F)
     /// Texto principal
@@ -26,9 +32,11 @@ enum Theme {
     /// Negativo (saídas, atrasado, excluir)
     static let danger = Color(hex: 0xD9534F)
     static let dangerSoft = Color(hex: 0xFBE9E8)
-    /// Positivo (entradas, pago)
-    static let success = Color(hex: 0x4C9A6F)
-    static let successSoft = Color(hex: 0xE3F2EA)
+    /// Positivo (entradas, pago). Puxado para o azulado de propósito: com o
+    /// primário agora sendo verde folha, um sucesso verde-igual faria "pago" e
+    /// "botão de ação" se confundirem na mesma tela.
+    static let success = Color(hex: 0x3E8E6B)
+    static let successSoft = Color(hex: 0xE2F1EA)
     /// Alerta (pendente)
     static let warning = Color(hex: 0xC99B3F)
     static let warningSoft = Color(hex: 0xF9F0DC)
