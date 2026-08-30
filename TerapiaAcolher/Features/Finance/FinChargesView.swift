@@ -403,7 +403,18 @@ struct FinChargesView: View {
     private var chargeList: some View {
         LazyVStack(spacing: 0) {
             ForEach(model.charges) { charge in
-                chargeCell(charge)
+                // A linha abre a PÁGINA da cobrança. Antes ela não era
+                // tocável: todas as ações — inclusive o link de pagamento,
+                // que é o motivo de abrir a cobrança — viviam escondidas
+                // atrás dos três pontinhos.
+                NavigationLink {
+                    FinChargeDetailView(charge: charge) {
+                        Task { await model.load() }
+                    }
+                } label: {
+                    chargeCell(charge)
+                }
+                .buttonStyle(.pressableSubtle)
                 if charge.id != model.charges.last?.id {
                     Divider().overlay(Theme.border)
                 }
@@ -528,13 +539,6 @@ struct FinChargesView: View {
                         UIPasteboard.general.string = urlString
                     } label: {
                         Label("Copiar link de pagamento", systemImage: "doc.on.doc")
-                    }
-                } else {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        Task { await model.checkout(charge, billingType: "PIX") }
-                    } label: {
-                        Label("Cobrar via Pix", systemImage: "qrcode")
                     }
                 }
                 Button(role: .destructive) {

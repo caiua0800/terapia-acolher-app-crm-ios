@@ -65,6 +65,7 @@
 		A97DFF148E13E2636A17C97B /* FilesModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9300DA65BEE554BD3BD178FC /* FilesModels.swift */; };
 		A9977DB24E98EA795EBD84AD /* DocumentsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CE57E1D4EA8CB2BCC16F48 /* DocumentsHomeView.swift */; };
 		A9A898CB825ED343C4CEA929 /* SetTemplateEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F167C5DA6C3235054D9AD4 /* SetTemplateEditorView.swift */; };
+		AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */; };
 		BCAC7313BEF6855C94EB0D82 /* AgendaMonthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4239C8459754261031FB88 /* AgendaMonthView.swift */; };
 		C33805A8046A3C02A1A552F6 /* VitrineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AAC5AE326BCDED2580F132 /* VitrineView.swift */; };
 		C75922ABA43C6D783269C2FC /* LogoutDialogUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44AD4BA3621BF9425EC1CC49 /* LogoutDialogUITests.swift */; };
@@ -136,6 +137,7 @@
 		5FC2F6EF4852925C086AE4DB /* AuthComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthComponents.swift; sourceTree = "<group>"; };
 		5FDF870286A4B47A922F4A49 /* TerapiaAcolherApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerapiaAcolherApp.swift; sourceTree = "<group>"; };
 		6C4239C8459754261031FB88 /* AgendaMonthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaMonthView.swift; sourceTree = "<group>"; };
+		6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargeDetailView.swift; sourceTree = "<group>"; };
 		7173C710F75ACB3A65D24C2F /* LeadsCreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCreditsView.swift; sourceTree = "<group>"; };
 		7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetProfileView.swift; sourceTree = "<group>"; };
 		784CFCF124134E8A5792C19D /* SetGoogleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetGoogleView.swift; sourceTree = "<group>"; };
@@ -302,6 +304,7 @@
 				1E13313F1B76B704FD227550 /* FinanceHomeView.swift */,
 				83BAFF89B5616319BE165106 /* FinanceModels.swift */,
 				53E0558EBFC4D9F09706052A /* FinanceShared.swift */,
+				6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */,
 				54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */,
 				C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */,
 				88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */,
@@ -566,6 +569,7 @@
 				78A690582F3CBDB882596B8A /* DocumentsModels.swift in Sources */,
 				2B6B48C42A2D06108DC9AC50 /* FilesHomeView.swift in Sources */,
 				A97DFF148E13E2636A17C97B /* FilesModels.swift in Sources */,
+				AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */,
 				4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */,
 				F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */,
 				40F18649584AB33299A43D18 /* FinChargesView.swift in Sources */,
