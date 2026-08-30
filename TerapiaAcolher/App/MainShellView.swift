@@ -9,7 +9,7 @@ import SwiftUI
 enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses
-    case financeiro
+    case financeiro, leads, creditos
     case configuracoes
 
     var id: String { rawValue }
@@ -22,6 +22,8 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "Prontuários"
         case .anamneses: "Anamneses"
         case .financeiro: "Financeiro"
+        case .leads: "Meus leads"
+        case .creditos: "Créditos"
         case .configuracoes: "Configurações"
         }
     }
@@ -34,23 +36,33 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "doc.text"
         case .anamneses: "pencil.line"
         case .financeiro: "dollarsign"
+        case .leads: "tray.full"
+        case .creditos: "sparkles"
         case .configuracoes: "gearshape"
         }
     }
 
     /// Seções do menu como no MVP.
-    static let sections: [(header: String, items: [MenuDestination])] = [
-        ("PRINCIPAL", [.inicio, .agenda]),
-        ("PACIENTES", [.pacientes, .prontuarios, .anamneses]),
-        ("GESTÃO", [.financeiro]),
-        ("CONTA", [.configuracoes]),
-    ]
+    static var sections: [(header: String, items: [MenuDestination])] {
+        var todas: [(header: String, items: [MenuDestination])] = [
+            ("PRINCIPAL", [.inicio, .agenda]),
+        ]
+        // Módulo em demonstração: some do menu inteiro com uma flag.
+        if LeadsDemo.enabled {
+            todas.append((header: "LEADS", items: [.leads, .creditos]))
+        }
+        todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses]))
+        todas.append((header: "GESTÃO", items: [.financeiro]))
+        todas.append((header: "CONTA", items: [.configuracoes]))
+        return todas
+    }
 }
 
 /// Shell autenticado: drawer lateral escuro (grafite) + conteúdo.
 struct MainShellView: View {
     @State private var selection: MenuDestination = .inicio
     @State private var isMenuOpen = false
+    @State private var deepLink = DeepLink.shared
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -103,6 +115,20 @@ struct MainShellView: View {
                     .transition(.move(edge: .leading))
             }
         }
+        // Notificação tocada enquanto o app está em outra seção: leva pra
+        // seção certa antes de a tela de destino tentar se abrir.
+        .onChange(of: deepLink.pendingSection) { _, secao in
+            guard let secao else { return }
+            switch secao {
+            case "agenda": selection = .agenda
+            case "financeiro": selection = .financeiro
+            default: break
+            }
+            deepLink.pendingSection = nil
+        }
+        .task {
+            await PushManager.shared.refreshAuthorization()
+        }
     }
 
     @ViewBuilder
@@ -114,6 +140,8 @@ struct MainShellView: View {
         case .prontuarios: RecordsHomeView(kind: .record)
         case .anamneses: RecordsHomeView(kind: .anamnesis)
         case .financeiro: FinanceHomeView()
+        case .leads: LeadsListView()
+        case .creditos: LeadsCreditsView()
         case .configuracoes: SettingsHomeView()
         }
     }

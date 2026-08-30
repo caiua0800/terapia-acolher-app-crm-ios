@@ -104,6 +104,15 @@ struct FinChargeSummary: Decodable {
         let canceled: Int
     }
 
+    /// Soma das cobranças que existiram de fato (pagas + em aberto).
+    /// Canceladas ficam de fora: nunca foram devidas, e somá-las faria
+    /// `cobrado − pago − a receber` não fechar.
+    ///
+    /// Opcionais de propósito: são campos novos. Um app atualizado falando com
+    /// uma API mais antiga decodificaria com erro e derrubaria a tela inteira
+    /// de cobranças — assim ele apenas esconde o bloco de totais.
+    let charged: Double?
+    let paid: Double?
     let toReceive: Double
     let overdue: Double
     let counts: Counts

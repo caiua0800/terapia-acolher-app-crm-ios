@@ -235,6 +235,7 @@ final class AgendaViewModel {
 struct AgendaView: View {
     @State private var model = AgendaViewModel()
     @State private var showNewSession = false
+    @State private var deepLink = DeepLink.shared
     /// O terapeuta pode dispensar o convite do Google — a integração é opcional
     /// e o caminho definitivo continua em Configurações → Integrações.
     @AppStorage("agenda.googleBannerDismissed") private var googleBannerDismissed = false
@@ -263,6 +264,10 @@ struct AgendaView: View {
         .onAppear {
             Task { await model.reloadCurrent() }
             Task { await model.loadGoogleStatus() }
+        }
+        // Toque numa notificação de sessão abre o detalhe direto.
+        .navigationDestination(item: $deepLink.sessionId) { id in
+            AgendaSessionDetailView(sessionId: id)
         }
         .sheet(isPresented: $showNewSession, onDismiss: {
             Task { await model.reloadCurrent() }

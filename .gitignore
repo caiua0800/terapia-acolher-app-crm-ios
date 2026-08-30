@@ -7,3 +7,6 @@ xcuserdata/
 
 # Provisioning profiles (instalar localmente, nao versionar)
 *.mobileprovision
+
+# Chave de assinatura APNs — NUNCA versionar
+*.p8

@@ -66,6 +66,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 greetingCard(payload)
+                leadsSection
                 monthSection(payload.month)
                 nextSessionsSection(payload.nextSessions)
             }
@@ -158,6 +159,88 @@ struct DashboardView: View {
         .padding(.vertical, 12)
         .background(.white.opacity(0.55))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: Leads (módulo em demonstração — some com LeadsDemo.enabled)
+
+    @ViewBuilder
+    private var leadsSection: some View {
+        if LeadsDemo.enabled {
+            let store = LeadsStore.shared
+            VStack(alignment: .leading, spacing: 12) {
+                Text("LEADS")
+                    .font(Theme.body(11, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.leading, 2)
+
+                NavigationLink {
+                    LeadsListView()
+                } label: {
+                    ThemeCard(padding: 16) {
+                        HStack(spacing: 14) {
+                            Image(systemName: "tray.full.fill")
+                                .font(.system(size: 17))
+                                .foregroundStyle(Theme.primary)
+                                .frame(width: 42, height: 42)
+                                .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 12))
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(store.uncontactedCount == 1
+                                     ? "1 lead esperando contato"
+                                     : "\(store.uncontactedCount) leads esperando contato")
+                                    .font(Theme.body(15, weight: .semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                                Text(store.lateCount > 0
+                                     ? "\(store.lateCount) há mais de um dia"
+                                     : "Nenhum atrasado")
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(store.lateCount > 0 ? Theme.danger : Theme.textSecondary)
+                            }
+
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                        }
+                    }
+                }
+                .buttonStyle(.pressableSubtle)
+
+                NavigationLink {
+                    LeadsCreditsView()
+                } label: {
+                    ThemeCard(padding: 16) {
+                        HStack(spacing: 14) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 17))
+                                .foregroundStyle(Theme.warning)
+                                .frame(width: 42, height: 42)
+                                .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("2 créditos restantes")
+                                    .font(Theme.body(15, weight: .semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text("Saldo baixo — toque pra recarregar")
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(Theme.warning)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                            }
+
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                        }
+                    }
+                }
+                .buttonStyle(.pressableSubtle)
+            }
+        }
     }
 
     // MARK: Este mês — receita em destaque + faixa compacta

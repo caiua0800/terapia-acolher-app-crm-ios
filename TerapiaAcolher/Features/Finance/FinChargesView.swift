@@ -298,6 +298,7 @@ struct FinChargesView: View {
     private var summaryCard: some View {
         ThemeCard {
             VStack(alignment: .leading, spacing: 4) {
+                let overdue = model.summary?.overdue ?? 0
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("A RECEBER")
@@ -305,20 +306,25 @@ struct FinChargesView: View {
                             .tracking(1.2)
                             .foregroundStyle(Theme.textSecondary)
                         Text(Formatters.brl(model.summary?.toReceive ?? 0))
-                            .font(Theme.money(26, weight: .bold))
+                            .font(Theme.moneyDisplay(28))
+                            .monospacedDigit()
                             .foregroundStyle(Theme.textPrimary)
                             .minimumScaleFactor(0.6)
                             .lineLimit(1)
                     }
-                    Spacer()
+                    Spacer(minLength: 12)
+                    // Em atraso só alarma quando existe: R$ 0,00 em vermelho
+                    // grita sem motivo e ensina o terapeuta a ignorar a cor.
                     VStack(alignment: .trailing, spacing: 4) {
                         Text("EM ATRASO")
                             .font(Theme.body(10, weight: .semibold))
                             .tracking(1.2)
                             .foregroundStyle(Theme.textSecondary)
-                        Text(Formatters.brl(model.summary?.overdue ?? 0))
-                            .font(Theme.money(17, weight: .bold))
-                            .foregroundStyle(Theme.danger)
+                        Text(Formatters.brl(overdue))
+                            .font(Theme.moneyDisplay(17, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(overdue > 0 ? Theme.danger : Theme.textSecondary)
+                            .lineLimit(1)
                     }
                 }
                 if let summary = model.summary {
@@ -327,7 +333,55 @@ struct FinChargesView: View {
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
                         .padding(.top, 4)
+
+                    if let charged = summary.charged, let paid = summary.paid {
+                        Divider()
+                            .overlay(Theme.border)
+                            .padding(.vertical, 12)
+
+                        HStack {
+                            totalItem(
+                                label: "COBRADO",
+                                value: charged,
+                                color: Theme.textPrimary
+                            )
+                            Spacer()
+                            totalItem(
+                                label: "JÁ PAGO",
+                                value: paid,
+                                color: Theme.success,
+                                caption: "\(summary.counts.paid) cobrança\(summary.counts.paid == 1 ? "" : "s")",
+                                alignment: .trailing
+                            )
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    private func totalItem(
+        label: String,
+        value: Double,
+        color: Color,
+        caption: String? = nil,
+        alignment: HorizontalAlignment = .leading
+    ) -> some View {
+        VStack(alignment: alignment, spacing: 3) {
+            Text(label)
+                .font(Theme.body(10, weight: .semibold))
+                .tracking(1.2)
+                .foregroundStyle(Theme.textSecondary)
+            Text(Formatters.brl(value))
+                .font(Theme.moneyDisplay(18))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            if let caption {
+                Text(caption)
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -373,13 +427,17 @@ struct FinChargesView: View {
                         .lineLimit(1)
                 }
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: 10)
             Text(Formatters.brl(charge.amount))
-                .font(Theme.money(15, weight: .semibold))
+                .font(Theme.moneyDisplay(16, weight: .semibold))
+                .monospacedDigit()
                 .foregroundStyle(amountColor(charge.status))
+                .lineLimit(1)
+                .fixedSize()
             chargeMenu(charge)
+                .padding(.leading, 2)
         }
-        .padding(.vertical, 13)
+        .padding(.vertical, 14)
     }
 
     private func statusIcon(_ status: FinChargeStatus) -> some View {

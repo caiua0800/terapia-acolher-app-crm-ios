@@ -2,6 +2,9 @@ import SwiftUI
 
 @main
 struct TerapiaAcolherApp: App {
+    // Push precisa de AppDelegate: o token do APNs chega por callback do UIKit,
+    // que o ciclo de vida SwiftUI puro não expõe.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = SessionStore.shared
 
     init() {

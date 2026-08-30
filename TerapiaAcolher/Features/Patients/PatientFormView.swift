@@ -7,6 +7,9 @@ final class PatientFormViewModel {
     enum Mode {
         case create
         case edit(PatientDetail)
+        /// Vem de um lead: nome e WhatsApp já preenchidos, o resto o terapeuta
+        /// completa. É a ponte entre o topo do funil e a ficha de verdade.
+        case fromLead(name: String, whatsapp: String)
 
         var isEdit: Bool { if case .edit = self { true } else { false } }
     }
@@ -54,6 +57,10 @@ final class PatientFormViewModel {
 
     init(mode: Mode) {
         self.mode = mode
+        if case let .fromLead(leadName, leadWhatsapp) = mode {
+            name = leadName
+            whatsapp = leadWhatsapp.isEmpty ? "" : PatientMask.whatsapp(leadWhatsapp)
+        }
         if case let .edit(detail) = mode {
             groupId = detail.group?.id
             name = detail.name
@@ -173,7 +180,7 @@ final class PatientFormViewModel {
         defer { isSaving = false }
         do {
             switch mode {
-            case .create:
+            case .create, .fromLead:
                 return try await PatientsAPI.create(payload)
             case let .edit(detail):
                 payload.status = registrationActive ? "ACTIVE" : "INACTIVE"

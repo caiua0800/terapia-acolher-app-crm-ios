@@ -136,6 +136,7 @@ struct PatientDetailView: View {
     @State private var showEdit = false
     @State private var showScheduleInfo = false
     @State private var photoItem: PhotosPickerItem?
+    @State private var showPhotoPicker = false
     @Environment(\.dismiss) private var dismiss
 
     /// Chamado após exclusão bem-sucedida (nome do paciente) — a lista mostra o toast.
@@ -293,8 +294,13 @@ struct PatientDetailView: View {
     }
 
     private func photoMenu(hasPhoto: Bool) -> some View {
+        // O item da galeria é um Button que só liga a flag; a apresentação vai
+        // no modificador .photosPicker da view. Um PhotosPicker DENTRO do Menu
+        // não abre: o menu fecha e leva a apresentação junto.
         Menu {
-            PhotosPicker(selection: $photoItem, matching: .images) {
+            Button {
+                showPhotoPicker = true
+            } label: {
                 Label(hasPhoto ? "Trocar foto" : "Adicionar foto", systemImage: "photo")
             }
             if hasPhoto {
@@ -313,6 +319,11 @@ struct PatientDetailView: View {
                 .overlay(Circle().stroke(Theme.background, lineWidth: 2.5))
         }
         .disabled(model.isWorkingPhoto)
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $photoItem,
+            matching: .images
+        )
         .onChange(of: photoItem) { _, novo in
             guard let novo else { return }
             Task {
@@ -445,12 +456,22 @@ struct PatientDetailView: View {
                     )
                 }
                 rowDivider
-                sectionRow(
-                    icon: "dollarsign",
-                    tint: Theme.warning,
-                    title: "Financeiro",
-                    trailing: Formatters.brl(detail.pendingBalance ?? 0)
-                )
+                // Esta linha tinha chevron e valor mas NÃO era link: não levava
+                // a lugar nenhum. Aponta pra tela de cobranças do paciente, que
+                // já existia completa (resumo, filtros, pagar, lembrete, checkout).
+                NavigationLink {
+                    FinChargesView(
+                        patient: FinPatientRef(id: detail.id, name: detail.name)
+                    )
+                } label: {
+                    sectionRow(
+                        icon: "dollarsign",
+                        tint: Theme.warning,
+                        title: "Financeiro",
+                        subtitle: "Cobranças e valores do paciente",
+                        trailing: Formatters.brl(detail.pendingBalance ?? 0)
+                    )
+                }
             }
         }
     }

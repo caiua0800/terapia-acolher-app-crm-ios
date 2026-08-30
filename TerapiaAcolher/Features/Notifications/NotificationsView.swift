@@ -88,10 +88,76 @@ enum NotifFilter: String, CaseIterable, Identifiable {
 struct NotificationsView: View {
     @State private var viewModel = NotificationsViewModel()
 
+    @State private var push = PushManager.shared
+    @State private var isAskingPush = false
+
+    /// Convite pra ligar as notificações. Pedir permissão aqui, e não na
+    /// primeira abertura do app, é deliberado: o iOS só mostra o alerta do
+    /// sistema UMA vez na vida do app — gastar isso antes de o terapeuta
+    /// entender o valor é trocar um "sim" provável por um "não" definitivo.
+    @ViewBuilder
+    private var pushPermissionCard: some View {
+        if let status = push.authorization, status != .authorized {
+            let negado = status == .denied
+            ThemeCard(padding: 14) {
+                HStack(spacing: 12) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 40, height: 40)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 11))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(negado ? "Notificações desativadas" : "Ative as notificações")
+                            .font(Theme.body(14, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Avisamos de sessões e pagamentos confirmados.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    Button {
+                        Haptics.tap()
+                        if negado {
+                            push.openSystemSettings()
+                        } else {
+                            isAskingPush = true
+                            Task {
+                                await push.requestAuthorization()
+                                isAskingPush = false
+                            }
+                        }
+                    } label: {
+                        Group {
+                            if isAskingPush {
+                                ProgressView().controlSize(.small).tint(Theme.primary)
+                            } else {
+                                Text(negado ? "Ajustes" : "Ativar")
+                                    .font(Theme.body(13, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(Theme.primary)
+                        .frame(minWidth: 62)
+                        .padding(.vertical, 8)
+                        .background(Theme.primarySoft, in: Capsule())
+                    }
+                    .buttonStyle(.pressable)
+                    .disabled(isAskingPush)
+                }
+            }
+            .padding(.horizontal, Theme.screenPadding)
+            .padding(.top, 10)
+        }
+    }
+
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
+                pushPermissionCard
                 chips
                 if viewModel.isLoading {
                     Spacer()

@@ -402,6 +402,11 @@ struct StatusBadge: View {
             .background(background)
             .foregroundStyle(color)
             .clipShape(Capsule())
+            // Sem isto a badge cede espaço quando o conteúdo ao lado é longo e
+            // o rótulo quebra no meio da palavra ("PENDENT/E"). Como o
+            // componente é usado no app inteiro, a correção mora aqui.
+            .lineLimit(1)
+            .fixedSize()
     }
 
     static func pago() -> StatusBadge { .init(label: "PAGO", color: Theme.success, background: Theme.successSoft) }

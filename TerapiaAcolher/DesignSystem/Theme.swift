@@ -100,6 +100,14 @@ enum Formatters {
         return formatter
     }()
 
+    /// Sem centavos quando o valor é redondo — "R$ 97" lê melhor que
+    /// "R$ 97,00" num preço de tabela. Com centavos, mantém.
+    static func brlCompact(_ value: Double) -> String {
+        value == value.rounded()
+            ? "R$ \(Int(value))"
+            : brl(value)
+    }
+
     static func brl(_ value: Double) -> String {
         currency.string(from: NSNumber(value: value)) ?? "R$ \(value)"
     }

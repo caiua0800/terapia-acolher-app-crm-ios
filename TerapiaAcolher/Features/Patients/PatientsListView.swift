@@ -16,7 +16,15 @@ final class PatientsListViewModel {
     var errorMessage: String? = nil
     var toast: String? = nil
 
+    /// Liga NO INSTANTE da digitação, antes do debounce e da requisição.
+    /// Sem isso a busca fica 350ms + rede sem sinal nenhum na tela e passa
+    /// sensação de travamento (ver memoria/feedback-loading-imediato.md).
+    var isSearching = false
+
     private var searchTask: Task<Void, Never>?
+    /// Só a busca MAIS RECENTE pode apagar o spinner: uma resposta antiga
+    /// chegando depois desligaria o feedback com outra digitação em voo.
+    private var searchGeneration = 0
 
     var sortedPatients: [Patient] {
         sortAscending ? patients : patients.reversed()
@@ -56,10 +64,16 @@ final class PatientsListViewModel {
     @MainActor
     func searchChanged() {
         searchTask?.cancel()
+        searchGeneration += 1
+        let generation = searchGeneration
+        isSearching = true
+
         searchTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 350_000_000)
             guard !Task.isCancelled else { return }
             await self?.load(showSpinner: false)
+            guard let self, generation == self.searchGeneration else { return }
+            self.isSearching = false
         }
     }
 
@@ -131,15 +145,29 @@ struct PatientsListView: View {
                 .font(Theme.body(15))
                 .autocorrectionDisabled()
                 .onChange(of: model.searchText) { model.searchChanged() }
-            if !model.searchText.isEmpty {
-                Button {
-                    model.searchText = ""
-                    model.searchChanged()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Theme.textSecondary.opacity(0.6))
+
+            // Spinner e "limpar" dividem o mesmo espaço: sem largura fixa o
+            // campo daria um salto a cada troca entre os dois.
+            ZStack {
+                if model.isSearching {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Theme.primary)
+                        .transition(.opacity)
+                } else if !model.searchText.isEmpty {
+                    Button {
+                        Haptics.tap()
+                        model.searchText = ""
+                        model.searchChanged()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                    }
+                    .transition(.opacity)
                 }
             }
+            .frame(width: 20, height: 20)
+            .animation(.easeInOut(duration: 0.15), value: model.isSearching)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -200,6 +228,9 @@ struct PatientsListView: View {
             )
             Spacer()
         } else {
+            // Durante a busca a lista ANTERIOR continua visível, só esmaecida:
+            // trocar por spinner de tela cheia perde o contexto e pisca a cada
+            // tecla. O sinal de "atualizando" fica no campo, onde ele digitou.
             ScrollView {
                 LazyVStack(spacing: 0, pinnedViews: []) {
                     listHeader
@@ -226,6 +257,8 @@ struct PatientsListView: View {
                 .padding(.bottom, 100)
             }
             .refreshable { await model.load(showSpinner: false) }
+            .opacity(model.isSearching ? 0.55 : 1)
+            .animation(.easeInOut(duration: 0.18), value: model.isSearching)
         }
     }
 

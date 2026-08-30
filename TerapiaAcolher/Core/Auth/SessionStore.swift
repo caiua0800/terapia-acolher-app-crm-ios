@@ -92,6 +92,11 @@ final class SessionStore {
 
     @MainActor
     func logout() async {
+        // Antes de limpar a sessão: o DELETE precisa do access token ainda
+        // válido. Sem isso o aparelho continua recebendo notificação deste
+        // terapeuta mesmo depois de outro logar nele.
+        await PushManager.shared.unregisterOnLogout()
+
         if let refreshToken {
             struct Body: Encodable { let refreshToken: String }
             let _: EmptyResponse? = try? await APIClient.shared.post(

@@ -87,6 +87,14 @@ final class APIClient {
         try await request(path: path, method: "DELETE", body: Optional<Int>.none)
     }
 
+    /// DELETE com corpo — o desregistro de aparelho manda o token no body.
+    func delete<Body: Encodable, Response: Decodable>(
+        _ path: String,
+        body: Body
+    ) async throws -> Response {
+        try await request(path: path, method: "DELETE", body: body)
+    }
+
     /// Upload multipart (arquivos, avatar, importação).
     func upload<Response: Decodable>(
         _ path: String,
