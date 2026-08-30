@@ -200,6 +200,20 @@ struct SettingsHomeView: View {
                     } message: {
                         Text("Você vai precisar entrar de novo com e-mail e senha.")
                     }
+                    Divider().padding(.leading, 62)
+                    // Exigência da App Store (5.1.1(v)): quem cria conta no app
+                    // precisa poder apagá-la no app. Fica aqui, e não escondida
+                    // atrás de suporte, porque a Apple recusa fluxo que dependa
+                    // de atendimento — e a LGPD dá o direito ao titular.
+                    NavigationLink {
+                        SetDeleteAccountView()
+                    } label: {
+                        SetRow(
+                            icon: "trash",
+                            iconColor: Theme.danger,
+                            title: "Excluir minha conta"
+                        )
+                    }
                 }
             }
         }

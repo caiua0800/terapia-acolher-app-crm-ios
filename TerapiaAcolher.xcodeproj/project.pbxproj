@@ -51,6 +51,7 @@
 		807179436B4DF34196267778 /* AgendaWeekView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */; };
 		8107C33634FCAE7F966D4470 /* DashModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08BC7C70CD62C98716637F27 /* DashModels.swift */; };
 		84FBAE960242C07A997EA92C /* RecordFormViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A0E4CC76AD29C3A89EE662 /* RecordFormViews.swift */; };
+		86D5C6F834CC87360ABE2AD4 /* SetDeleteAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */; };
 		87BAA306CD43A2F29E3E3888 /* LoginOnlyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352ABA2D9A3498B577E4F164 /* LoginOnlyUITests.swift */; };
 		8BFB66D3F08EA932DFD1C5DD /* RemoteAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D705A4FBA1AF73A5FAEA767A /* RemoteAvatar.swift */; };
 		8F09E21C11FC26334AEB157E /* MainShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E780E491CDC3590D9A271CE /* MainShellView.swift */; };
@@ -99,6 +100,7 @@
 		103D3C6C1D2865961396D1FE /* SettingsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHomeView.swift; sourceTree = "<group>"; };
 		1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChangePasswordView.swift; sourceTree = "<group>"; };
 		1789733F05F834AF2551531A /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDeleteAccountView.swift; sourceTree = "<group>"; };
 		1D61DB26EF0328C8A2A6DDE7 /* FinTransactionFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinTransactionFormView.swift; sourceTree = "<group>"; };
 		1E13313F1B76B704FD227550 /* FinanceHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceHomeView.swift; sourceTree = "<group>"; };
 		205F5E639DBAE925963E3835 /* DesignAuditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignAuditUITests.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 			children = (
 				53746DAEF71E1D9E71CBE881 /* SetAgendaView.swift */,
 				1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */,
+				1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */,
 				784CFCF124134E8A5792C19D /* SetGoogleView.swift */,
 				5BDB3BC791649306E74EE255 /* SetGroupsView.swift */,
 				CD19D30BA20132213C2BA7C8 /* SetModels.swift */,
@@ -591,6 +594,7 @@
 				6E5221EDAF735C8733EE9C20 /* SessionStore.swift in Sources */,
 				2BF58C1F88428F92113CFE20 /* SetAgendaView.swift in Sources */,
 				C7FC031779E0C71A2A0BC680 /* SetChangePasswordView.swift in Sources */,
+				86D5C6F834CC87360ABE2AD4 /* SetDeleteAccountView.swift in Sources */,
 				E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */,
 				4E19B3EE4AB9D9F96AB7AF10 /* SetGroupsView.swift in Sources */,
 				7B24099169F89E4F8D0683D6 /* SetModels.swift in Sources */,
