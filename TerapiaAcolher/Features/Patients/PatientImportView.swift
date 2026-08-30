@@ -11,11 +11,57 @@ struct ImportField: Decodable, Identifiable, Hashable {
     var id: String { key }
 }
 
+/// Palpite do servidor para uma coluna do arquivo.
+struct ImportSuggestion: Decodable {
+    let column: String
+    let field: String?
+    /// `header` = reconheceu pelo nome da coluna. `content` = pelo formato dos valores.
+    let reason: String?
+    let confidence: String?
+}
+
+/// Linha que já existe na base do terapeuta.
+struct ImportDuplicate: Decodable, Identifiable {
+    let row: Int
+    let name: String
+    let matchedBy: String
+    /// `certa` (CPF ou e-mail bateram) ou `provavel` (só o nome).
+    let confidence: String
+    let patientId: String
+
+    var id: Int { row }
+    var motivo: String {
+        switch matchedBy {
+        case "cpf": "mesmo CPF"
+        case "email": "mesmo e-mail"
+        default: "mesmo nome"
+        }
+    }
+}
+
+struct ImportRepeated: Decodable, Identifiable {
+    let row: Int
+    let name: String
+    let motivo: String
+
+    var id: Int { row }
+}
+
+struct ImportDuplicates: Decodable {
+    let existing: [ImportDuplicate]
+    let repeatedInFile: [ImportRepeated]
+}
+
 struct ImportPreview: Decodable {
     let jobId: String
     let columns: [String]
     let preview: [[String]]
     let availableFields: [ImportField]
+    let totalRows: Int?
+    /// Mapeamento sugerido pelo servidor — a tela abre já preenchida com ele.
+    let suggestedMapping: [String: String]?
+    let suggestions: [ImportSuggestion]?
+    let duplicates: ImportDuplicates?
 }
 
 struct ImportRowError: Decodable, Identifiable {
@@ -32,6 +78,8 @@ struct ImportJobResult: Decodable {
     let totalRows: Int
     let importedRows: Int
     let errors: [ImportRowError]
+    /// Linhas puladas por já existirem na base.
+    let skippedDuplicates: Int?
 }
 
 // MARK: - ViewModel
@@ -45,6 +93,9 @@ final class PatientImportViewModel {
     static let maxFileBytes = 15 * 1024 * 1024
 
     var step: Step = .file
+    /// Ligado por padrão: importar duplicado é o erro caro, porque desfazer
+    /// significa apagar paciente por paciente, na mão.
+    var pularDuplicados = true
     var isLoading = false
     var errorMessage: String?
 
@@ -113,7 +164,12 @@ final class PatientImportViewModel {
             )
             fileName = name
             preview = response
-            mapping = Self.autoMap(columns: response.columns, fields: response.availableFields)
+            // O servidor reconhece sinônimos ("TELEFONE" → whatsapp) e o
+            // formato dos valores (um CPF se identifica sozinho). O autoMap
+            // local só casa o rótulo exato, então fica como reserva para
+            // quando a API for antiga.
+            mapping = response.suggestedMapping
+                ?? Self.autoMap(columns: response.columns, fields: response.availableFields)
             withAnimation { step = .mapping }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
@@ -168,11 +224,14 @@ final class PatientImportViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        struct Body: Encodable { let columnMapping: [String: String] }
+        struct Body: Encodable {
+            let columnMapping: [String: String]
+            let skipDuplicates: Bool
+        }
         do {
             let job: ImportJobResult = try await APIClient.shared.post(
                 "imports/\(preview.jobId)/execute",
-                body: Body(columnMapping: mapping)
+                body: Body(columnMapping: mapping, skipDuplicates: pularDuplicados)
             )
             result = job
             withAnimation { step = .result }
@@ -348,16 +407,127 @@ struct PatientImportView: View {
         }
     }
 
+
+
+    /// Frase do resultado. Os pulados aparecem porque "3 de 10 importados"
+    /// sem explicação parece falha — e não é: os outros 7 já existiam.
+    static func resumoDoResultado(_ r: ImportJobResult) -> String {
+        let pulados = r.skippedDuplicates ?? 0
+        let base = "\(r.importedRows) de \(r.totalRows) pacientes importados"
+        guard pulados > 0 else { return base }
+        return pulados == 1
+            ? "\(base) · 1 já existia e foi pulado"
+            : "\(base) · \(pulados) já existiam e foram pulados"
+    }
+
+    // MARK: Duplicidade
+
+    /// Avisa ANTES de importar. Descobrir depois significa apagar paciente na
+    /// mão, um a um — e é o que faz o terapeuta desistir de usar o recurso.
+    @ViewBuilder
+    private func duplicadosCard(_ dup: ImportDuplicates, total: Int) -> some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.warning)
+                    Text(resumoDuplicados(dup, total: total))
+                        .font(Theme.body(14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if !dup.existing.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(dup.existing.prefix(4)) { d in
+                            HStack(spacing: 6) {
+                                Text("Linha \(d.row)")
+                                    .font(Theme.body(11, weight: .semibold))
+                                    .foregroundStyle(Theme.textSecondary)
+                                Text(d.name)
+                                    .font(Theme.body(13))
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .lineLimit(1)
+                                Text("· \(d.motivo)")
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(
+                                        d.confidence == "certa" ? Theme.danger : Theme.textSecondary
+                                    )
+                            }
+                        }
+                        if dup.existing.count > 4 {
+                            Text("e mais \(dup.existing.count - 4)…")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                }
+
+                Toggle(isOn: Binding(
+                    get: { model.pularDuplicados },
+                    set: { model.pularDuplicados = $0 }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pular quem já existe")
+                            .font(Theme.body(14, weight: .medium))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(
+                            model.pularDuplicados
+                                ? "Só os novos serão importados."
+                                : "Vai criar cópias dos pacientes que já existem."
+                        )
+                        .font(Theme.body(12))
+                        .foregroundStyle(
+                            model.pularDuplicados ? Theme.textSecondary : Theme.danger
+                        )
+                    }
+                }
+                .tint(Theme.primary)
+            }
+        }
+    }
+
+    private func resumoDuplicados(_ dup: ImportDuplicates, total: Int) -> String {
+        var partes: [String] = []
+        if !dup.existing.isEmpty {
+            partes.append(
+                dup.existing.count == 1
+                    ? "1 pessoa do arquivo já está na sua lista"
+                    : "\(dup.existing.count) pessoas do arquivo já estão na sua lista"
+            )
+        }
+        if !dup.repeatedInFile.isEmpty {
+            partes.append(
+                dup.repeatedInFile.count == 1
+                    ? "1 linha repetida no próprio arquivo"
+                    : "\(dup.repeatedInFile.count) linhas repetidas no próprio arquivo"
+            )
+        }
+        return partes.joined(separator: " · ")
+    }
+
     // MARK: Passo 2 — mapear colunas
 
     @ViewBuilder
     private var mappingStep: some View {
         if let preview = model.preview {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Diga o que é cada coluna do arquivo. Colunas em \"Ignorar\" ficam de fora.")
-                    .font(Theme.body(14))
-                    .foregroundStyle(Theme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Com a sugestão do servidor, o trabalho vira CONFERIR e não
+                // montar. O texto muda para refletir isso.
+                Text(
+                    preview.suggestedMapping?.isEmpty == false
+                        ? "Já identificamos as colunas do seu arquivo. Confira e ajuste o que estiver errado."
+                        : "Diga o que é cada coluna do arquivo. Colunas em \"Ignorar\" ficam de fora."
+                )
+                .font(Theme.body(14))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                if let dup = preview.duplicates,
+                   !dup.existing.isEmpty || !dup.repeatedInFile.isEmpty {
+                    duplicadosCard(dup, total: preview.totalRows ?? 0)
+                }
 
                 if !model.nameIsMapped {
                     ThemeCard {
@@ -441,13 +611,19 @@ struct PatientImportView: View {
             VStack(spacing: 16) {
                 ThemeCard {
                     VStack(spacing: 10) {
-                        Image(systemName: result.importedRows > 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        Image(systemName: (result.importedRows > 0 || (result.skippedDuplicates ?? 0) > 0) ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .font(.system(size: 40))
-                            .foregroundStyle(result.importedRows > 0 ? Theme.success : Theme.danger)
-                        Text(result.importedRows > 0 ? "Importação concluída" : "Nada foi importado")
+                            .foregroundStyle((result.importedRows > 0 || (result.skippedDuplicates ?? 0) > 0) ? Theme.success : Theme.danger)
+                        Text(
+                            result.importedRows > 0
+                                ? "Importação concluída"
+                                : (result.skippedDuplicates ?? 0) > 0
+                                    ? "Sua lista já estava em dia"
+                                    : "Nada foi importado"
+                        )
                             .font(Theme.serifTitle(20))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("\(result.importedRows) de \(result.totalRows) pacientes importados")
+                        Text(Self.resumoDoResultado(result))
                             .font(Theme.body(14, weight: .medium))
                             .foregroundStyle(Theme.textSecondary)
                     }
