@@ -15,6 +15,8 @@ final class DeepLink {
     var sessionId: String?
     /// Leva o menu pra uma seção (ex.: cobrança confirmada → Financeiro).
     var pendingSection: String?
+    /// Endereço externo pedido por uma notificação do suporte.
+    var externalURL: URL?
 }
 
 /// Registro de push e tratamento do toque.
@@ -149,8 +151,34 @@ extension PushManager: UNUserNotificationCenterDelegate {
 
     @MainActor
     static func route(_ userInfo: [AnyHashable: Any]) {
-        let tipo = userInfo["type"] as? String
-        switch tipo {
+        // Avisa o servidor que ESTA notificação foi aberta. É o que alimenta a
+        // taxa de abertura dos comunicados no painel — sem isto o suporte
+        // manda no escuro, sem saber se alguém viu.
+        if let id = userInfo["notificationId"] as? String {
+            Task {
+                struct Ok: Decodable { let opened: Bool? }
+                _ = try? await APIClient.shared.patch(
+                    "notifications/\(id)/opened",
+                    body: [String: String]()
+                ) as Ok
+            }
+        }
+
+        // `section` e `url` vêm do painel de suporte e valem para QUALQUER
+        // tipo. Vinham sendo ignorados: o switch abaixo só olhava `type`, então
+        // uma notificação escrita com destino "Minha Vitrine" caía no default e
+        // o app só abria na tela inicial.
+        if let url = userInfo["url"] as? String, let destino = URL(string: url) {
+            DeepLink.shared.externalURL = destino
+            return
+        }
+        if let secao = userInfo["section"] as? String {
+            DeepLink.shared.pendingSection = secao
+            return
+        }
+
+        // Destino derivado do tipo, para as notificações automáticas.
+        switch userInfo["type"] as? String {
         case "SESSION_SOON", "SESSION_ATTENDED", "SESSION_MISSED":
             if let sessionId = userInfo["sessionId"] as? String {
                 DeepLink.shared.sessionId = sessionId

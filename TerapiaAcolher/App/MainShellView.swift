@@ -65,6 +65,7 @@ struct MainShellView: View {
     @State private var selection: MenuDestination = .inicio
     @State private var isMenuOpen = false
     @State private var optIn = PushOptIn.shared
+    @Environment(\.openURL) private var openURL
     @State private var deepLink = DeepLink.shared
 
     var body: some View {
@@ -125,14 +126,28 @@ struct MainShellView: View {
         }
         // Notificação tocada enquanto o app está em outra seção: leva pra
         // seção certa antes de a tela de destino tentar se abrir.
+        // Todas as seções que o painel de suporte oferece precisam existir
+        // aqui. Antes só "agenda" e "financeiro" eram tratadas, então uma
+        // notificação com destino "Minha Vitrine" abria o app e parava.
         .onChange(of: deepLink.pendingSection) { _, secao in
             guard let secao else { return }
             switch secao {
+            case "inicio": selection = .inicio
             case "agenda": selection = .agenda
+            case "pacientes": selection = .pacientes
+            case "prontuarios": selection = .prontuarios
+            case "anamneses": selection = .anamneses
             case "financeiro": selection = .financeiro
+            case "vitrine": selection = .vitrine
+            case "configuracoes": selection = .configuracoes
             default: break
             }
             deepLink.pendingSection = nil
+        }
+        .onChange(of: deepLink.externalURL) { _, url in
+            guard let url else { return }
+            deepLink.externalURL = nil
+            openURL(url)
         }
         .task {
             await PushManager.shared.refreshAuthorization()
