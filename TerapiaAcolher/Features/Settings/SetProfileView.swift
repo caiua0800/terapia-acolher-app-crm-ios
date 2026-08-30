@@ -82,19 +82,11 @@ struct SetProfileView: View {
     private var avatarHeader: some View {
         VStack(spacing: 10) {
             ZStack(alignment: .bottomTrailing) {
-                if let url = viewModel.avatarURL {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            InitialAvatar(name: viewModel.name.isEmpty ? "?" : viewModel.name, size: 96)
-                        }
-                    }
-                    .frame(width: 96, height: 96)
-                    .clipShape(Circle())
-                } else {
-                    InitialAvatar(name: viewModel.name.isEmpty ? "?" : viewModel.name, size: 96)
-                }
+                RemoteAvatar(
+                    url: viewModel.avatarURL,
+                    name: viewModel.name.isEmpty ? "?" : viewModel.name,
+                    size: 96
+                )
 
                 PhotosPicker(selection: $avatarPickerItem, matching: .images) {
                     ZStack {
@@ -390,6 +382,9 @@ final class SetProfileViewModel {
             if kind == .avatar { isUploadingAvatar = false } else { isUploadingSignature = false }
         }
         do {
+            // Mesma chave de cache (o caminho não muda ao trocar o arquivo):
+            // sem invalidar, a foto antiga continuaria aparecendo.
+            if kind == .avatar { RemoteImageCache.shared.invalidar(avatarURL) }
             let response: SetImageURL = try await APIClient.shared.upload(
                 path,
                 fileData: data,

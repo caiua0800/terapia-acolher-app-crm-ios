@@ -53,7 +53,11 @@ struct SettingsHomeView: View {
         } label: {
             ThemeCard {
                 HStack(spacing: 14) {
-                    InitialAvatar(name: session.user?.name ?? "?", size: 56)
+                    RemoteAvatar(
+                        url: viewModel.avatarURL,
+                        name: session.user?.name ?? "?",
+                        size: 56
+                    )
                     VStack(alignment: .leading, spacing: 3) {
                         Text(displayName)
                             .font(Theme.serifTitle(20))
@@ -210,6 +214,9 @@ final class SettingsHomeViewModel {
     var groupCount: Int?
     var templateCounts: [SetTemplateType: Int] = [:]
     var googleConnected: Bool?
+    /// Foto do terapeuta. Esta tela desenhava só as iniciais e nunca buscava o
+    /// avatar — quem enviava a foto em "Meu perfil" a via lá e não aqui.
+    var avatarURL: URL?
     var errorMessage: String?
     var showError = false
 
@@ -229,6 +236,12 @@ final class SettingsHomeViewModel {
         }
         if let status: SetGoogleStatus = try? await APIClient.shared.get("integrations/google/status") {
             googleConnected = status.connected
+        }
+        if let avatar: SetImageURL = try? await APIClient.shared.get("settings/avatar"),
+           let urlString = avatar.url {
+            avatarURL = URL(string: urlString)
+        } else {
+            avatarURL = nil
         }
     }
 }

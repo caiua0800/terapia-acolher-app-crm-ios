@@ -56,6 +56,7 @@ final class PatientDetailViewModel {
             guard let jpeg = Self.downscaledJPEG(image) else {
                 throw PhotoError.unreadable
             }
+            RemoteImageCache.shared.invalidar(detail?.photoUrl.flatMap(URL.init(string:)))
             detail = try await PatientsAPI.uploadPhoto(id: patientId, jpeg: jpeg)
             Haptics.success()
         } catch is CancellationError {
@@ -74,6 +75,7 @@ final class PatientDetailViewModel {
         isWorkingPhoto = true
         defer { isWorkingPhoto = false }
         do {
+            RemoteImageCache.shared.invalidar(detail?.photoUrl.flatMap(URL.init(string:)))
             detail = try await PatientsAPI.deletePhoto(id: patientId)
             Haptics.success()
         } catch is CancellationError {
@@ -249,31 +251,15 @@ struct PatientDetailView: View {
     /// Enquanto a foto não carrega, mostra as iniciais em vez de um buraco cinza.
     @ViewBuilder
     private func photoAvatar(_ detail: PatientDetail) -> some View {
-        let iniciais = InitialAvatar(
-            name: detail.name,
-            colorHex: detail.group?.color,
-            size: 96
-        )
-
         ZStack(alignment: .bottomTrailing) {
             Group {
-                if let urlString = detail.photoUrl, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        case .failure:
-                            iniciais
-                        default:
-                            iniciais.overlay(ProgressView().tint(.white))
-                        }
-                    }
-                    .frame(width: 96, height: 96)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Theme.border, lineWidth: 1))
-                } else {
-                    iniciais
-                }
+                RemoteAvatar(
+                    url: detail.photoUrl.flatMap(URL.init(string:)),
+                    name: detail.name,
+                    colorHex: detail.group?.color,
+                    size: 96,
+                    showsBorder: detail.photoUrl != nil
+                )
             }
             .opacity(model.isWorkingPhoto ? 0.5 : 1)
             .overlay {
