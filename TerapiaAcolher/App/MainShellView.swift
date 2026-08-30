@@ -9,7 +9,7 @@ import SwiftUI
 enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses
-    case financeiro, leads, creditos
+    case financeiro, vitrine, leads, creditos
     case configuracoes
 
     var id: String { rawValue }
@@ -22,6 +22,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "Prontuários"
         case .anamneses: "Anamneses"
         case .financeiro: "Financeiro"
+        case .vitrine: "Vitrine"
         case .leads: "Meus leads"
         case .creditos: "Créditos"
         case .configuracoes: "Configurações"
@@ -36,6 +37,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "doc.text"
         case .anamneses: "pencil.line"
         case .financeiro: "dollarsign"
+        case .vitrine: "sparkle.magnifyingglass"
         case .leads: "tray.full"
         case .creditos: "sparkles"
         case .configuracoes: "gearshape"
@@ -47,12 +49,12 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         var todas: [(header: String, items: [MenuDestination])] = [
             ("PRINCIPAL", [.inicio, .agenda]),
         ]
+        todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses]))
+        todas.append((header: "GESTÃO", items: [.financeiro, .vitrine]))
         // Módulo em demonstração: some do menu inteiro com uma flag.
         if LeadsDemo.enabled {
             todas.append((header: "LEADS", items: [.leads, .creditos]))
         }
-        todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses]))
-        todas.append((header: "GESTÃO", items: [.financeiro]))
         todas.append((header: "CONTA", items: [.configuracoes]))
         return todas
     }
@@ -140,6 +142,7 @@ struct MainShellView: View {
         case .prontuarios: RecordsHomeView(kind: .record)
         case .anamneses: RecordsHomeView(kind: .anamnesis)
         case .financeiro: FinanceHomeView()
+        case .vitrine: VitrineView()
         case .leads: LeadsListView()
         case .creditos: LeadsCreditsView()
         case .configuracoes: SettingsHomeView()
