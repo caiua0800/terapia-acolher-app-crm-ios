@@ -74,6 +74,7 @@
 		E5F190A4DD3FD0D07F4FAC27 /* AiFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFB60343805E0A349238A47 /* AiFlowUITests.swift */; };
 		E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784CFCF124134E8A5792C19D /* SetGoogleView.swift */; };
 		F472883B3ADF860906548A01 /* SetTemplatesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EB5275EB7FA6B199B0DAB /* SetTemplatesListView.swift */; };
+		F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */; };
 		F6BB08DCF8BD12AF887CFD8E /* FinanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83BAFF89B5616319BE165106 /* FinanceModels.swift */; };
 		F71B220893C9D8B5C6B0E2D8 /* AgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CC9EE47B4D16B4B987A168 /* AgendaView.swift */; };
 		F80393D15732389739B6A80D /* PatientsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072C9798DC11D2C096035921 /* PatientsListView.swift */; };
@@ -161,6 +162,7 @@
 		BDFB60343805E0A349238A47 /* AiFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiFlowUITests.swift; sourceTree = "<group>"; };
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
 		C2F6A455F161AADA394EF4EB /* PatientImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientImportView.swift; sourceTree = "<group>"; };
+		C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargeLinkSheet.swift; sourceTree = "<group>"; };
 		CD19D30BA20132213C2BA7C8 /* SetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetModels.swift; sourceTree = "<group>"; };
 		CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientFormView.swift; sourceTree = "<group>"; };
 		CE819E7AD41C1A53752E9714 /* VitrineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitrineModels.swift; sourceTree = "<group>"; };
@@ -301,6 +303,7 @@
 				83BAFF89B5616319BE165106 /* FinanceModels.swift */,
 				53E0558EBFC4D9F09706052A /* FinanceShared.swift */,
 				54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */,
+				C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */,
 				88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */,
 				1D61DB26EF0328C8A2A6DDE7 /* FinTransactionFormView.swift */,
 				79EF8C44EBDA0F5548240FDD /* FinWalletView.swift */,
@@ -564,6 +567,7 @@
 				2B6B48C42A2D06108DC9AC50 /* FilesHomeView.swift in Sources */,
 				A97DFF148E13E2636A17C97B /* FilesModels.swift in Sources */,
 				4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */,
+				F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */,
 				40F18649584AB33299A43D18 /* FinChargesView.swift in Sources */,
 				6AD30657F7B1D9B92EF167E8 /* FinTransactionFormView.swift in Sources */,
 				4A4765DDF358E15D1687DCA1 /* FinWalletView.swift in Sources */,

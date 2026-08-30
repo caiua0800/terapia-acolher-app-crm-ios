@@ -134,7 +134,7 @@ struct FinReminderResult: Decodable {
     let reminderSentAt: Date?
 }
 
-struct FinCheckoutResult: Decodable {
+struct FinCheckoutResult: Decodable, Identifiable {
     let id: String
     let status: FinChargeStatus
     let amount: Double
@@ -213,6 +213,10 @@ enum FinanceAPI {
 
     static func chargesSummary(patientId: String?) async throws -> FinChargeSummary {
         try await APIClient.shared.get("finance/charges/summary", query: ["patientId": patientId])
+    }
+
+    static func fees() async throws -> FinFees {
+        try await APIClient.shared.get("payments/fees")
     }
 
     static func createCharge(_ body: FinChargeBody) async throws -> FinCharge {
@@ -353,3 +357,26 @@ enum FinFormat {
         return Double(normalized)
     }
 }
+
+// MARK: - Taxas e métodos de cobrança online
+//
+// Vêm do servidor. A taxa NUNCA é cravada no app: ela mora em
+// PLATFORM_FEE_FIXED, e um app com 2,99 no código passaria a mentir o líquido
+// no dia em que o valor mudasse. Mentir sobre quanto o terapeuta recebe é o
+// pior erro possível neste módulo.
+
+struct FinFees: Decodable {
+    struct Method: Decodable, Identifiable, Hashable {
+        let id: String
+        let label: String
+        let description: String
+        let available: Bool
+    }
+
+    let platformFee: Double
+    let minOnlineCharge: Double
+    let methods: [Method]
+
+    var disponiveis: [Method] { methods.filter(\.available) }
+}
+
