@@ -105,6 +105,7 @@ struct PatientsListView: View {
     @State private var showNewPatient = false
     @State private var showAddOptions = false
     @State private var showImport = false
+    @State private var showInvite = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -119,6 +120,7 @@ struct PatientsListView: View {
             FloatingActionButton { showAddOptions = true }
                 .confirmationDialog("Adicionar pacientes", isPresented: $showAddOptions, titleVisibility: .visible) {
                     Button("Novo paciente") { showNewPatient = true }
+                    Button("Mandar link para o paciente preencher") { showInvite = true }
                     Button("Importar planilha (CSV/Excel)") { showImport = true }
                 }
                 .padding(.trailing, Theme.screenPadding)
@@ -136,6 +138,9 @@ struct PatientsListView: View {
                 Task { await model.load(showSpinner: false) }
                 model.showToast("Paciente cadastrado")
             }
+        }
+        .sheet(isPresented: $showInvite) {
+            PatientInviteView()
         }
         .sheet(isPresented: $showImport) {
             PatientImportView {
