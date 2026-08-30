@@ -334,7 +334,8 @@ struct FinChargeFormView: View {
             description: descriptionText.trimmingCharacters(in: .whitespaces),
             amount: amount,
             dueDate: FinFormat.isoDay.string(from: dueDate),
-            referenceMonth: FinFormat.monthQuery.string(from: referenceMonthDate)
+            referenceMonth: FinFormat.monthQuery.string(from: referenceMonthDate),
+            intendedBillingType: online ? metodoId : nil
         )
         do {
             _ = try await FinanceAPI.createCharge(body)

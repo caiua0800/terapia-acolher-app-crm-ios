@@ -16,6 +16,23 @@ final class FinChargeDetailModel {
     }
 
     var temLink: Bool { (charge.gatewayInvoiceUrl?.isEmpty == false) }
+
+    /// Quando ele já escolheu ao criar, quer trocar.
+    var mostrarTodosOsMetodos = false
+
+    /// O método escolhido na criação, se ainda existir na lista do servidor.
+    var escolhaFeita: FinFees.Method? {
+        guard let id = charge.intendedBillingType else { return nil }
+        return metodos.first { $0.id == id }
+    }
+
+    /// Um botão só quando a escolha já foi feita — repetir a pergunta aqui é
+    /// desfazer o que o terapeuta acabou de responder na tela anterior.
+    var metodosParaMostrar: [FinFees.Method] {
+        if mostrarTodosOsMetodos { return metodos }
+        if let escolha = escolhaFeita { return [escolha] }
+        return metodos
+    }
     var emAberto: Bool { charge.status == .pending || charge.status == .overdue }
 
     func carregar() async {
@@ -210,11 +227,12 @@ struct FinChargeDetailView: View {
                 )
             }
         } else {
-            // Sem link ainda: oferece os métodos que o SERVIDOR diz existirem —
-            // antes daqui saía só "Cobrar via Pix", cravado, mesmo depois de o
-            // cartão ter sido liberado.
+            // A escolha JÁ FOI FEITA na criação: repetir a pergunta aqui é
+            // desfazer o que o terapeuta acabou de responder. Quando ela
+            // existe, sobra um botão só — os outros métodos ficam atrás de
+            // "usar outra forma", para o caso de ele querer trocar.
             VStack(spacing: 10) {
-                ForEach(model.metodos) { metodo in
+                ForEach(model.metodosParaMostrar) { metodo in
                     Button {
                         Task { await model.gerarLink(metodo.id) }
                     } label: {
@@ -235,6 +253,19 @@ struct FinChargeDetailView: View {
                     }
                     .buttonStyle(.pressable)
                     .disabled(model.isWorking)
+                }
+
+                if model.escolhaFeita != nil, model.metodos.count > 1 {
+                    Button {
+                        withAnimation { model.mostrarTodosOsMetodos = true }
+                    } label: {
+                        Text("Usar outra forma de recebimento")
+                            .font(Theme.body(14, weight: .medium))
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                    }
+                    .buttonStyle(.pressable)
                 }
             }
         }

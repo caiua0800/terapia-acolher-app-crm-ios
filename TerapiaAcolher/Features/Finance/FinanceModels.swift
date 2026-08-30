@@ -80,6 +80,9 @@ struct FinCharge: Decodable, Identifiable {
     let status: FinChargeStatus
     let paidAt: Date?
     let paymentMethod: String? // PIX | BOLETO | CARD | MANUAL
+    /// Como o terapeuta escolheu receber AO CRIAR. Diferente de
+    /// `paymentMethod`, que só existe depois de paga.
+    let intendedBillingType: String?
     let gatewayName: String?
     let gatewayInvoiceUrl: String?
     let splitFeeApplied: Double?
@@ -126,6 +129,8 @@ struct FinChargeBody: Encodable {
     var amount: Double
     var dueDate: String // yyyy-MM-dd
     var referenceMonth: String?
+    /// PIX | CARD. Ausente quando o terapeuta combina por fora.
+    var intendedBillingType: String?
 }
 
 struct FinReminderResult: Decodable {
