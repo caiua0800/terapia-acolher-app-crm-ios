@@ -25,12 +25,19 @@ targets:
         MARKETING_VERSION: '1.0.0'
         CURRENT_PROJECT_VERSION: '3'
         INFOPLIST_FILE: TerapiaAcolher/Resources/Info.plist
-        # Push: sem a entitlement o iOS não entrega token do APNs.
-        CODE_SIGN_ENTITLEMENTS: TerapiaAcolher/Resources/TerapiaAcolher.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: '1'
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
+      # Push por configuração: "development" aponta para o APNs sandbox e
+      # "production" para o real. Um build de loja assinado com development
+      # registra token no ambiente errado e nenhuma notificação chega — sem
+      # erro visível em lugar nenhum.
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: TerapiaAcolher/Resources/TerapiaAcolher.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: TerapiaAcolher/Resources/TerapiaAcolherRelease.entitlements
   TerapiaAcolherUITests:
     type: bundle.ui-testing
     platform: iOS

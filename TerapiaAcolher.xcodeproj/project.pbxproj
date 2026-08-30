@@ -103,6 +103,7 @@
 		1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDeleteAccountView.swift; sourceTree = "<group>"; };
 		1D61DB26EF0328C8A2A6DDE7 /* FinTransactionFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinTransactionFormView.swift; sourceTree = "<group>"; };
 		1E13313F1B76B704FD227550 /* FinanceHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceHomeView.swift; sourceTree = "<group>"; };
+		2046DA6EB27C16CCBDDC64FC /* TerapiaAcolherRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TerapiaAcolherRelease.entitlements; sourceTree = "<group>"; };
 		205F5E639DBAE925963E3835 /* DesignAuditUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignAuditUITests.swift; sourceTree = "<group>"; };
 		22B1731D2888D6B675ED0C87 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		240502A0413DC924044FDCA4 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
@@ -337,6 +338,7 @@
 				EFBB5855CFB70FDC49BEFDDC /* Assets.xcassets */,
 				2EDBFF466FB0070EAAF072E7 /* Info.plist */,
 				F8F9B5545BEAF9C27F61336E /* TerapiaAcolher.entitlements */,
+				2046DA6EB27C16CCBDDC64FC /* TerapiaAcolherRelease.entitlements */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -695,7 +697,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = TerapiaAcolher/Resources/TerapiaAcolher.entitlements;
+				CODE_SIGN_ENTITLEMENTS = TerapiaAcolher/Resources/TerapiaAcolherRelease.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 3;
 				INFOPLIST_FILE = TerapiaAcolher/Resources/Info.plist;

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  APNs de PRODUÇÃO. Vale para App Store E TestFlight.
+
+	  O arquivo de Debug usa "development", que aponta para o APNs sandbox. Um
+	  build distribuído com "development" registra token no ambiente errado: o
+	  app instala, o usuário autoriza notificações, e nenhuma chega — sem erro
+	  nenhum, nem no app nem no servidor. Só se descobre depois de publicado.
+	-->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

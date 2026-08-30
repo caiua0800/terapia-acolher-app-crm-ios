@@ -105,14 +105,23 @@ final class PushManager: NSObject {
         ) as EmptyResponse?
     }
 
-    /// Build de desenvolvimento fala com o APNs sandbox; a da App Store, com o
-    /// de produção. Mandar pro ambiente errado devolve BadDeviceToken.
+    /// Qual APNs este build usa. Quem manda é a entitlement `aps-environment`
+    /// do perfil que assinou o app, não a origem da instalação.
+    ///
+    /// **TestFlight usa APNs de PRODUÇÃO**, porque é assinado com o perfil de
+    /// distribuição. A checagem anterior olhava `sandboxReceipt`, que indica
+    /// recibo de compra de teste (StoreKit) e nada tem a ver com push: todo
+    /// build de TestFlight se declararia sandbox, o servidor mandaria para o
+    /// host errado e NENHUMA notificação chegaria aos testadores — sem erro
+    /// visível, só silêncio.
+    ///
+    /// Sobra o critério certo: só o build de desenvolvimento (Debug, assinado
+    /// com perfil de development) fala com o sandbox.
     static var isSandboxBuild: Bool {
         #if DEBUG
         return true
         #else
-        // TestFlight e Xcode usam o perfil de desenvolvimento; App Store, não.
-        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        return false
         #endif
     }
 }
