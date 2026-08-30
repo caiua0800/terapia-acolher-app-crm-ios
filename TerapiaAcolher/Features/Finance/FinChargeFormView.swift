@@ -19,6 +19,10 @@ struct FinChargeFormView: View {
     /// Recalculado a cada mudança de valor: a taxa do cartão é percentual.
     @State private var quote: FinQuote?
     @State private var quoteTask: Task<Void, Never>?
+    /// Liga NO INSTANTE do toque/digitação, antes do debounce e da rede. Sem
+    /// isso o bloco do líquido some e reaparece do nada — o mesmo problema que
+    /// a busca de pacientes já tinha.
+    @State private var calculando = false
     @State private var metodoId = "PIX"
     /// Cobrança combinada fora do app (dinheiro, transferência direta) não
     /// passa pelo gateway e não tem taxa — por isso a escolha é explícita.
@@ -80,6 +84,8 @@ struct FinChargeFormView: View {
 
                         formaDeRecebimento
                         resumoDoLiquido
+                            .animation(.easeOut(duration: 0.2), value: metodoId)
+                            .animation(.easeOut(duration: 0.2), value: online)
 
                         ThemeCard {
                             DatePicker("Vencimento", selection: $dueDate, displayedComponents: .date)
@@ -122,11 +128,21 @@ struct FinChargeFormView: View {
             // Debounce curto: sem ele, cada tecla digitada viraria requisição.
             .onChange(of: amountText) { _, _ in
                 quoteTask?.cancel()
-                guard let valor, valor > 0 else { quote = nil; return }
+                guard let valor, valor > 0 else {
+                    quote = nil
+                    calculando = false
+                    return
+                }
+                calculando = true
                 quoteTask = Task {
                     try? await Task.sleep(nanoseconds: 400_000_000)
                     guard !Task.isCancelled else { return }
-                    quote = try? await FinanceAPI.quote(amount: valor)
+                    let novo = try? await FinanceAPI.quote(amount: valor)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        quote = novo
+                        calculando = false
+                    }
                 }
             }
             .sheet(item: $recemCriada) { resultado in
@@ -290,6 +306,30 @@ struct FinChargeFormView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        } else if calculando, let valor, valor > 0 {
+            // Esqueleto no formato exato do resumo: quando o número chega, é
+            // troca de conteúdo, não a caixa inteira aparecendo de repente.
+            ThemeCard {
+                VStack(spacing: 10) {
+                    linha("Valor da cobrança", Formatters.brl(valor), destaque: false)
+                    HStack {
+                        Text("Taxa do sistema")
+                            .font(Theme.body(13))
+                            .foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        SkeletonBlock(width: 62, height: 13)
+                    }
+                    Divider().overlay(Theme.border)
+                    HStack {
+                        Text("Você recebe")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Spacer()
+                        SkeletonBlock(width: 104, height: 22, cornerRadius: 8)
+                    }
+                }
+            }
+            .transition(.opacity)
         } else if let m = linhaDoMetodo, let valor, valor > 0 {
             ThemeCard {
                 VStack(spacing: 10) {
@@ -338,9 +378,28 @@ struct FinChargeFormView: View {
             intendedBillingType: online ? metodoId : nil
         )
         do {
-            _ = try await FinanceAPI.createCharge(body)
+            let criada = try await FinanceAPI.createCharge(body)
             onSaved()
-            dismiss()
+            guard online else {
+                dismiss()
+                return
+            }
+            // Gera o link na sequência. Criar a cobrança e não ter o que mandar
+            // ao paciente deixava o terapeuta no meio do caminho: ele tinha que
+            // achar a cobrança na lista e só então pedir o link.
+            do {
+                recemCriada = try await FinanceAPI.checkout(
+                    id: criada.id,
+                    billingType: metodoId
+                )
+                Haptics.success()
+            } catch {
+                // A cobrança FOI criada. Tratar como erro genérico faria ele
+                // criar tudo de novo e ficar com duas.
+                errorMessage = (error as? APIError).map {
+                    "Cobrança criada, mas o link não foi gerado: \($0.message)"
+                } ?? "Cobrança criada, mas o link não foi gerado. Você pode gerá-lo abrindo a cobrança."
+            }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
