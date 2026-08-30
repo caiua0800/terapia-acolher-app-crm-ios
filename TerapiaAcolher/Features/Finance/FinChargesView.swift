@@ -401,7 +401,7 @@ struct FinChargesView: View {
     // MARK: Lista
 
     private var chargeList: some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(model.charges) { charge in
                 chargeCell(charge)
                 if charge.id != model.charges.last?.id {

@@ -30,6 +30,10 @@ struct PatientNextSession: Codable, Hashable {
 struct Patient: Codable, Identifiable, Hashable {
     let id: String
     let name: String
+    /// URL assinada da foto (expira). O backend já mandava na listagem — o app
+    /// é que não lia, então o terapeuta subia a foto e ela sumia justamente da
+    /// tela onde ele mais olha.
+    let photoUrl: String?
     let status: String // ACTIVE | INACTIVE
     let group: PatientGroupRef?
     let cpfMasked: String?

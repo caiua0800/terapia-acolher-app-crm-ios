@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Design system do Terapia Acolher — extraído do MVP visual.
 /// Referência: https://terapia-acolher-mvp-design.vercel.app/
@@ -51,16 +52,36 @@ enum Theme {
     // MARK: - Tipografia
     // Títulos: serifada elegante (New York) · Corpo: SF · Números financeiros: mono
 
+    /// Teto da escala do Dynamic Type.
+    ///
+    /// As telas do MVP têm cartões densos e tamanhos cravados: deixar a fonte
+    /// ir até 3x (AX5) quebraria layout em quase toda tela. 1.35 cobre
+    /// "Grande" e "Muito grande" — que é onde está o terapeuta de 50+, o caso
+    /// real — sem estourar cartão nenhum. Acessibilidade que funciona é melhor
+    /// que acessibilidade que só existe no papel e destrói a tela.
+    private static let tetoDeEscala: CGFloat = 1.35
+
+    /// Converte um tamanho fixo do design em tamanho que acompanha o ajuste de
+    /// fonte do iPhone. Antes tudo era `.system(size:)` cravado: quem aumentava
+    /// a fonte no aparelho não via diferença nenhuma aqui dentro.
+    private static func escalado(
+        _ size: CGFloat,
+        relativeTo style: UIFont.TextStyle = .body
+    ) -> CGFloat {
+        let escalado = UIFontMetrics(forTextStyle: style).scaledValue(for: size)
+        return min(escalado, size * tetoDeEscala)
+    }
+
     static func serifTitle(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+        .system(size: escalado(size, relativeTo: .title2), weight: weight, design: .serif)
     }
 
     static func body(_ size: CGFloat = 15, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight)
+        .system(size: escalado(size), weight: weight)
     }
 
     static func money(_ size: CGFloat = 17, weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
+        .system(size: escalado(size), weight: weight, design: .monospaced)
     }
 
     /// Valor em destaque (receita da dashboard). A monoespaçada de `money`
@@ -68,7 +89,7 @@ enum Theme {
     /// esta usa a arredondada com dígitos de largura fixa: mesmo alinhamento,
     /// aparência de produto.
     static func moneyDisplay(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
+        .system(size: escalado(size, relativeTo: .title1), weight: weight, design: .rounded)
     }
 
     // MARK: - Métricas de layout

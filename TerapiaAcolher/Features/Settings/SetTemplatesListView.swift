@@ -8,7 +8,7 @@ struct SetTemplatesListView: View {
     let type: SetTemplateType
     var onChanged: () -> Void = {}
 
-    @State private var viewModel = SetTemplatesViewModel()
+    @State private var viewModel = SetTemplatesViewModel.shared
     @State private var editingTemplate: SetTemplate?
     @State private var showNewEditor = false
     @State private var systemActionTemplate: SetTemplate?
@@ -228,6 +228,15 @@ struct SetTemplatesListView: View {
 
 @Observable
 final class SetTemplatesViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = SetTemplatesViewModel()
+
     var userTemplates: [SetTemplate] = []
     var systemTemplates: [SetTemplate] = []
     var isLoading = true

@@ -116,6 +116,11 @@ struct MainShellView: View {
                 SideMenuView(selection: $selection, isOpen: $isMenuOpen)
                     .transition(.move(edge: .leading))
             }
+
+            // Aviso de conexão fica AQUI, na casca, não em cada tela: o fato é
+            // do aparelho, não da tela. Repetido em 27 telas seria ruído e
+            // manutenção duplicada.
+            OfflineBanner()
         }
         // Notificação tocada enquanto o app está em outra seção: leva pra
         // seção certa antes de a tela de destino tentar se abrir.

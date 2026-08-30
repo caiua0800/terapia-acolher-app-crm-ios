@@ -194,7 +194,7 @@ struct PFilePatientFilesView: View {
                     chips
 
                     if model.isLoading, model.files.isEmpty {
-                        ProgressView().padding(.top, 40)
+                        SkeletonList(linhas: 5, avatarSize: 44)
                     } else if model.files.isEmpty {
                         emptyState
                     } else {

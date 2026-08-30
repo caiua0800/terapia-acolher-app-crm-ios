@@ -3,6 +3,15 @@ import SwiftUI
 
 @Observable
 final class VitrineViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = VitrineViewModel()
+
     var status: VitrineStatus?
     var isLoading = true
     var errorMessage: String?
@@ -67,7 +76,7 @@ final class VitrineViewModel {
 /// RETORNO. O terapeuta paga a Vitrine todo mês e nunca vê se ela funciona;
 /// visualizações e cliques respondem isso onde ele já abre todo dia.
 struct VitrineView: View {
-    @State private var model = VitrineViewModel()
+    @State private var model = VitrineViewModel.shared
     @State private var showDisconnect = false
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase

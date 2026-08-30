@@ -101,7 +101,7 @@ struct DocPatientDocumentsView: View {
                     header
 
                     if model.isLoading, model.documents.isEmpty {
-                        ProgressView().padding(.top, 40)
+                        SkeletonList(linhas: 5, avatarSize: 44)
                     } else if model.documents.isEmpty {
                         EmptyStateView(
                             icon: "doc.text",
@@ -174,7 +174,7 @@ struct DocPatientDocumentsView: View {
     }
 
     private var documentList: some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(model.documents) { document in
                 documentCell(document)
                 if document.id != model.documents.last?.id {

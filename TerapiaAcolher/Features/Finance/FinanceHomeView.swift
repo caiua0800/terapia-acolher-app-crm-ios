@@ -5,6 +5,15 @@ import SwiftUI
 @MainActor
 @Observable
 final class FinHomeViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = FinHomeViewModel()
+
     enum Tab: Hashable { case registros, balanco }
     enum Filter: CaseIterable, Hashable {
         case all, income, expense, recurring
@@ -45,7 +54,8 @@ final class FinHomeViewModel {
     }
 
     func load() async {
-        isLoading = true
+        // Já tem mês carregado em memória? Atualiza por baixo, sem spinner.
+        if balance == nil && transactions.isEmpty { isLoading = true }
         defer { isLoading = false }
         expandedId = nil
         do {
@@ -84,7 +94,7 @@ final class FinHomeViewModel {
 // MARK: - Tela principal do Financeiro (substitui a placeholder)
 
 struct FinanceHomeView: View {
-    @State private var model = FinHomeViewModel()
+    @State private var model = FinHomeViewModel.shared
     @State private var showTransactionForm = false
     @State private var editingTransaction: FinTransaction?
     @State private var deletingTransaction: FinTransaction?
@@ -238,7 +248,7 @@ struct FinanceHomeView: View {
             }
 
             if model.isLoading, model.transactions.isEmpty {
-                ProgressView().padding(.top, 40)
+                SkeletonList(linhas: 5, avatarSize: 40).padding(.top, 8)
             } else if model.transactions.isEmpty {
                 EmptyStateView(
                     icon: "banknote",

@@ -6,7 +6,7 @@ import SwiftUI
 struct SetGroupsView: View {
     var onChanged: () -> Void = {}
 
-    @State private var viewModel = SetGroupsViewModel()
+    @State private var viewModel = SetGroupsViewModel.shared
     @State private var editingGroup: SetGroup?
     @State private var showNewSheet = false
 
@@ -295,6 +295,15 @@ struct SetGroupFormView: View {
 
 @Observable
 final class SetGroupsViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = SetGroupsViewModel()
+
     var groups: [SetGroup] = []
     var isLoading = true
     var errorMessage: String?

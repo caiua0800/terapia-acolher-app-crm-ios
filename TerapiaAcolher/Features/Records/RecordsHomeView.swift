@@ -4,6 +4,15 @@ import SwiftUI
 
 @Observable
 final class RecordsHomeViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = RecordsHomeViewModel()
+
     var patients: [Patient] = []
     var searchText = ""
     var isLoading = true
@@ -13,7 +22,8 @@ final class RecordsHomeViewModel {
 
     @MainActor
     func load(showSpinner: Bool = true) async {
-        if showSpinner { isLoading = true }
+        // Instância única: só mostra spinner quando não há nada em tela.
+        if showSpinner && patients.isEmpty { isLoading = true }
         errorMessage = nil
         do {
             patients = try await PatientsAPI.list(status: "ACTIVE", search: searchText)
@@ -42,7 +52,7 @@ final class RecordsHomeViewModel {
 /// escolher o paciente → timeline de registros do tipo.
 struct RecordsHomeView: View {
     let kind: RecordsKind
-    @State private var model = RecordsHomeViewModel()
+    @State private var model = RecordsHomeViewModel.shared
 
     var body: some View {
         ZStack {
@@ -82,9 +92,11 @@ struct RecordsHomeView: View {
     @ViewBuilder
     private var content: some View {
         if model.isLoading {
-            Spacer()
-            ProgressView().tint(Theme.primary)
-            Spacer()
+            // Esqueleto no lugar do spinner: já desenha a lista, então a
+            // chegada do dado é troca de conteúdo, não salto de layout.
+            SkeletonList(linhas: 7, avatarSize: 44)
+                .padding(.horizontal, Theme.screenPadding)
+            Spacer(minLength: 0)
         } else if let error = model.errorMessage {
             Spacer()
             ErrorRetryView(message: error) { Task { await model.load() } }

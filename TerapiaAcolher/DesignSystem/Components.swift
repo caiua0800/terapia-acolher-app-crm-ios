@@ -6,7 +6,18 @@ import UIKit
 /// Retorno háptico padronizado. Regra do projeto: toda ação que dispara
 /// requisição vibra levemente NO toque, antes da resposta do servidor.
 enum Haptics {
+    /// Último toque disparado. O estilo `.pressable` agora dispara sozinho, e
+    /// 32 pontos do app ainda chamam `tap()` na mão — sem esta janela os dois
+    /// disparariam junto e o toque viraria um trepidar. Colapsar em vez de
+    /// remover as chamadas evita perder o haptic de botões que não usam o
+    /// estilo (Documentos e Arquivos ainda têm um caso cada).
+    private static var ultimoToque: TimeInterval = 0
+    private static let janela: TimeInterval = 0.06
+
     static func tap() {
+        let agora = Date.timeIntervalSinceReferenceDate
+        guard agora - ultimoToque > janela else { return }
+        ultimoToque = agora
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
@@ -31,6 +42,12 @@ struct PressableButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? scale : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            // Haptic AQUI cobre de uma vez os 49 botões que usavam o estilo sem
+            // pedir o toque na mão — formulários de paciente, cobrança,
+            // transação, modelos e grupos não davam retorno nenhum.
+            .onChange(of: configuration.isPressed) { _, pressionado in
+                if pressionado { Haptics.tap() }
+            }
     }
 }
 

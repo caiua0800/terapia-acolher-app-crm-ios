@@ -86,7 +86,7 @@ enum NotifFilter: String, CaseIterable, Identifiable {
 /// Central de notificações — fiel ao MVP: MARCAR TODAS no topo,
 /// chips de filtro, células com ícone por tipo, hora relativa e dot de não lida.
 struct NotificationsView: View {
-    @State private var viewModel = NotificationsViewModel()
+    @State private var viewModel = NotificationsViewModel.shared
 
     @State private var push = PushManager.shared
     @State private var isAskingPush = false
@@ -339,6 +339,15 @@ enum NotifRelativeTime {
 
 @Observable
 final class NotificationsViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = NotificationsViewModel()
+
     var items: [NotifItem] = []
     var filter: NotifFilter = .tudo
     var isLoading = true

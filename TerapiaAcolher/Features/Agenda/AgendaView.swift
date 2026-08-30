@@ -15,6 +15,15 @@ enum AgendaMode: String, CaseIterable, Identifiable {
 
 @Observable
 final class AgendaViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = AgendaViewModel()
+
     /// Primeira janela curta: a tela abre rápido com os próximos dias.
     static let firstWindowDays = 30
     /// Blocos seguintes maiores: menos idas à rede enquanto rola.
@@ -233,7 +242,7 @@ final class AgendaViewModel {
 // MARK: - Tela Agenda
 
 struct AgendaView: View {
-    @State private var model = AgendaViewModel()
+    @State private var model = AgendaViewModel.shared
     @State private var showNewSession = false
     @State private var deepLink = DeepLink.shared
     /// O terapeuta pode dispensar o convite do Google — a integração é opcional
@@ -376,9 +385,11 @@ struct AgendaView: View {
     @ViewBuilder
     private var content: some View {
         if model.isLoading {
-            Spacer()
-            ProgressView().tint(Theme.primary)
-            Spacer()
+            // Esqueleto no lugar do spinner: já desenha a lista, então a
+            // chegada do dado é troca de conteúdo, não salto de layout.
+            SkeletonList(linhas: 7, avatarSize: 46)
+                .padding(.horizontal, Theme.screenPadding)
+            Spacer(minLength: 0)
         } else if let error = model.errorMessage {
             Spacer()
             VStack(spacing: 14) {

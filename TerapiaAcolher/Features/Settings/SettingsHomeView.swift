@@ -4,7 +4,7 @@ import SwiftUI
 /// Raiz de Configurações — fiel ao MVP: card do perfil no topo,
 /// seções CONSULTÓRIO / TEMPLATES / INTEGRAÇÕES / CONTA com contadores.
 struct SettingsHomeView: View {
-    @State private var viewModel = SettingsHomeViewModel()
+    @State private var viewModel = SettingsHomeViewModel.shared
     @State private var showLogoutConfirm = false
 
     private var session: SessionStore { .shared }
@@ -211,6 +211,15 @@ struct SettingsHomeView: View {
 
 @Observable
 final class SettingsHomeViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = SettingsHomeViewModel()
+
     var groupCount: Int?
     var templateCounts: [SetTemplateType: Int] = [:]
     var googleConnected: Bool?

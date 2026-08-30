@@ -4,6 +4,15 @@ import SwiftUI
 
 @Observable
 final class PatientsListViewModel {
+    /// Instância única: o estado sobrevive à navegação.
+    ///
+    /// Antes cada tela criava o seu view model como `@State` local, então ele
+    /// MORRIA ao sair — voltar para cá dois segundos depois dava spinner e
+    /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
+    /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
+    /// só atualiza por baixo.
+    static let shared = PatientsListViewModel()
+
     enum StatusFilter { case active, inactive }
 
     var patients: [Patient] = []
@@ -39,7 +48,9 @@ final class PatientsListViewModel {
 
     @MainActor
     func load(showSpinner: Bool = true) async {
-        if showSpinner { isLoading = true }
+        // Com a instância única, voltar para a tela já tem lista em memória:
+        // spinner aí seria mentira sobre um dado que já está na mão.
+        if showSpinner && patients.isEmpty { isLoading = true }
         errorMessage = nil
         do {
             async let patientsCall = PatientsAPI.list(
@@ -90,7 +101,7 @@ final class PatientsListViewModel {
 // MARK: - Tela: lista de pacientes
 
 struct PatientsListView: View {
-    @State private var model = PatientsListViewModel()
+    @State private var model = PatientsListViewModel.shared
     @State private var showNewPatient = false
     @State private var showAddOptions = false
     @State private var showImport = false
@@ -208,9 +219,11 @@ struct PatientsListView: View {
     @ViewBuilder
     private var content: some View {
         if model.isLoading {
-            Spacer()
-            ProgressView().tint(Theme.primary)
-            Spacer()
+            // Esqueleto no lugar do spinner: já desenha a lista, então a
+            // chegada do dado é troca de conteúdo, não salto de layout.
+            SkeletonList(linhas: 7, avatarSize: 46)
+                .padding(.horizontal, Theme.screenPadding)
+            Spacer(minLength: 0)
         } else if let error = model.errorMessage {
             Spacer()
             ErrorRetryView(message: error) { Task { await model.load() } }
@@ -289,7 +302,12 @@ struct PatientRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            InitialAvatar(name: patient.name, colorHex: patient.group?.color, size: 46)
+            RemoteAvatar(
+                url: patient.photoUrl.flatMap(URL.init(string:)),
+                name: patient.name,
+                colorHex: patient.group?.color,
+                size: 46
+            )
             VStack(alignment: .leading, spacing: 5) {
                 Text(patient.name)
                     .font(Theme.body(16, weight: .semibold))
