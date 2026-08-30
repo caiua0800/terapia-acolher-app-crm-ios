@@ -64,6 +64,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
 struct MainShellView: View {
     @State private var selection: MenuDestination = .inicio
     @State private var isMenuOpen = false
+    @State private var optIn = PushOptIn.shared
     @State private var deepLink = DeepLink.shared
 
     var body: some View {
@@ -135,6 +136,17 @@ struct MainShellView: View {
         }
         .task {
             await PushManager.shared.refreshAuthorization()
+            // Só convida depois de o terapeuta ter usado o app. O alerta do
+            // sistema só pode ser mostrado UMA vez — pedir na primeira tela é
+            // o jeito mais rápido de levar um "não" definitivo.
+            optIn.registrarAbertura()
+            optIn.avaliar(status: PushManager.shared.authorization)
+        }
+        .sheet(isPresented: $optIn.mostrando) {
+            PushOptInSheet {
+                optIn.registrarDecisao()
+            }
+            .presentationDetents([.large])
         }
     }
 

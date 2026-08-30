@@ -74,6 +74,7 @@
 		E190B6603A16A6D8F354C80B /* RecordsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270620B50F3F00CA9EB885C7 /* RecordsModels.swift */; };
 		E5F190A4DD3FD0D07F4FAC27 /* AiFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFB60343805E0A349238A47 /* AiFlowUITests.swift */; };
 		E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784CFCF124134E8A5792C19D /* SetGoogleView.swift */; };
+		F1A7201AC6578B0E00A8B427 /* PushOptInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCE7F36CF7A21D2086E3D36 /* PushOptInSheet.swift */; };
 		F472883B3ADF860906548A01 /* SetTemplatesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EB5275EB7FA6B199B0DAB /* SetTemplatesListView.swift */; };
 		F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */; };
 		F6BB08DCF8BD12AF887CFD8E /* FinanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83BAFF89B5616319BE165106 /* FinanceModels.swift */; };
@@ -160,6 +161,7 @@
 		B4BAD228FD3C540AF4186B1F /* SmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeUITests.swift; sourceTree = "<group>"; };
 		B9C107DD9807B398A641726F /* RecordsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsHomeView.swift; sourceTree = "<group>"; };
 		BB18CE34C1D0C335D5474293 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		BBCE7F36CF7A21D2086E3D36 /* PushOptInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushOptInSheet.swift; sourceTree = "<group>"; };
 		BC36D6F293E32EC2A6F776AE /* LeadsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsModels.swift; sourceTree = "<group>"; };
 		BDFB60343805E0A349238A47 /* AiFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiFlowUITests.swift; sourceTree = "<group>"; };
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 			isa = PBXGroup;
 			children = (
 				969DDEC8B91D4D2926F0F47B /* NotificationsView.swift */,
+				BBCE7F36CF7A21D2086E3D36 /* PushOptInSheet.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -596,6 +599,7 @@
 				459B04B35A8F8830B6599151 /* PatientModels.swift in Sources */,
 				F80393D15732389739B6A80D /* PatientsListView.swift in Sources */,
 				A1AAAFD10C8847E502F7239A /* PushManager.swift in Sources */,
+				F1A7201AC6578B0E00A8B427 /* PushOptInSheet.swift in Sources */,
 				0BEB9CB4AE7EF3AF1D7A5579 /* RecNotesView.swift in Sources */,
 				84FBAE960242C07A997EA92C /* RecordFormViews.swift in Sources */,
 				6EAD3A80068BBA084E4DDDB4 /* RecordsHomeView.swift in Sources */,
@@ -688,7 +692,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 4JAK4K7U7G;
 				INFOPLIST_FILE = TerapiaAcolher/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -713,7 +717,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 4JAK4K7U7G;
 				INFOPLIST_FILE = TerapiaAcolher/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
