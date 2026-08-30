@@ -23,12 +23,21 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ccypher.terapiaacolher
         MARKETING_VERSION: '1.0.0'
-        CURRENT_PROJECT_VERSION: '3'
+        CURRENT_PROJECT_VERSION: '4'
         INFOPLIST_FILE: TerapiaAcolher/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: '1'
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
+        # Assinatura MANUAL só para dispositivo. Isto vivia apenas no
+        # .xcodeproj, que o xcodegen reescreve — então todo `xcodegen generate`
+        # apagava a escolha e o Xcode a regravava depois, num vaivém que já
+        # confundiu duas vezes. Simulador continua sem assinar.
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: Apple Development
+        CODE_SIGN_IDENTITY[sdk=iphoneos*]: Apple Distribution
+        DEVELOPMENT_TEAM[sdk=iphoneos*]: 4JAK4K7U7G
+        PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]: Terapia Acolher App Store
       # Push por configuração: "development" aponta para o APNs sandbox e
       # "production" para o real. Um build de loja assinado com development
       # registra token no ambiente errado e nenhuma notificação chega — sem
