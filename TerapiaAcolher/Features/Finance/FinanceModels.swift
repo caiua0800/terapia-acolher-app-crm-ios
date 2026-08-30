@@ -219,6 +219,10 @@ enum FinanceAPI {
         try await APIClient.shared.get("payments/fees")
     }
 
+    static func quote(amount: Double) async throws -> FinQuote {
+        try await APIClient.shared.get("payments/quote", query: ["amount": String(format: "%.2f", amount)])
+    }
+
     static func createCharge(_ body: FinChargeBody) async throws -> FinCharge {
         try await APIClient.shared.post("finance/charges", body: body)
     }
@@ -380,3 +384,23 @@ struct FinFees: Decodable {
     var disponiveis: [Method] { methods.filter(\.available) }
 }
 
+/// Quanto o terapeuta recebe em cada método, para um valor específico.
+///
+/// Calculado no SERVIDOR. A taxa do cartão é percentual e ainda soma a
+/// antecipação — refazer essa conta no app garantiria divergir da cobrada de
+/// verdade, e o número que ele vê antes de criar tem que ser o que ele recebe.
+struct FinQuote: Decodable {
+    struct Metodo: Decodable, Identifiable, Hashable {
+        let id: String
+        let fee: Double
+        let net: Double
+        /// 0 = cai na hora (Pix). 1 = próximo dia útil (cartão antecipado).
+        let daysToReceive: Int
+    }
+
+    let amount: Double
+    let minOnlineCharge: Double
+    let methods: [Metodo]
+
+    func metodo(_ id: String) -> Metodo? { methods.first { $0.id == id } }
+}

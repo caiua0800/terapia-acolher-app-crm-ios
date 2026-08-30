@@ -16,6 +16,9 @@ struct FinChargeFormView: View {
 
     /// Vem do servidor: taxa, valor mínimo e quais métodos existem hoje.
     @State private var fees: FinFees?
+    /// Recalculado a cada mudança de valor: a taxa do cartão é percentual.
+    @State private var quote: FinQuote?
+    @State private var quoteTask: Task<Void, Never>?
     @State private var metodoId = "PIX"
     /// Cobrança combinada fora do app (dinheiro, transferência direta) não
     /// passa pelo gateway e não tem taxa — por isso a escolha é explícita.
@@ -28,16 +31,19 @@ struct FinChargeFormView: View {
 
     private var valor: Double? { FinFormat.parseAmount(amountText) }
 
-    /// O que cai na conta do terapeuta. Uma taxa só, somada — ele não precisa
-    /// saber que ela se divide entre gateway e plataforma.
-    private var liquido: Double? {
-        guard online, let valor, let fees else { return nil }
-        return max(0, valor - fees.platformFee)
+    /// O que cai na conta do terapeuta, calculado pelo SERVIDOR para o método
+    /// escolhido. Uma taxa só, somada — ele não precisa saber que ela se
+    /// divide entre gateway, antecipação e plataforma.
+    private var linhaDoMetodo: FinQuote.Metodo? {
+        guard online else { return nil }
+        return quote?.metodo(metodoId)
     }
 
+    private var minimo: Double { quote?.minOnlineCharge ?? fees?.minOnlineCharge ?? 5 }
+
     private var abaixoDoMinimo: Bool {
-        guard online, let valor, let fees else { return false }
-        return valor > 0 && valor < fees.minOnlineCharge
+        guard online, let valor else { return false }
+        return valor > 0 && valor < minimo
     }
 
     private var isValid: Bool {
@@ -112,6 +118,17 @@ struct FinChargeFormView: View {
             // líquido simplesmente não aparece — melhor não mostrar nada do que
             // mostrar um número que pode estar errado.
             .task { fees = try? await FinanceAPI.fees() }
+            // A taxa do cartão é percentual, então o líquido muda com o valor.
+            // Debounce curto: sem ele, cada tecla digitada viraria requisição.
+            .onChange(of: amountText) { _, _ in
+                quoteTask?.cancel()
+                guard let valor, valor > 0 else { quote = nil; return }
+                quoteTask = Task {
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    guard !Task.isCancelled else { return }
+                    quote = try? await FinanceAPI.quote(amount: valor)
+                }
+            }
             .sheet(item: $recemCriada) { resultado in
                 FinChargeLinkSheet(result: resultado, patientName: patient.name) {
                     recemCriada = nil
@@ -262,24 +279,33 @@ struct FinChargeFormView: View {
 
     @ViewBuilder
     private var resumoDoLiquido: some View {
-        if abaixoDoMinimo, let fees {
+        if abaixoDoMinimo {
             ThemeCard {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(Theme.warning)
-                    Text("Cobrança online a partir de \(Formatters.brl(fees.minOnlineCharge)). Abaixo disso, combine por fora.")
+                    Text("Cobrança online a partir de \(Formatters.brl(minimo)). Abaixo disso, combine por fora.")
                         .font(Theme.body(13))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-        } else if let liquido, let valor, valor > 0, let fees {
+        } else if let m = linhaDoMetodo, let valor, valor > 0 {
             ThemeCard {
                 VStack(spacing: 10) {
                     linha("Valor da cobrança", Formatters.brl(valor), destaque: false)
-                    linha("Taxa do sistema", "− \(Formatters.brl(fees.platformFee))", destaque: false)
+                    linha("Taxa do sistema", "− \(Formatters.brl(m.fee))", destaque: false)
                     Divider().overlay(Theme.border)
-                    linha("Você recebe", Formatters.brl(liquido), destaque: true)
+                    linha("Você recebe", Formatters.brl(m.net), destaque: true)
+                    // Prazo junto do valor, sempre. "Você recebe R$ X" sem
+                    // dizer QUANDO vira promessa falsa no cartão, que leva 32
+                    // dias sem antecipação.
+                    HStack {
+                        Spacer()
+                        Text(m.daysToReceive == 0 ? "na sua conta na hora" : "na sua conta em 1 dia útil")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
                 }
             }
             .transition(.opacity)
