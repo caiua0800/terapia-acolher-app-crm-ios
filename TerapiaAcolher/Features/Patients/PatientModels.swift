@@ -325,12 +325,16 @@ enum PatientMask {
         return out
     }
 
-    /// Valor enviado à API: só dígitos com +55 (ex.: +5541991234567).
-    /// A máscara com parênteses/hífen é apenas exibição.
+    /// Valor enviado à API: só dígitos, DDI na frente, SEM o "+"
+    /// (ex.: 5541991234567). A máscara com parênteses e hífen é só exibição.
+    ///
+    /// O "+" saiu em 31/08/2026 para casar com o formato único do banco. Ele
+    /// não fazia falta a ninguém: o link `wa.me/<número>` que o app monta quer
+    /// os dígitos crus, e o "+" só criava mais uma variante para limpar.
     static func whatsappPayload(_ masked: String) -> String? {
         var digits = String(masked.filter(\.isNumber))
         if digits.hasPrefix("55") { digits = String(digits.dropFirst(2)) }
         guard !digits.isEmpty else { return nil }
-        return "+55\(digits)"
+        return "55\(digits)"
     }
 }

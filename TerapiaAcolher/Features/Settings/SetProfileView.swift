@@ -153,7 +153,15 @@ struct SetProfileView: View {
                     }
                     Divider().padding(.leading, 62)
                     campoRow(icon: "phone", color: Theme.primary, label: "WhatsApp") {
-                        TextField("+55 11 91234-5678", text: $viewModel.whatsapp)
+                        TextField("+55 (11) 91234-5678", text: $viewModel.whatsapp)
+                            .keyboardType(.phonePad)
+                            // Mesma máscara do cadastro de paciente: o número do
+                            // terapeuta ia cru para o banco e era a última porta
+                            // por onde entrava telefone sem DDI.
+                            .onChange(of: viewModel.whatsapp) { _, novo in
+                                let m = PatientMask.whatsapp(novo)
+                                if m != novo { viewModel.whatsapp = m }
+                            }
                             .keyboardType(.phonePad)
                     }
                 }
@@ -308,7 +316,8 @@ final class SetProfileViewModel {
             name = user.name
             specialty = user.specialty ?? ""
             registration = user.professionalRegistration ?? ""
-            whatsapp = user.whatsapp ?? ""
+            // O banco guarda "5517992562727"; a tela mostra formatado.
+            whatsapp = PatientMask.whatsapp(user.whatsapp ?? "")
             email = user.email
         }
         if let avatar: SetImageURL = try? await APIClient.shared.get("settings/avatar"),
@@ -344,7 +353,7 @@ final class SetProfileViewModel {
                     name: trimmedName,
                     specialty: specialty.trimmingCharacters(in: .whitespacesAndNewlines),
                     professionalRegistration: registration.trimmingCharacters(in: .whitespacesAndNewlines),
-                    whatsapp: whatsapp.trimmingCharacters(in: .whitespacesAndNewlines)
+                    whatsapp: PatientMask.whatsappPayload(whatsapp) ?? ""
                 )
             )
             await SessionStore.shared.reloadProfile()
