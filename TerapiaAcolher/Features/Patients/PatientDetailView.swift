@@ -136,7 +136,7 @@ struct PatientDetailView: View {
     @State private var model: PatientDetailViewModel
     @State private var showDeleteModal = false
     @State private var showEdit = false
-    @State private var showScheduleInfo = false
+    @State private var showNewSession = false
     @State private var photoItem: PhotosPickerItem?
     @State private var showPhotoPicker = false
     @Environment(\.dismiss) private var dismiss
@@ -360,17 +360,15 @@ struct PatientDetailView: View {
 
     // MARK: Agendar
     // O módulo de chat foi CORTADO do produto — sem botão "Conversar".
-    // Integração com a Agenda: por ora navega-se pelo menu lateral; o botão
-    // publica uma notificação que a feature Agenda pode ouvir no futuro.
+    //
+    // Este botão publicava uma notificação que ninguém escutava e abria um
+    // alerta mandando o terapeuta achar a Agenda no menu — ou seja, não
+    // agendava nada. Agora abre a própria tela de nova sessão com o paciente
+    // já escolhido, que é o único motivo de o botão existir na ficha.
 
     private func scheduleButton(_ detail: PatientDetail) -> some View {
         Button {
-            NotificationCenter.default.post(
-                name: Notification.Name("TA.agenda.newSession"),
-                object: nil,
-                userInfo: ["patientId": detail.id, "patientName": detail.name]
-            )
-            showScheduleInfo = true
+            showNewSession = true
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "plus.square")
@@ -384,10 +382,18 @@ struct PatientDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 26))
             .overlay(RoundedRectangle(cornerRadius: 26).stroke(Theme.ink.opacity(0.5), lineWidth: 1.2))
         }
-        .alert("Agendar sessão", isPresented: $showScheduleInfo) {
-            Button("Entendi", role: .cancel) {}
-        } message: {
-            Text("Abra a Agenda pelo menu lateral para criar a sessão de \(detail.name).")
+        .sheet(isPresented: $showNewSession) {
+            AgendaNewSessionView(
+                pacienteInicial: AgendaPatientRef(
+                    id: detail.id,
+                    name: detail.name,
+                    email: detail.email,
+                    status: detail.status,
+                    group: detail.group.map {
+                        AgendaGroupRef(id: $0.id, name: $0.name, color: $0.color)
+                    }
+                )
+            )
         }
     }
 

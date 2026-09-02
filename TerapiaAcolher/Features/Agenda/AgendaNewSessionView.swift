@@ -157,6 +157,10 @@ final class AgendaNewSessionModel {
 // MARK: - Sheet Nova sessão (fiel ao print)
 
 struct AgendaNewSessionView: View {
+    /// Paciente já escolhido por quem abriu a tela (ficha do paciente).
+    /// Nil quando vem da Agenda, onde a escolha é o primeiro passo.
+    var pacienteInicial: AgendaPatientRef? = nil
+
     @Environment(\.dismiss) private var dismiss
     @State private var model = AgendaNewSessionModel()
     @State private var showPatientPicker = false
@@ -193,6 +197,13 @@ struct AgendaNewSessionView: View {
         }
         .onChange(of: model.startTime) { oldValue, _ in
             model.startChanged(oldValue: oldValue)
+        }
+        .task {
+            // Só na primeira montagem: `select` busca o detalhe do paciente
+            // (valor da sessão, e-mail, WhatsApp) e não pode repetir a cada
+            // reavaliação da view.
+            guard let pacienteInicial, model.patient == nil else { return }
+            model.select(pacienteInicial)
         }
     }
 

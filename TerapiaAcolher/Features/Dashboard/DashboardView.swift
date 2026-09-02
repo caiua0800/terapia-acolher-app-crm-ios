@@ -46,6 +46,7 @@ struct DashboardView: View {
     @State private var profileStatus = ProfileStatusStore.shared
     @State private var deepLink = DeepLink.shared
     @State private var mostrandoPendencias = false
+    @State private var vitrine = VitrineViewModel.shared
 
     var body: some View {
         ZStack {
@@ -72,6 +73,8 @@ struct DashboardView: View {
         .onAppear {
             Task { await model.load() }
             Task { await avaliarPerfil() }
+            // Só custa uma requisição e some sozinho se não estiver conectado.
+            Task { await vitrine.load() }
         }
         .sheet(isPresented: $mostrandoPendencias) {
             ProfilePendingSheet(
@@ -102,6 +105,9 @@ struct DashboardView: View {
         if profileStatus.status == nil { await profileStatus.refresh() }
         guard let status = profileStatus.status, status.temPendencia else { return }
         guard !mostrandoPendencias else { return }
+        // Cinto e suspensório: se o convite de push ganhou a corrida, este
+        // aviso espera a próxima abertura em vez de brigar pela janela.
+        guard !PushOptIn.shared.mostrando else { return }
         profileStatus.dispensadoNestaSessao = true
         mostrandoPendencias = true
     }
@@ -112,6 +118,7 @@ struct DashboardView: View {
                 greetingCard(payload)
                 leadsSection
                 monthSection(payload.month)
+                vitrineSection
                 nextSessionsSection(payload.nextSessions)
             }
             .padding(.horizontal, Theme.screenPadding)
@@ -119,6 +126,88 @@ struct DashboardView: View {
             .padding(.bottom, 32)
         }
         .refreshable { await model.load() }
+    }
+
+
+    // MARK: Vitrine — retorno de quem paga por aparecer
+
+    /// Só aparece com a Vitrine conectada.
+    ///
+    /// O terapeuta paga a Vitrine todo mês e nunca vê se ela funciona — é o
+    /// que explica a diferença de retenção entre quem paga no cartão e quem
+    /// paga no pix manual. Mostrar "seu perfil apareceu 47 vezes" aqui, na
+    /// primeira tela, é o lugar onde o número tem chance de ser visto.
+    @ViewBuilder
+    private var vitrineSection: some View {
+        if let status = vitrine.status, status.connected, status.indisponivel != true,
+           let mes = status.mes {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("SUA VITRINE")
+                    .font(Theme.body(11, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.leading, 2)
+
+                NavigationLink {
+                    VitrineView()
+                } label: {
+                    ThemeCard(padding: 16) {
+                        VStack(spacing: 14) {
+                            HStack(spacing: 0) {
+                                vitrineMetric(
+                                    valor: mes.visualizacoes,
+                                    titulo: "Visualizações",
+                                    icone: "eye",
+                                    cor: Theme.primary
+                                )
+                                Divider().frame(height: 38)
+                                vitrineMetric(
+                                    valor: mes.cliquesWhatsapp,
+                                    titulo: "Clicaram no WhatsApp",
+                                    icone: "hand.tap",
+                                    cor: Color(hex: 0x8FBCA6)
+                                )
+                            }
+
+                            HStack(spacing: 6) {
+                                Text("neste mês")
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                                if let totais = status.impressoesTotais, totais > 0 {
+                                    Text("·")
+                                        .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                                    Text("\(totais) aparições desde o início")
+                                        .font(Theme.body(12))
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                                Spacer(minLength: 4)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                            }
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func vitrineMetric(valor: Int, titulo: String, icone: String, cor: Color) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icone)
+                .font(.system(size: 15))
+                .foregroundStyle(cor)
+            Text("\(valor)")
+                .font(Theme.serifTitle(26))
+                .foregroundStyle(Theme.textPrimary)
+            Text(titulo)
+                .font(Theme.body(11.5))
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: Card de saudação (gradiente suave + mini-stats)
