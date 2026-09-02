@@ -17,6 +17,9 @@ final class DeepLink {
     var pendingSection: String?
     /// Endereço externo pedido por uma notificação do suporte.
     var externalURL: URL?
+    /// Pedido de abrir "Meu perfil" — usado pelo aviso de perfil incompleto,
+    /// que precisa levar o terapeuta até onde a pendência se resolve.
+    var abrirPerfil = false
 }
 
 /// Registro de push e tratamento do toque.

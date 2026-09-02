@@ -8,6 +8,7 @@ final class AgendaNewSessionModel {
     var patient: AgendaPatientRef?
     /// E-mail conhecido do paciente (lista/detalhe) — define se o campo obrigatório aparece.
     var patientEmail: String?
+    var patientWhatsapp: String?
 
     var date = Date.now
     var startTime: Date
@@ -38,8 +39,14 @@ final class AgendaNewSessionModel {
         endTime = start.addingTimeInterval(50 * 60)
     }
 
+    /// Só cobra o e-mail quando não há NENHUM canal. Antes disto, paciente
+    /// com WhatsApp e sem e-mail travava o agendamento por um campo que a
+    /// mensagem nem ia usar.
     var needsEmailField: Bool {
-        sendEmail && patient != nil && (patientEmail ?? "").isEmpty
+        sendEmail
+            && patient != nil
+            && (patientEmail ?? "").isEmpty
+            && (patientWhatsapp ?? "").isEmpty
     }
 
     var canSave: Bool {
@@ -58,10 +65,14 @@ final class AgendaNewSessionModel {
     func select(_ ref: AgendaPatientRef) {
         patient = ref
         patientEmail = ref.email
+        // Zera antes de buscar: sobra do paciente anterior faria o formulário
+        // achar que este tem WhatsApp e liberar o agendamento sem canal.
+        patientWhatsapp = nil
         // Valor padrão da sessão vem do detalhe do paciente
         Task {
             if let detail: AgendaPatientDetail = try? await APIClient.shared.get("patients/\(ref.id)") {
                 if let email = detail.email, !email.isEmpty { patientEmail = email }
+                patientWhatsapp = detail.whatsapp
                 if priceText.isEmpty, let price = detail.sessionPrice {
                     priceText = String(format: "%.2f", price).replacingOccurrences(of: ".", with: ",")
                 }
@@ -409,17 +420,20 @@ struct AgendaNewSessionView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
-    // MARK: Confirmação por e-mail
+    // MARK: Confirmação para o paciente
 
     private var emailCard: some View {
         ThemeCard {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: $model.sendEmail) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Enviar confirmação por e-mail")
+                        Text("Avisar o paciente")
                             .font(Theme.body(15, weight: .medium))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("O paciente recebe data, hora e o link da videochamada.")
+                        // O texto diz os dois canais porque é o que acontece:
+                        // o backend manda por e-mail e por WhatsApp, conforme
+                        // o que o paciente tiver cadastrado.
+                        Text("Confirmação por e-mail e WhatsApp, com data, hora e o link da videochamada.")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }

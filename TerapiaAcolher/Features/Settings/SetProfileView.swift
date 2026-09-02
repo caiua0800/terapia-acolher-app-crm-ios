@@ -10,6 +10,8 @@ struct SetProfileView: View {
     @State private var signaturePickerItem: PhotosPickerItem?
     @State private var showSignatureCanvas = false
     @State private var showLogoutConfirm = false
+    @State private var showVerifyPhone = false
+    @State private var profileStatus = ProfileStatusStore.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -18,6 +20,7 @@ struct SetProfileView: View {
             ScrollView {
                 VStack(spacing: 22) {
                     avatarHeader
+                    pendencias
                     dadosProfissionais
                     contato
                     assinatura
@@ -45,7 +48,15 @@ struct SetProfileView: View {
                 .disabled(viewModel.isSaving)
             }
         }
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            await profileStatus.refresh()
+        }
+        .sheet(isPresented: $showVerifyPhone) {
+            SetVerifyPhoneView(numeroAtual: viewModel.whatsapp) {
+                Task { await viewModel.load() }
+            }
+        }
         .onChange(of: avatarPickerItem) { _, item in
             guard let item else { return }
             Task {
@@ -73,7 +84,86 @@ struct SetProfileView: View {
         .alert("Tudo certo", isPresented: $viewModel.showSaved) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Perfil atualizado com sucesso.")
+            Text(viewModel.savedMessage)
+        }
+    }
+
+
+    // MARK: - Pendências do perfil
+
+    /// Repete no perfil o que o aviso do Início anuncia. É aqui que a pendência
+    /// se resolve, então é aqui que ela precisa estar por escrito — o modal só
+    /// avisa e traz para cá.
+    @ViewBuilder
+    private var pendencias: some View {
+        if let status = profileStatus.status, status.temPendencia {
+            VStack(spacing: 8) {
+                SetSectionHeader(title: "Falta pouco")
+                ThemeCard(padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(status.pendenciasVisiveis.enumerated()), id: \.element.id) { indice, item in
+                            if indice > 0 { Divider().padding(.leading, 52) }
+                            pendenciaRow(item)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func pendenciaRow(_ item: ProfilePendency) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: item.icon)
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.warning)
+                .frame(width: 32, height: 32)
+                .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(Theme.body(15, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(item.description)
+                    .font(Theme.body(12.5))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            if item.code == "WHATSAPP_NAO_VERIFICADO" || item.code == "WHATSAPP_AUSENTE" {
+                Button("Verificar") { showVerifyPhone = true }
+                    .font(Theme.body(13, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+            } else if item.code == "EMAIL_NAO_VERIFICADO" {
+                Button(viewModel.isResendingEmail ? "Enviando…" : "Reenviar") {
+                    Task { await viewModel.resendVerificationEmail() }
+                }
+                .font(Theme.body(13, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+                .disabled(viewModel.isResendingEmail)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    /// Selo embaixo do campo: o estado do número é a informação que explica
+    /// por que os avisos chegam ou não.
+    @ViewBuilder
+    private var selosDoNumero: some View {
+        if let status = profileStatus.status, status.whatsappEnabled {
+            HStack(spacing: 8) {
+                if status.phoneVerifiedAt != nil {
+                    Label("Verificado", systemImage: "checkmark.seal.fill")
+                        .font(Theme.body(12, weight: .semibold))
+                        .foregroundStyle(Theme.success)
+                } else {
+                    Label("Não verificado", systemImage: "exclamationmark.triangle.fill")
+                        .font(Theme.body(12, weight: .semibold))
+                        .foregroundStyle(Theme.warning)
+                    Button("Verificar agora") { showVerifyPhone = true }
+                        .font(Theme.body(12, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                }
+            }
         }
     }
 
@@ -153,16 +243,18 @@ struct SetProfileView: View {
                     }
                     Divider().padding(.leading, 62)
                     campoRow(icon: "phone", color: Theme.primary, label: "WhatsApp") {
-                        TextField("+55 (11) 91234-5678", text: $viewModel.whatsapp)
-                            .keyboardType(.phonePad)
-                            // Mesma máscara do cadastro de paciente: o número do
-                            // terapeuta ia cru para o banco e era a última porta
-                            // por onde entrava telefone sem DDI.
-                            .onChange(of: viewModel.whatsapp) { _, novo in
-                                let m = PatientMask.whatsapp(novo)
-                                if m != novo { viewModel.whatsapp = m }
-                            }
-                            .keyboardType(.phonePad)
+                        VStack(alignment: .leading, spacing: 6) {
+                            TextField("+55 (11) 91234-5678", text: $viewModel.whatsapp)
+                                .keyboardType(.phonePad)
+                                // Mesma máscara do cadastro de paciente: o número do
+                                // terapeuta ia cru para o banco e era a última porta
+                                // por onde entrava telefone sem DDI.
+                                .onChange(of: viewModel.whatsapp) { _, novo in
+                                    let m = PatientMask.whatsapp(novo)
+                                    if m != novo { viewModel.whatsapp = m }
+                                }
+                            selosDoNumero
+                        }
                     }
                 }
             }
@@ -309,6 +401,24 @@ final class SetProfileViewModel {
     var errorMessage: String?
     var showError = false
     var showSaved = false
+    var isResendingEmail = false
+    /// O mesmo alerta serve a salvar o perfil e a reenviar o e-mail; sem isto
+    /// o reenvio anunciava "perfil atualizado", que não foi o que aconteceu.
+    var savedMessage = "Perfil atualizado com sucesso."
+
+    /// Reenvia o link de confirmação de e-mail para quem ainda não confirmou.
+    @MainActor
+    func resendVerificationEmail() async {
+        struct Body: Encodable { let email: String }
+        isResendingEmail = true
+        defer { isResendingEmail = false }
+        let _: MessageResponse? = try? await APIClient.shared.post(
+            "auth/resend-verification",
+            body: Body(email: email)
+        )
+        savedMessage = "Enviamos um novo link de confirmação para \(email)."
+        showSaved = true
+    }
 
     @MainActor
     func load() async {
@@ -332,6 +442,7 @@ final class SetProfileViewModel {
 
     @MainActor
     func saveProfile() async {
+        savedMessage = "Perfil atualizado com sucesso."
         struct Body: Encodable {
             let name: String
             let specialty: String

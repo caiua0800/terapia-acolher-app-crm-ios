@@ -12,6 +12,9 @@ struct AuthUser: Codable, Identifiable, Equatable {
     var role: String
     var status: String
     var timezone: String
+    /// Nulo enquanto o número não passou pelo código do WhatsApp.
+    var phoneVerifiedAt: String?
+    var emailVerifiedAt: String?
 }
 
 struct LoginResponse: Codable {
@@ -156,5 +159,8 @@ final class SessionStore {
         accessToken = nil
         refreshToken = nil
         user = nil
+        // Sem isto, o próximo terapeuta a logar neste aparelho veria as
+        // pendências de perfil do anterior.
+        ProfileStatusStore.shared.limpar()
     }
 }

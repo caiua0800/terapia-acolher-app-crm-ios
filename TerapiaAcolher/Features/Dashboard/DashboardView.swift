@@ -43,6 +43,9 @@ final class DashboardViewModel {
 
 struct DashboardView: View {
     @State private var model = DashboardViewModel.shared
+    @State private var profileStatus = ProfileStatusStore.shared
+    @State private var deepLink = DeepLink.shared
+    @State private var mostrandoPendencias = false
 
     var body: some View {
         ZStack {
@@ -68,7 +71,39 @@ struct DashboardView: View {
         }
         .onAppear {
             Task { await model.load() }
+            Task { await avaliarPerfil() }
         }
+        .sheet(isPresented: $mostrandoPendencias) {
+            ProfilePendingSheet(
+                status: profileStatus.status,
+                onIrParaPerfil: {
+                    mostrandoPendencias = false
+                    // O menu troca de seção e Configurações empurra o perfil.
+                    deepLink.pendingSection = "configuracoes"
+                    deepLink.abrirPerfil = true
+                },
+                onDepois: {
+                    profileStatus.dispensadoNestaSessao = true
+                    mostrandoPendencias = false
+                }
+            )
+            .presentationDetents([.medium])
+        }
+    }
+
+    /// Mostra o aviso de perfil incompleto no máximo uma vez por sessão.
+    ///
+    /// O Início é o único lugar onde ele cabe: é a primeira tela e a única que
+    /// o terapeuta abre sem estar no meio de uma tarefa. Repetir a cada volta
+    /// para cá transformaria o aviso em obstáculo.
+    @MainActor
+    private func avaliarPerfil() async {
+        guard !profileStatus.dispensadoNestaSessao else { return }
+        if profileStatus.status == nil { await profileStatus.refresh() }
+        guard let status = profileStatus.status, status.temPendencia else { return }
+        guard !mostrandoPendencias else { return }
+        profileStatus.dispensadoNestaSessao = true
+        mostrandoPendencias = true
     }
 
     private func content(_ payload: DashPayload) -> some View {
@@ -519,6 +554,77 @@ struct DashUpcomingSessionsView: View {
             errorMessage = error.message
         } catch {
             errorMessage = "Não foi possível carregar as sessões."
+        }
+    }
+}
+
+
+// MARK: - Aviso de perfil incompleto
+
+/// Modal do Início. Não resolve nada aqui de propósito: lista o que falta e
+/// leva para o perfil, que é onde os campos moram. Um formulário duplicado
+/// dentro do modal viraria uma segunda verdade para manter.
+private struct ProfilePendingSheet: View {
+    let status: ProfileStatus?
+    let onIrParaPerfil: () -> Void
+    let onDepois: () -> Void
+
+    var body: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image(systemName: "person.crop.circle.badge.exclamationmark")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Theme.warning)
+                    .padding(.top, 26)
+
+                VStack(spacing: 6) {
+                    Text("Complete seu perfil")
+                        .font(Theme.serifTitle(24))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Falta pouco para você receber todos os avisos da plataforma.")
+                        .font(Theme.body(14))
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+                }
+
+                VStack(spacing: 10) {
+                    ForEach(status?.pendenciasVisiveis ?? []) { item in
+                        HStack(spacing: 11) {
+                            Image(systemName: item.icon)
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.warning)
+                                .frame(width: 28, height: 28)
+                                .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 8))
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.title)
+                                    .font(Theme.body(14, weight: .semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(item.description)
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                Spacer(minLength: 0)
+
+                VStack(spacing: 8) {
+                    PrimaryButton(title: "Completar agora", icon: "arrow.right") {
+                        onIrParaPerfil()
+                    }
+                    Button("Deixar para depois") { onDepois() }
+                        .font(Theme.body(14))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .padding(.bottom, 18)
+            }
+            .padding(.horizontal, Theme.screenPadding)
         }
     }
 }

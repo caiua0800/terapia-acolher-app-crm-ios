@@ -60,6 +60,8 @@ struct AgendaPatientRef: Decodable, Identifiable, Hashable {
 struct AgendaPatientDetail: Decodable {
     let id: String
     let email: String?
+    /// Usado para saber se dá para avisar o paciente sem e-mail cadastrado.
+    let whatsapp: String?
     let sessionPrice: Double?
 }
 

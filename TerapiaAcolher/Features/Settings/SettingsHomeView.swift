@@ -6,6 +6,9 @@ import SwiftUI
 struct SettingsHomeView: View {
     @State private var viewModel = SettingsHomeViewModel.shared
     @State private var showLogoutConfirm = false
+    @State private var deepLink = DeepLink.shared
+    /// Empurra "Meu perfil" quando o aviso do Início pede.
+    @State private var abrindoPerfil = false
 
     private var session: SessionStore { .shared }
 
@@ -24,8 +27,24 @@ struct SettingsHomeView: View {
                 .padding(.vertical, 16)
             }
         }
+        .navigationDestination(isPresented: $abrindoPerfil) {
+            SetProfileView()
+        }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+        .onAppear {
+            // Consumido aqui e zerado na hora: sem isso, voltar do perfil
+            // reabriria a tela num laço.
+            if deepLink.abrirPerfil {
+                deepLink.abrirPerfil = false
+                abrindoPerfil = true
+            }
+        }
+        .onChange(of: deepLink.abrirPerfil) { _, pedido in
+            guard pedido else { return }
+            deepLink.abrirPerfil = false
+            abrindoPerfil = true
+        }
         .alert("Ops", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {

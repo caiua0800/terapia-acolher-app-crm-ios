@@ -14,10 +14,20 @@ final class AuthRegisterModel {
     var isLoading = false
     var errorMessage: String?
 
+    /// Validação do número reaproveitada pelo botão e pela mensagem do campo.
+    var phoneCheck: PhoneRules.Result { PhoneRules.validate(whatsapp) }
+
+    /// Só aparece depois que a pessoa digitou algo: erro em campo vazio antes
+    /// de qualquer digitação é regra sendo esfregada na cara de quem chegou.
+    var phoneError: String? {
+        whatsapp.isEmpty ? nil : phoneCheck.error
+    }
+
     var canSubmit: Bool {
         name.trimmingCharacters(in: .whitespaces).count >= 2
             && email.contains("@")
             && password.count >= 8
+            && phoneCheck.isValid
     }
 
     /// POST auth/register → resposta genérica; sucesso leva à tela "confira seu e-mail".
@@ -29,7 +39,7 @@ final class AuthRegisterModel {
             let password: String
             let specialty: String?
             let professionalRegistration: String?
-            let whatsapp: String?
+            let whatsapp: String
         }
         errorMessage = nil
         isLoading = true
@@ -43,7 +53,8 @@ final class AuthRegisterModel {
                     password: password,
                     specialty: specialty.isEmpty ? nil : specialty,
                     professionalRegistration: professionalRegistration.isEmpty ? nil : professionalRegistration,
-                    whatsapp: whatsapp.isEmpty ? nil : whatsapp
+                    // Manda os dígitos com DDI, nunca a máscara.
+                    whatsapp: phoneCheck.payload ?? whatsapp
                 )
             )
             return true
@@ -81,7 +92,25 @@ struct AuthRegisterView: View {
                     AuthField(label: "Senha", text: $model.password, placeholder: "Mínimo 8 caracteres", isSecure: true, contentType: .newPassword)
                     AuthField(label: "Especialidade · opcional", text: $model.specialty, placeholder: "Psicologia", autocapitalize: true)
                     AuthField(label: "Registro profissional · opcional", text: $model.professionalRegistration, placeholder: "CRP 06/54321")
-                    AuthField(label: "WhatsApp · opcional", text: $model.whatsapp, placeholder: "+55 11 91234-5678", keyboard: .phonePad, contentType: .telephoneNumber)
+                    VStack(alignment: .leading, spacing: 6) {
+                        AuthField(
+                            label: "WhatsApp",
+                            text: $model.whatsapp,
+                            placeholder: "+55 (11) 91234-5678",
+                            keyboard: .phonePad,
+                            contentType: .telephoneNumber
+                        )
+                        .onChange(of: model.whatsapp) { _, novo in
+                            let m = PatientMask.whatsapp(novo)
+                            if m != novo { model.whatsapp = m }
+                        }
+                        // Obrigatório desde 2026-09: é por ele que sai o código
+                        // de verificação e todo aviso de cobrança e sessão.
+                        Text(model.phoneError ?? "Você vai confirmar este número no app depois de entrar.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(model.phoneError == nil ? Theme.textSecondary : Theme.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
                     if let error = model.errorMessage {
                         AuthErrorBanner(message: error)
