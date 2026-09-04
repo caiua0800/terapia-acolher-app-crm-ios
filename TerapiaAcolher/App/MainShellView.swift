@@ -51,10 +51,9 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         ]
         todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses]))
         todas.append((header: "GESTÃO", items: [.financeiro, .vitrine]))
-        // Módulo em demonstração: some do menu inteiro com uma flag.
-        if LeadsDemo.enabled {
-            todas.append((header: "LEADS", items: [.leads, .creditos]))
-        }
+        // Leads são reais e ficam sempre; Créditos é loja em demonstração e
+        // some do menu com uma flag.
+        todas.append((header: "LEADS", items: LeadsCreditsDemo.enabled ? [.leads, .creditos] : [.leads]))
         todas.append((header: "CONTA", items: [.configuracoes]))
         return todas
     }

@@ -47,6 +47,7 @@ struct DashboardView: View {
     @State private var deepLink = DeepLink.shared
     @State private var mostrandoPendencias = false
     @State private var vitrine = VitrineViewModel.shared
+    @State private var leads = LeadsStore.shared
 
     var body: some View {
         ZStack {
@@ -75,6 +76,7 @@ struct DashboardView: View {
             Task { await avaliarPerfil() }
             // Só custa uma requisição e some sozinho se não estiver conectado.
             Task { await vitrine.load() }
+            Task { await leads.load() }
         }
         .sheet(isPresented: $mostrandoPendencias) {
             ProfilePendingSheet(
@@ -294,12 +296,14 @@ struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: Leads (módulo em demonstração — some com LeadsDemo.enabled)
+    // MARK: Leads (reais; Créditos continua em demonstração)
 
     @ViewBuilder
     private var leadsSection: some View {
-        if LeadsDemo.enabled {
-            let store = LeadsStore.shared
+        // Ambiente sem a integração e sem a loja de demonstração: nada aqui.
+        if leads.connection?.configured == false, !LeadsCreditsDemo.enabled {
+            EmptyView()
+        } else {
             VStack(alignment: .leading, spacing: 12) {
                 Text("LEADS")
                     .font(Theme.body(11, weight: .semibold))
@@ -319,18 +323,35 @@ struct DashboardView: View {
                                 .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 12))
 
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(store.uncontactedCount == 1
-                                     ? "1 lead esperando contato"
-                                     : "\(store.uncontactedCount) leads esperando contato")
-                                    .font(Theme.body(15, weight: .semibold))
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.85)
-                                Text(store.lateCount > 0
-                                     ? "\(store.lateCount) há mais de um dia"
-                                     : "Nenhum atrasado")
-                                    .font(Theme.body(12))
-                                    .foregroundStyle(store.lateCount > 0 ? Theme.danger : Theme.textSecondary)
+                                if leads.isConnected {
+                                    Text(leads.uncontactedCount == 1
+                                         ? "1 lead esperando contato"
+                                         : "\(leads.uncontactedCount) leads esperando contato")
+                                        .font(Theme.body(15, weight: .semibold))
+                                        .foregroundStyle(Theme.textPrimary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
+                                    Text(leads.connection?.indisponivel == true
+                                         ? "Sistema de leads indisponível agora"
+                                         : leads.lateCount > 0
+                                             ? "\(leads.lateCount) há mais de um dia"
+                                             : "Nenhum atrasado")
+                                        .font(Theme.body(12))
+                                        .foregroundStyle(
+                                            leads.lateCount > 0 && leads.connection?.indisponivel != true
+                                                ? Theme.danger : Theme.textSecondary
+                                        )
+                                } else {
+                                    Text("Conectar meus leads")
+                                        .font(Theme.body(15, weight: .semibold))
+                                        .foregroundStyle(Theme.textPrimary)
+                                        .lineLimit(1)
+                                    Text("Veja aqui quem a Terapia Acolher enviou pra você")
+                                        .font(Theme.body(12))
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
+                                }
                             }
 
                             Spacer(minLength: 4)
@@ -342,36 +363,38 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.pressableSubtle)
 
-                NavigationLink {
-                    LeadsCreditsView()
-                } label: {
-                    ThemeCard(padding: 16) {
-                        HStack(spacing: 14) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 17))
-                                .foregroundStyle(Theme.warning)
-                                .frame(width: 42, height: 42)
-                                .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("2 créditos restantes")
-                                    .font(Theme.body(15, weight: .semibold))
-                                    .foregroundStyle(Theme.textPrimary)
-                                Text("Saldo baixo — toque pra recarregar")
-                                    .font(Theme.body(12))
+                if LeadsCreditsDemo.enabled {
+                    NavigationLink {
+                        LeadsCreditsView()
+                    } label: {
+                        ThemeCard(padding: 16) {
+                            HStack(spacing: 14) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 17))
                                     .foregroundStyle(Theme.warning)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.85)
-                            }
+                                    .frame(width: 42, height: 42)
+                                    .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
 
-                            Spacer(minLength: 4)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("2 créditos restantes")
+                                        .font(Theme.body(15, weight: .semibold))
+                                        .foregroundStyle(Theme.textPrimary)
+                                    Text("Saldo baixo — toque pra recarregar")
+                                        .font(Theme.body(12))
+                                        .foregroundStyle(Theme.warning)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.85)
+                                }
+
+                                Spacer(minLength: 4)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                            }
                         }
                     }
+                    .buttonStyle(.pressableSubtle)
                 }
-                .buttonStyle(.pressableSubtle)
             }
         }
     }

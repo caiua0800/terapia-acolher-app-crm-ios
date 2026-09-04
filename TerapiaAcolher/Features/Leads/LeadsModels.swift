@@ -1,15 +1,17 @@
 import Foundation
 
-// MARK: - ⚠️ MÓDULO EM DEMONSTRAÇÃO
+// MARK: - ⚠️ CRÉDITOS EM DEMONSTRAÇÃO
 //
-// Nada aqui fala com backend. Saldo, pacotes e pagamento são SIMULADOS, para
-// validar a experiência antes de existir integração com o sistema de leads.
+// Só o que está marcado como crédito/pacote/pagamento aqui é simulado. Os
+// LEADS são reais: vêm da API do CRM (`integrations/leads`), que os lê do
+// sistema de leads da Terapia Acolher em nome do terapeuta — ver LeadsStore.
 //
-// O item do menu só aparece com `LeadsDemo.enabled == true`. Publicar uma loja
-// que finge cobrar seria problema de revisão na App Store e de confiança com o
-// terapeuta — então desligar é uma linha, e é deliberado.
+// Crédito de verdade só entra pelo checkout da Kiwify. Enquanto a compra
+// dentro do app não for decidida, a loja fica em demonstração e some do menu
+// com `LeadsCreditsDemo.enabled == false`. Publicar uma loja que finge cobrar
+// seria problema de revisão na App Store e de confiança com o terapeuta.
 
-enum LeadsDemo {
+enum LeadsCreditsDemo {
     static let enabled = true
 }
 
@@ -181,13 +183,14 @@ enum LeadShift: String, Codable {
     }
 }
 
-struct Lead: Identifiable, Hashable {
+struct Lead: Identifiable, Hashable, Decodable {
     let id: String
     var status: LeadStatus
     let receivedAt: Date
 
     // Vindos do quiz
     let name: String
+    /// Só dígitos com DDI (pronto para `wa.me/`). Vazio se veio sem telefone.
     let whatsapp: String
     let gender: LeadGender
     let preferredTherapistGender: String   // feminino | masculino | indiferente
@@ -204,6 +207,30 @@ struct Lead: Identifiable, Hashable {
 
     /// Preenchido quando o lead vira paciente — é o que permite medir conversão.
     var convertedPatientId: String?
+
+    /// A API fala o vocabulário do quiz (nome, motivo, paraQuem…); o app fala
+    /// inglês como o resto do código. A tradução mora só aqui.
+    enum CodingKeys: String, CodingKey {
+        case id, status, whatsapp
+        case receivedAt = "recebidoEm"
+        case name = "nome"
+        case gender = "genero"
+        case preferredTherapistGender = "terapeutaPreferido"
+        case shift = "turno"
+        case reason = "motivo"
+        case therapyFor = "paraQuem"
+        case contactWhen = "quandoContactar"
+        case childName = "nomeCrianca"
+        case childAge = "idadeCrianca"
+        case relativeName = "nomeParente"
+        case relativeContact = "contatoParente"
+        case convertedPatientId = "pacienteConvertidoId"
+    }
+
+    /// Telefone legível na ficha ("+55 (11) 99999-0000").
+    var whatsappLegivel: String {
+        whatsapp.isEmpty ? "—" : PatientMask.whatsapp(whatsapp)
+    }
 
     var preferredTherapistLabel: String {
         switch preferredTherapistGender {
@@ -237,5 +264,64 @@ struct Lead: Identifiable, Hashable {
         case ..<24: return .warning
         default: return .late
         }
+    }
+}
+
+// MARK: - Conexão com o sistema de leads
+
+/// Resposta de `integrations/leads/status`.
+struct LeadsConnectionStatus: Decodable {
+    let configured: Bool
+    let connected: Bool
+    /// Sistema de leads fora do ar: o vínculo continua, só os dados somem.
+    let indisponivel: Bool?
+    /// O token foi revogado lá; o vínculo aqui já foi desfeito.
+    let revogada: Bool?
+    let therapistId: Int?
+    let nome: String?
+    let statusConta: String?
+    let saldo: Int?
+    let totalRecebidos: Int?
+    let ultimoRecebidoEm: Date?
+}
+
+// MARK: - API
+
+enum LeadsAPI {
+    static func status() async throws -> LeadsConnectionStatus {
+        try await APIClient.shared.get("integrations/leads/status")
+    }
+
+    static func connectUrl() async throws -> URL? {
+        struct Resposta: Decodable { let url: String }
+        let r: Resposta = try await APIClient.shared.get("integrations/leads/connect-url")
+        return URL(string: r.url)
+    }
+
+    static func list() async throws -> [Lead] {
+        try await APIClient.shared.get("integrations/leads")
+    }
+
+    static func updateStatus(_ id: String, to status: LeadStatus) async throws {
+        struct Body: Encodable { let status: String }
+        struct Ok: Decodable { let id: String? }
+        let _: Ok = try await APIClient.shared.patch(
+            "integrations/leads/\(id)/status",
+            body: Body(status: status.rawValue)
+        )
+    }
+
+    static func linkPatient(_ id: String, patientId: String) async throws {
+        struct Body: Encodable { let patientId: String }
+        struct Ok: Decodable { let id: String? }
+        let _: Ok = try await APIClient.shared.patch(
+            "integrations/leads/\(id)/patient",
+            body: Body(patientId: patientId)
+        )
+    }
+
+    static func disconnect() async throws {
+        struct Ok: Decodable { let disconnected: Bool? }
+        let _: Ok = try await APIClient.shared.delete("integrations/leads")
     }
 }

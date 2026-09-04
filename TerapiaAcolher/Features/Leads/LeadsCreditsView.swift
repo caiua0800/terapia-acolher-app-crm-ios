@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Loja de créditos de lead. **Tudo simulado** — ver LeadsModels.swift.
+/// Loja de créditos de lead. **Tudo simulado** — ver LeadsCreditsDemo em LeadsModels.swift.
 struct LeadsCreditsView: View {
     // Saldo fictício: começa baixo de propósito, pra a tela mostrar o estado
     // de alerta, que é o mais importante de validar visualmente.

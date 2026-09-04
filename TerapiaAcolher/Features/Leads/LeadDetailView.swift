@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Ficha do lead: tudo que o quiz capturou, mudança de status e conversão em
-/// paciente. **Dados simulados** — ver LeadsModels.swift.
+/// paciente. O lead vem do sistema de leads via CRM; o status e a conversão
+/// são gravados no CRM (ver LeadsStore).
 struct LeadDetailView: View {
     let leadId: String
 
@@ -17,18 +18,31 @@ struct LeadDetailView: View {
             Theme.background.ignoresSafeArea()
             if let lead {
                 content(lead)
+            } else if store.isLoading {
+                ProgressView().tint(Theme.primary)
             } else {
-                EmptyStateView(icon: "tray", title: "Lead não encontrado", message: "")
+                EmptyStateView(
+                    icon: "tray",
+                    title: "Lead não encontrado",
+                    message: "Ele pode ter sido removido da sua lista."
+                )
             }
         }
         .setToolbarTitle("Lead")
         .navigationBarTitleDisplayMode(.inline)
+        // Chegou por link direto, sem passar pela lista: carrega.
+        .task { if store.connection == nil { await store.load() } }
+        .alert("Ops", isPresented: $store.showAlerta) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(store.alerta ?? "Algo deu errado.")
+        }
         .sheet(isPresented: $showConvert) {
             if let lead {
                 PatientFormView(
                     mode: .fromLead(name: lead.name, whatsapp: lead.whatsapp)
                 ) { paciente in
-                    store.markConverted(lead.id, patientId: paciente.id)
+                    Task { await store.markConverted(lead.id, patientId: paciente.id) }
                     showConverted = true
                 }
             }
@@ -82,18 +96,26 @@ struct LeadDetailView: View {
 
     private func actions(_ lead: Lead) -> some View {
         VStack(spacing: 10) {
-            Button {
-                Haptics.tap()
-                abrirWhatsApp(lead)
-            } label: {
-                Label("Chamar no WhatsApp", systemImage: "bubble.left.fill")
-                    .font(Theme.body(15, weight: .semibold))
-                    .foregroundStyle(.white)
+            if lead.whatsapp.isEmpty {
+                Text("Este lead chegou sem número de WhatsApp.")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Theme.primary, in: Capsule())
+                    .padding(.vertical, 12)
+            } else {
+                Button {
+                    Haptics.tap()
+                    abrirWhatsApp(lead)
+                } label: {
+                    Label("Chamar no WhatsApp", systemImage: "bubble.left.fill")
+                        .font(Theme.body(15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Theme.primary, in: Capsule())
+                }
+                .buttonStyle(.pressable)
             }
-            .buttonStyle(.pressable)
 
             if lead.convertedPatientId == nil {
                 Button {
@@ -162,7 +184,7 @@ struct LeadDetailView: View {
             guard !selecionado else { return }
             Haptics.success()
             withAnimation(.easeInOut(duration: 0.2)) {
-                store.updateStatus(leadId, to: opcao)
+                Task { await store.updateStatus(leadId, to: opcao) }
             }
         } label: {
             HStack(spacing: 12) {
@@ -201,7 +223,7 @@ struct LeadDetailView: View {
                 Divider().overlay(Theme.border).padding(.vertical, 10)
                 infoRow("Terapia para", lead.therapyFor.label)
                 Divider().overlay(Theme.border).padding(.vertical, 10)
-                infoRow("WhatsApp", lead.whatsapp)
+                infoRow("WhatsApp", lead.whatsappLegivel)
                 Divider().overlay(Theme.border).padding(.vertical, 10)
                 infoRow("Melhor horário", lead.shift.label)
                 Divider().overlay(Theme.border).padding(.vertical, 10)
@@ -230,7 +252,7 @@ struct LeadDetailView: View {
                 } else {
                     infoRow("Nome", lead.relativeName ?? "—")
                     Divider().overlay(Theme.border).padding(.vertical, 10)
-                    infoRow("Contato", lead.relativeContact ?? "—")
+                    infoRow("Contato", lead.relativeContact.map(PatientMask.whatsapp) ?? "—")
                 }
             }
         }
