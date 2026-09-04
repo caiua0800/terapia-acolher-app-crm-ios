@@ -145,6 +145,10 @@ struct AgendaSessionDetailView: View {
 
                 if session.isOnline {
                     meetCard(session)
+                } else if let url = session.whatsappURL {
+                    // Presencial não tem chamada para entrar; falar com o
+                    // paciente é a ação que faz sentido no lugar.
+                    whatsappCard(session, url: url)
                 }
 
                 actionsSection(session)
@@ -220,6 +224,39 @@ struct AgendaSessionDetailView: View {
         }
     }
 
+    // MARK: Falar no WhatsApp
+
+    /// Cartão próprio, para a sessão presencial — que não tem bloco de Meet.
+    private func whatsappCard(_ session: AgendaSession, url: URL) -> some View {
+        whatsappButton(session, url: url)
+            .padding(14)
+            .background(Theme.successSoft)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Abre a conversa sem texto pronto de propósito: o paciente já é
+    /// conhecido, e mensagem enlatada aqui soaria automática — diferente do
+    /// primeiro contato com um lead, que começa numa conversa em branco.
+    private func whatsappButton(_ session: AgendaSession, url: URL) -> some View {
+        Button {
+            Haptics.tap()
+            openURL(url)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "message.fill")
+                    .font(.system(size: 12, weight: .bold))
+                Text("FALAR COM \(session.patient.name.split(separator: " ").first.map(String.init)?.uppercased() ?? "O PACIENTE")")
+                    .font(Theme.body(13, weight: .bold))
+                    .tracking(0.8)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(Theme.success)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     // MARK: Bloco Google Meet
 
     private func meetCard(_ session: AgendaSession) -> some View {
@@ -271,6 +308,10 @@ struct AgendaSessionDetailView: View {
                 Text("Sessão online sem link de videochamada.")
                     .font(Theme.body(13))
                     .foregroundStyle(Theme.textSecondary)
+
+                if let url = session.whatsappURL {
+                    whatsappButton(session, url: url)
+                }
             }
         }
         .padding(14)

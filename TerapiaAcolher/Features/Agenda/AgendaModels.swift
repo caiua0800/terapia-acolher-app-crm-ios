@@ -12,6 +12,8 @@ struct AgendaGroupRef: Decodable, Hashable {
 struct AgendaSessionPatient: Decodable, Hashable {
     let id: String
     let name: String
+    /// Só dígitos com DDI (pronto para `wa.me/`). Nulo se a ficha não tem.
+    let whatsapp: String?
     let group: AgendaGroupRef?
 }
 
@@ -31,6 +33,19 @@ struct AgendaSession: Decodable, Identifiable, Hashable {
 
     var isOnline: Bool { type == "ONLINE" }
     var isScheduled: Bool { status == "SCHEDULED" }
+
+    /// Conversa com o paciente, quando não há chamada para entrar.
+    ///
+    /// Presencial nunca tem link; online pode ficar sem, e nos dois casos o
+    /// cartão não oferecia ação nenhuma. Nulo quando há Meet (o botão de
+    /// entrar já resolve) ou quando a ficha não tem número — aí o link só
+    /// levaria a um erro do WhatsApp.
+    var whatsappURL: URL? {
+        if meetLink?.isEmpty == false { return nil }
+        let digits = (patient.whatsapp ?? "").filter(\.isNumber)
+        guard !digits.isEmpty else { return nil }
+        return URL(string: "https://wa.me/\(digits)")
+    }
     var isRecurring: Bool { recurrenceGroupId != nil }
 
     var recurrenceLabel: String {

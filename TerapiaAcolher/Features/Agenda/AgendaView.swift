@@ -430,6 +430,13 @@ struct AgendaSessionListItem: View {
         return url
     }
 
+    /// Sem link para entrar, o card ficava sem ação nenhuma. Falar com o
+    /// paciente é o que sobra — e só quando a ficha tem número.
+    private var whatsappURL: URL? {
+        guard meetURL == nil, session.isScheduled else { return nil }
+        return session.whatsappURL
+    }
+
     var body: some View {
         ThemeCard(padding: 14) {
             VStack(spacing: 0) {
@@ -439,6 +446,27 @@ struct AgendaSessionListItem: View {
                     AgendaSessionCardRow(session: session, withCard: false)
                 }
                 .buttonStyle(.pressableSubtle)
+
+                if let whatsappURL {
+                    Divider()
+                        .overlay(Theme.border)
+                        .padding(.top, 12)
+                        .padding(.bottom, 11)
+
+                    Button {
+                        Haptics.tap()
+                        openURL(whatsappURL)
+                    } label: {
+                        Label("WhatsApp", systemImage: "message.fill")
+                            .font(Theme.body(13, weight: .semibold))
+                            .foregroundStyle(Theme.success)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(Theme.successSoft, in: Capsule())
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityLabel("Falar com \(session.patient.name) no WhatsApp")
+                }
 
                 if let meetURL {
                     Divider()
