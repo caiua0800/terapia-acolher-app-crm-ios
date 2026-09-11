@@ -201,7 +201,7 @@ struct FinanceHomeView: View {
         }
     }
 
-    // MARK: Atalhos: Cobranças por paciente e Carteira Asaas
+    // MARK: Atalhos: Cobranças por paciente e Gateway Acolher
 
     private var quickLinks: some View {
         HStack(spacing: 10) {
@@ -211,9 +211,9 @@ struct FinanceHomeView: View {
                 quickLinkLabel(icon: "creditcard", title: "Cobranças")
             }
             NavigationLink {
-                FinWalletView()
+                FinGatewayHomeView()
             } label: {
-                quickLinkLabel(icon: "wallet.pass", title: "Carteira Asaas")
+                quickLinkLabel(icon: "building.columns", title: "Gateway Acolher")
             }
         }
     }

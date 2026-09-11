@@ -11,10 +11,12 @@
 		0BEB9CB4AE7EF3AF1D7A5579 /* RecNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */; };
 		0D4AEB785038CC660BC0971E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1789733F05F834AF2551531A /* APIClient.swift */; };
 		18ADB07BB6FD98EAEA9299D5 /* LeadsCheckoutSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59EC2F5530E2E00E9348098D /* LeadsCheckoutSheet.swift */; };
+		18E51764031F0641ECD90E5B /* FinGatewayChargePixSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */; };
 		19E6275F147F8C90568BF650 /* PatientImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F6A455F161AADA394EF4EB /* PatientImportView.swift */; };
 		1A387C9314EAE346F3C5EE61 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B1731D2888D6B675ED0C87 /* Skeleton.swift */; };
 		1BB72C1B1937D3208B6B099B /* AuthForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F927E4106A52CE6F67BEAAAF /* AuthForgotPasswordView.swift */; };
 		255F8DA4CB2D23CAA223AB6D /* LeadsCreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7173C710F75ACB3A65D24C2F /* LeadsCreditsView.swift */; };
+		27143198B98D6A7492A3476A /* FinGatewayLedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8087D4E36A7EB31D5FC85628 /* FinGatewayLedgerView.swift */; };
 		2B178361140F9AE7D9E98E8B /* LeadsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396B0F27E3E0288FA83B3B9E /* LeadsListView.swift */; };
 		2B6B48C42A2D06108DC9AC50 /* FilesHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C1A41EBF5A17F0536A057A /* FilesHomeView.swift */; };
 		2BF58C1F88428F92113CFE20 /* SetAgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53746DAEF71E1D9E71CBE881 /* SetAgendaView.swift */; };
@@ -29,8 +31,10 @@
 		4A4765DDF358E15D1687DCA1 /* FinWalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79EF8C44EBDA0F5548240FDD /* FinWalletView.swift */; };
 		4CC72E142DE9A14B6294FC67 /* AuthComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FC2F6EF4852925C086AE4DB /* AuthComponents.swift */; };
 		4E19B3EE4AB9D9F96AB7AF10 /* SetGroupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDB3BC791649306E74EE255 /* SetGroupsView.swift */; };
+		4E6EC05CACEF7208F28D0A79 /* FinGatewayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78CF82E020D220F16B4C60F4 /* FinGatewayModels.swift */; };
 		4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */; };
 		51A9E3E44350B330A1EFD467 /* ProfileStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331E61F8E58E506EB1E9C073 /* ProfileStatus.swift */; };
+		52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */; };
 		5FBF0B1AE8BC02807F701972 /* SetOfficeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446E9A5DEC0A9B75EC4C8E1B /* SetOfficeView.swift */; };
 		60E73004478C5541FAE16BD6 /* SetProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */; };
 		631E80EB62E890DFEEA7025E /* LeadsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC36D6F293E32EC2A6F776AE /* LeadsModels.swift */; };
@@ -56,10 +60,12 @@
 		86D5C6F834CC87360ABE2AD4 /* SetDeleteAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */; };
 		87BAA306CD43A2F29E3E3888 /* LoginOnlyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352ABA2D9A3498B577E4F164 /* LoginOnlyUITests.swift */; };
 		8BFB66D3F08EA932DFD1C5DD /* RemoteAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D705A4FBA1AF73A5FAEA767A /* RemoteAvatar.swift */; };
+		8C0FF15ABF94D41BC3EA1D7C /* FinGatewayHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4423F4FA4D990F1E0406EC67 /* FinGatewayHomeView.swift */; };
 		8F09E21C11FC26334AEB157E /* MainShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E780E491CDC3590D9A271CE /* MainShellView.swift */; };
 		91A90CF7EF895CC8A1BD6FBC /* DocGenerateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8A201782BAFC2ED79635898 /* DocGenerateView.swift */; };
 		93C857D2F23A9DD26F0A4F55 /* PatientMainDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA6E6821A5437545E324147 /* PatientMainDataView.swift */; };
 		9C5A2D6030A9DF09BC3BE18C /* AgendaSessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 536ABD6A6287A79A80413193 /* AgendaSessionDetailView.swift */; };
+		A15335D536E89C04A92C786D /* FinGatewayComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B0627A9684B931738FFCCA /* FinGatewayComponents.swift */; };
 		A1AAAFD10C8847E502F7239A /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240502A0413DC924044FDCA4 /* PushManager.swift */; };
 		A5318F649346084D0A4F1BC2 /* LeadDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0377288FE401272734328942 /* LeadDetailView.swift */; };
 		A624BE0A5B54B0E3A8407E48 /* FinanceShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E0558EBFC4D9F09706052A /* FinanceShared.swift */; };
@@ -68,12 +74,15 @@
 		A9977DB24E98EA795EBD84AD /* DocumentsHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CE57E1D4EA8CB2BCC16F48 /* DocumentsHomeView.swift */; };
 		A9A898CB825ED343C4CEA929 /* SetTemplateEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F167C5DA6C3235054D9AD4 /* SetTemplateEditorView.swift */; };
 		AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */; };
+		B136EAEC95FECFB0A0C2A0BE /* FinGatewayWithdrawView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5746D3D832FE60A5AFC1F60D /* FinGatewayWithdrawView.swift */; };
 		BAC31C526CBFABFAB0F76A08 /* SetVerifyPhoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB2AA1DB6CD3FF50189B9F /* SetVerifyPhoneView.swift */; };
 		BCAC7313BEF6855C94EB0D82 /* AgendaMonthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4239C8459754261031FB88 /* AgendaMonthView.swift */; };
 		BD65EE0A0DC9A3DE82D4C2DD /* PatientInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EAFADD310E650ABB47216CC /* PatientInviteView.swift */; };
+		C219DDD0622EF322D52C8A1E /* FinGatewayPixKeysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C57AF509EC3749A6BE1F2B12 /* FinGatewayPixKeysView.swift */; };
 		C33805A8046A3C02A1A552F6 /* VitrineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AAC5AE326BCDED2580F132 /* VitrineView.swift */; };
 		C75922ABA43C6D783269C2FC /* LogoutDialogUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44AD4BA3621BF9425EC1CC49 /* LogoutDialogUITests.swift */; };
 		C7FC031779E0C71A2A0BC680 /* SetChangePasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */; };
+		C973BE2E610A9B1175078631 /* GatewayFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */; };
 		E08AC507D0CDB50989E8CAD2 /* AgendaNewSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427BCD7E8EFA0D3E97D306A3 /* AgendaNewSessionView.swift */; };
 		E190B6603A16A6D8F354C80B /* RecordsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270620B50F3F00CA9EB885C7 /* RecordsModels.swift */; };
 		E5F190A4DD3FD0D07F4FAC27 /* AiFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFB60343805E0A349238A47 /* AiFlowUITests.swift */; };
@@ -87,6 +96,7 @@
 		F822337F8E4F33E5AD6C41E9 /* PatientFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */; };
 		F9A95DFA5E8089F59A587DCB /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB18CE34C1D0C335D5474293 /* DashboardView.swift */; };
 		FBB931C8CD61AF4358523439 /* AuthRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */; };
+		FCF992D2DBDC1BFEC8428E7A /* FinGatewayCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0864142FB9902FB91FA5C593 /* FinGatewayCameraView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -103,6 +113,7 @@
 		0377288FE401272734328942 /* LeadDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadDetailView.swift; sourceTree = "<group>"; };
 		06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthRegisterView.swift; sourceTree = "<group>"; };
 		072C9798DC11D2C096035921 /* PatientsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientsListView.swift; sourceTree = "<group>"; };
+		0864142FB9902FB91FA5C593 /* FinGatewayCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayCameraView.swift; sourceTree = "<group>"; };
 		08BC7C70CD62C98716637F27 /* DashModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashModels.swift; sourceTree = "<group>"; };
 		103D3C6C1D2865961396D1FE /* SettingsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHomeView.swift; sourceTree = "<group>"; };
 		1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChangePasswordView.swift; sourceTree = "<group>"; };
@@ -128,9 +139,11 @@
 		3B9847DB566C59DF73787EE0 /* PatientDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientDetailView.swift; sourceTree = "<group>"; };
 		3E780E491CDC3590D9A271CE /* MainShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainShellView.swift; sourceTree = "<group>"; };
 		3EAFADD310E650ABB47216CC /* PatientInviteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientInviteView.swift; sourceTree = "<group>"; };
+		3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayOnboardingView.swift; sourceTree = "<group>"; };
 		427BCD7E8EFA0D3E97D306A3 /* AgendaNewSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaNewSessionView.swift; sourceTree = "<group>"; };
 		43CE57E1D4EA8CB2BCC16F48 /* DocumentsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsHomeView.swift; sourceTree = "<group>"; };
 		440E2C09FB9D18B43DFFFC7E /* VitrineProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitrineProfileView.swift; sourceTree = "<group>"; };
+		4423F4FA4D990F1E0406EC67 /* FinGatewayHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayHomeView.swift; sourceTree = "<group>"; };
 		446E9A5DEC0A9B75EC4C8E1B /* SetOfficeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetOfficeView.swift; sourceTree = "<group>"; };
 		44AD4BA3621BF9425EC1CC49 /* LogoutDialogUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogoutDialogUITests.swift; sourceTree = "<group>"; };
 		5012CFFF93FF064FD56C73E5 /* LeadsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsStore.swift; sourceTree = "<group>"; };
@@ -141,17 +154,21 @@
 		5420AED94D05B7EAEF1141F8 /* PhoneRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneRules.swift; sourceTree = "<group>"; };
 		54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargeFormView.swift; sourceTree = "<group>"; };
 		56AAC5AE326BCDED2580F132 /* VitrineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitrineView.swift; sourceTree = "<group>"; };
+		5746D3D832FE60A5AFC1F60D /* FinGatewayWithdrawView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayWithdrawView.swift; sourceTree = "<group>"; };
 		59EC2F5530E2E00E9348098D /* LeadsCheckoutSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCheckoutSheet.swift; sourceTree = "<group>"; };
 		5BDB3BC791649306E74EE255 /* SetGroupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetGroupsView.swift; sourceTree = "<group>"; };
 		5FC2F6EF4852925C086AE4DB /* AuthComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthComponents.swift; sourceTree = "<group>"; };
 		5FDF870286A4B47A922F4A49 /* TerapiaAcolherApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerapiaAcolherApp.swift; sourceTree = "<group>"; };
+		62B0627A9684B931738FFCCA /* FinGatewayComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayComponents.swift; sourceTree = "<group>"; };
 		6C4239C8459754261031FB88 /* AgendaMonthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaMonthView.swift; sourceTree = "<group>"; };
 		6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargeDetailView.swift; sourceTree = "<group>"; };
 		7173C710F75ACB3A65D24C2F /* LeadsCreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCreditsView.swift; sourceTree = "<group>"; };
 		7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetProfileView.swift; sourceTree = "<group>"; };
 		784CFCF124134E8A5792C19D /* SetGoogleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetGoogleView.swift; sourceTree = "<group>"; };
+		78CF82E020D220F16B4C60F4 /* FinGatewayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayModels.swift; sourceTree = "<group>"; };
 		79EF8C44EBDA0F5548240FDD /* FinWalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinWalletView.swift; sourceTree = "<group>"; };
 		7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecNotesView.swift; sourceTree = "<group>"; };
+		8087D4E36A7EB31D5FC85628 /* FinGatewayLedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayLedgerView.swift; sourceTree = "<group>"; };
 		82DE1635A2E3FE74AB93F382 /* TerapiaAcolherUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TerapiaAcolherUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		83BAFF89B5616319BE165106 /* FinanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceModels.swift; sourceTree = "<group>"; };
 		88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargesView.swift; sourceTree = "<group>"; };
@@ -161,6 +178,7 @@
 		9668296259B004E93A2F0F89 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		969DDEC8B91D4D2926F0F47B /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
 		97AD8214239075ECEC359E66 /* DocumentsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsModels.swift; sourceTree = "<group>"; };
+		9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayFlowUITests.swift; sourceTree = "<group>"; };
 		A2BB62754D9694D79708E833 /* PatientModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientModels.swift; sourceTree = "<group>"; };
 		A77D84A9675752117D31F213 /* TerapiaAcolher.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TerapiaAcolher.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A8873019933013DFFFB1133D /* LoginFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginFlowView.swift; sourceTree = "<group>"; };
@@ -175,6 +193,8 @@
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
 		C2F6A455F161AADA394EF4EB /* PatientImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientImportView.swift; sourceTree = "<group>"; };
 		C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargeLinkSheet.swift; sourceTree = "<group>"; };
+		C57AF509EC3749A6BE1F2B12 /* FinGatewayPixKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayPixKeysView.swift; sourceTree = "<group>"; };
+		C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayChargePixSheet.swift; sourceTree = "<group>"; };
 		CD19D30BA20132213C2BA7C8 /* SetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetModels.swift; sourceTree = "<group>"; };
 		CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientFormView.swift; sourceTree = "<group>"; };
 		CE819E7AD41C1A53752E9714 /* VitrineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitrineModels.swift; sourceTree = "<group>"; };
@@ -321,6 +341,15 @@
 				54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */,
 				C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */,
 				88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */,
+				0864142FB9902FB91FA5C593 /* FinGatewayCameraView.swift */,
+				C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */,
+				62B0627A9684B931738FFCCA /* FinGatewayComponents.swift */,
+				4423F4FA4D990F1E0406EC67 /* FinGatewayHomeView.swift */,
+				8087D4E36A7EB31D5FC85628 /* FinGatewayLedgerView.swift */,
+				78CF82E020D220F16B4C60F4 /* FinGatewayModels.swift */,
+				3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */,
+				C57AF509EC3749A6BE1F2B12 /* FinGatewayPixKeysView.swift */,
+				5746D3D832FE60A5AFC1F60D /* FinGatewayWithdrawView.swift */,
 				1D61DB26EF0328C8A2A6DDE7 /* FinTransactionFormView.swift */,
 				79EF8C44EBDA0F5548240FDD /* FinWalletView.swift */,
 			);
@@ -396,6 +425,7 @@
 			children = (
 				BDFB60343805E0A349238A47 /* AiFlowUITests.swift */,
 				205F5E639DBAE925963E3835 /* DesignAuditUITests.swift */,
+				9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */,
 				352ABA2D9A3498B577E4F164 /* LoginOnlyUITests.swift */,
 				44AD4BA3621BF9425EC1CC49 /* LogoutDialogUITests.swift */,
 				B4BAD228FD3C540AF4186B1F /* SmokeUITests.swift */,
@@ -596,6 +626,15 @@
 				4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */,
 				F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */,
 				40F18649584AB33299A43D18 /* FinChargesView.swift in Sources */,
+				FCF992D2DBDC1BFEC8428E7A /* FinGatewayCameraView.swift in Sources */,
+				18E51764031F0641ECD90E5B /* FinGatewayChargePixSheet.swift in Sources */,
+				A15335D536E89C04A92C786D /* FinGatewayComponents.swift in Sources */,
+				8C0FF15ABF94D41BC3EA1D7C /* FinGatewayHomeView.swift in Sources */,
+				27143198B98D6A7492A3476A /* FinGatewayLedgerView.swift in Sources */,
+				4E6EC05CACEF7208F28D0A79 /* FinGatewayModels.swift in Sources */,
+				52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */,
+				C219DDD0622EF322D52C8A1E /* FinGatewayPixKeysView.swift in Sources */,
+				B136EAEC95FECFB0A0C2A0BE /* FinGatewayWithdrawView.swift in Sources */,
 				6AD30657F7B1D9B92EF167E8 /* FinTransactionFormView.swift in Sources */,
 				4A4765DDF358E15D1687DCA1 /* FinWalletView.swift in Sources */,
 				687DBF263267656969102365 /* FinanceHomeView.swift in Sources */,
@@ -657,6 +696,7 @@
 			files = (
 				E5F190A4DD3FD0D07F4FAC27 /* AiFlowUITests.swift in Sources */,
 				7F68A4F8E126B765B061E9E1 /* DesignAuditUITests.swift in Sources */,
+				C973BE2E610A9B1175078631 /* GatewayFlowUITests.swift in Sources */,
 				87BAA306CD43A2F29E3E3888 /* LoginOnlyUITests.swift in Sources */,
 				C75922ABA43C6D783269C2FC /* LogoutDialogUITests.swift in Sources */,
 				33C660AED734907472507A9D /* SmokeUITests.swift in Sources */,

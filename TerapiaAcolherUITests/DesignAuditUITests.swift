@@ -132,7 +132,7 @@ final class DesignAuditUITests: XCTestCase {
         shoot("14-anamneses")
 
         // ── Financeiro
-        openSection("Financeiro")
+        openSection("Fluxo de caixa")
         shoot("15-financeiro-home")
         if tapText("Cobranças", timeout: 4) { shoot("16-financeiro-cobrancas"); popToRoot() }
         if tapText("Carteira", timeout: 4) { shoot("17-financeiro-carteira"); popToRoot() }

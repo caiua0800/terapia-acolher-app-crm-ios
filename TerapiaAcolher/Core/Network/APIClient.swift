@@ -2,10 +2,29 @@ import Foundation
 
 /// Configuração de ambiente da API.
 enum AppConfig {
-    /// Backend de produção (para desenvolvimento local, trocar por http://localhost:3000).
-    static var apiBaseURL: URL {
-        URL(string: "https://acolher-api.ccypher.com.br")!
-    }
+    /// Backend de produção.
+    ///
+    /// Pode ser trocado sem recompilar, para teste contra um backend local:
+    /// argumento de lançamento `--api-base-url http://localhost:3010` (é o que
+    /// os testes de UI usam) ou variável de ambiente `TA_API_BASE_URL`. Sem
+    /// nenhum dos dois, produção — o default nunca muda por engano.
+    static let apiBaseURL: URL = {
+        let producao = URL(string: "https://acolher-api.ccypher.com.br")!
+        let info = ProcessInfo.processInfo
+        let argumentos = info.arguments
+        if let indice = argumentos.firstIndex(of: "--api-base-url"),
+           indice + 1 < argumentos.count,
+           let url = URL(string: argumentos[indice + 1]),
+           url.scheme != nil {
+            return url
+        }
+        if let bruto = info.environment["TA_API_BASE_URL"],
+           let url = URL(string: bruto),
+           url.scheme != nil {
+            return url
+        }
+        return producao
+    }()
 }
 
 /// Erro de API com a mensagem PT-BR vinda do backend.

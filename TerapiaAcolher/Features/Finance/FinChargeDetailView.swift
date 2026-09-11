@@ -7,9 +7,12 @@ final class FinChargeDetailModel {
     var charge: FinCharge
     var metodos: [FinFees.Method] = []
     var isWorking = false
+    /// Flag separada: com uma só, o spinner acenderia no botão errado.
+    var isWorkingPix = false
     var alerta: String?
     var showAlerta = false
     var checkout: FinCheckoutResult?
+    var gatewayPix: GwCharge?
 
     init(charge: FinCharge) {
         self.charge = charge
@@ -61,6 +64,25 @@ final class FinChargeDetailModel {
         }
     }
 
+    /// Pix pelo Gateway Acolher — caminho principal de quem tem conta aprovada.
+    func pixDoGateway() async {
+        isWorkingPix = true
+        defer { isWorkingPix = false }
+        do {
+            gatewayPix = charge.gatewayName == "ACOLHER"
+                ? try await FinGatewayAPI.charge(chargeId: charge.id)
+                : try await FinGatewayAPI.createPix(chargeId: charge.id)
+            Haptics.success()
+            await carregar()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
+        } catch let error as APIError {
+            present(error.message)
+        } catch {
+            present("Não foi possível gerar o Pix. Verifique sua conexão.")
+        }
+    }
+
     func marcarPaga() async {
         isWorking = true
         defer { isWorking = false }
@@ -88,6 +110,7 @@ final class FinChargeDetailModel {
 /// pagamento, que é justamente o que o terapeuta abre a cobrança para pegar.
 struct FinChargeDetailView: View {
     @State private var model: FinChargeDetailModel
+    @State private var store = FinGatewayStore.shared
     var onChange: () -> Void
 
     init(charge: FinCharge, onChange: @escaping () -> Void) {
@@ -110,12 +133,25 @@ struct FinChargeDetailView: View {
         }
         .setToolbarTitle("Cobrança")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.carregar() }
+        .task {
+            await model.carregar()
+            await store.load(showSpinner: false)
+        }
         .refreshable { await model.carregar() }
         .alert("Ops", isPresented: $model.showAlerta) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(model.alerta ?? "Algo deu errado.")
+        }
+        .sheet(item: $model.gatewayPix) { pix in
+            FinGatewayChargePixSheet(
+                charge: pix,
+                simulation: store.simulation,
+                provider: store.overview?.provider
+            ) {
+                Task { await model.carregar() }
+                onChange()
+            }
         }
         .sheet(item: $model.checkout) { resultado in
             FinChargeLinkSheet(
@@ -213,6 +249,22 @@ struct FinChargeDetailView: View {
 
     @ViewBuilder
     private var acoes: some View {
+        if store.isApproved {
+            VStack(spacing: 8) {
+                PrimaryButton(
+                    title: model.charge.gatewayName == "ACOLHER"
+                        ? "Ver Pix"
+                        : "Cobrar por Pix (Gateway Acolher)",
+                    icon: "qrcode",
+                    isLoading: model.isWorkingPix
+                ) {
+                    Task { await model.pixDoGateway() }
+                }
+                .accessibilityIdentifier("gwCobrarPix")
+                SeloAsaas(badgeUrl: store.overview?.provider.badgeUrl)
+            }
+        }
+
         if model.temLink, let urlString = model.charge.gatewayInvoiceUrl {
             // Link já existe: o que ele quer é COPIAR e mandar.
             PrimaryButton(title: "Ver link e copiar mensagem", icon: "text.bubble") {
@@ -226,7 +278,9 @@ struct FinChargeDetailView: View {
                     pixQrCodeImage: nil
                 )
             }
-        } else {
+        } else if !store.isApproved {
+            // Checkout antigo (conta Asaas própria): só para quem ainda não
+            // tem conta aprovada no Gateway Acolher.
             // A escolha JÁ FOI FEITA na criação: repetir a pergunta aqui é
             // desfazer o que o terapeuta acabou de responder. Quando ela
             // existe, sobra um botão só — os outros métodos ficam atrás de

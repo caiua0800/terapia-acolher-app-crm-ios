@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-SIM_NAME="iPhone 15 Pro"
-SIM_OS="17.5"
+SIM_NAME="${SIM_NAME:-iPhone 17 Pro}"
+SIM_OS="${SIM_OS:-26.5}"
 BUNDLE_ID="com.ccypher.terapiaacolher"
 UDID=$(xcrun simctl list devices "$SIM_OS" | grep "$SIM_NAME (" | head -1 | grep -oE '[A-F0-9-]{36}')
 
@@ -26,5 +26,10 @@ xcrun simctl bootstatus "$UDID" -b > /dev/null 2>&1 || xcrun simctl boot "$UDID"
 open -a Simulator --background
 APP_PATH="build/Build/Products/Debug-iphonesimulator/TerapiaAcolher.app"
 xcrun simctl install "$UDID" "$APP_PATH"
-xcrun simctl launch "$UDID" "$BUNDLE_ID"
+# API_BASE_URL=http://localhost:3010 ./scripts/run-sim.sh  → sobe apontando
+# para o backend local (o app lê --api-base-url; sem a variável vai pra produção).
+LAUNCH_ARGS=()
+[ -n "$API_BASE_URL" ] && LAUNCH_ARGS+=(--api-base-url "$API_BASE_URL")
+[ -n "$RESET_SESSION" ] && LAUNCH_ARGS+=(--reset-session)
+xcrun simctl launch "$UDID" "$BUNDLE_ID" "${LAUNCH_ARGS[@]}"
 echo "App rodando no simulador ($SIM_NAME)"

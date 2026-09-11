@@ -9,7 +9,7 @@ import SwiftUI
 enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses
-    case financeiro, vitrine, leads, creditos
+    case gateway, financeiro, vitrine, leads, creditos
     case configuracoes
 
     var id: String { rawValue }
@@ -21,7 +21,8 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .pacientes: "Pacientes"
         case .prontuarios: "Prontuários"
         case .anamneses: "Anamneses"
-        case .financeiro: "Financeiro"
+        case .gateway: "Gateway Acolher"
+        case .financeiro: "Fluxo de caixa"
         case .vitrine: "Minha Vitrine"
         case .leads: "Meus leads"
         case .creditos: "Créditos"
@@ -36,6 +37,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .pacientes: "person.2"
         case .prontuarios: "doc.text"
         case .anamneses: "pencil.line"
+        case .gateway: "building.columns"
         case .financeiro: "dollarsign"
         case .vitrine: "storefront"
         case .leads: "tray.full"
@@ -50,7 +52,8 @@ enum MenuDestination: String, CaseIterable, Identifiable {
             ("PRINCIPAL", [.inicio, .agenda]),
         ]
         todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses]))
-        todas.append((header: "GESTÃO", items: [.financeiro, .vitrine]))
+        // Gateway Acolher é seção própria (Caiuã, 2026-09-11); "Fluxo de caixa" é o caixa manual.
+        todas.append((header: "GESTÃO", items: [.gateway, .financeiro, .vitrine]))
         // Leads são reais e ficam sempre; Créditos é loja em demonstração e
         // some do menu com uma flag.
         todas.append((header: "LEADS", items: LeadsCreditsDemo.enabled ? [.leads, .creditos] : [.leads]))
@@ -136,6 +139,7 @@ struct MainShellView: View {
             case "pacientes": selection = .pacientes
             case "prontuarios": selection = .prontuarios
             case "anamneses": selection = .anamneses
+            case "gateway": selection = .gateway
             case "financeiro": selection = .financeiro
             case "vitrine": selection = .vitrine
             case "configuracoes": selection = .configuracoes
@@ -184,6 +188,7 @@ struct MainShellView: View {
         case .pacientes: PatientsListView()
         case .prontuarios: RecordsHomeView(kind: .record)
         case .anamneses: RecordsHomeView(kind: .anamnesis)
+        case .gateway: FinGatewayHomeView()
         case .financeiro: FinanceHomeView()
         case .vitrine: VitrineView()
         case .leads: LeadsListView()

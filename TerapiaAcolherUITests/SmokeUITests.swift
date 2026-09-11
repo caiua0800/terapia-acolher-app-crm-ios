@@ -63,7 +63,7 @@ final class SmokeUITests: XCTestCase {
 
         openSection("Agenda", shot: "03-agenda")
         openSection("Pacientes", shot: "04-pacientes")
-        openSection("Financeiro", shot: "05-financeiro")
+        openSection("Fluxo de caixa", shot: "05-financeiro")
         // Documentos e Anexos saíram do menu em 2026-08-30 — agora se acessam
         // pela ficha do paciente (ver DesignAuditUITests, que entra por lá).
         openSection("Configurações", shot: "08-configuracoes")

@@ -24,6 +24,8 @@
 	<string>Light</string>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>NSCameraUsageDescription</key>
+	<string>A câmera é usada para fotografar seus documentos e a selfie na abertura da sua conta de recebimentos.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

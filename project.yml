@@ -78,3 +78,7 @@ schemes:
             - DesignAuditUITests
             # Depende do backend LOCAL com chave de IA — não roda na suíte padrão.
             - AiFlowUITests
+            # Depende do backend LOCAL do Gateway (porta 3010) e de fotos na
+            # galeria do simulador (xcrun simctl addmedia) — rodar sob demanda,
+            # comentando esta linha e rodando `xcodegen generate` antes.
+            - GatewayFlowUITests

@@ -57,6 +57,8 @@ final class FinChargesViewModel {
     var walletMissingMessage: String?
     var isWorking = false
     var workingChargeId: String? // cobrança com ação em voo (spinner na linha)
+    /// Pix da cobrança gerado pelo Gateway Acolher (sheet com QR).
+    var gatewayPix: GwCharge?
 
     init(patient: FinPatientRef) {
         self.patient = patient
@@ -135,6 +137,30 @@ final class FinChargesViewModel {
         }
     }
 
+    /// Gera (ou reabre) o Pix da cobrança pelo Gateway Acolher.
+    ///
+    /// Cobrança que já tem Pix não gera outro: o segundo código confundiria o
+    /// paciente que recebeu o primeiro.
+    func pixDoGateway(_ charge: FinCharge) async {
+        isWorking = true
+        workingChargeId = charge.id
+        defer {
+            isWorking = false
+            workingChargeId = nil
+        }
+        do {
+            gatewayPix = charge.gatewayName == "ACOLHER"
+                ? try await FinGatewayAPI.charge(chargeId: charge.id)
+                : try await FinGatewayAPI.createPix(chargeId: charge.id)
+            Haptics.success()
+            await load()
+        } catch is CancellationError {
+            // requisição cancelada (refresh/troca de tela) — silencioso
+        } catch {
+            errorMessage = (error as? APIError)?.message ?? "Não foi possível gerar o Pix."
+        }
+    }
+
     /// Cobrança mais urgente pro botão largo "Enviar lembrete de cobrança".
     var reminderTarget: FinCharge? {
         let open = charges.filter { $0.status == .overdue || $0.status == .pending }
@@ -163,6 +189,7 @@ final class FinChargesViewModel {
 
 struct FinChargesView: View {
     @State private var model: FinChargesViewModel
+    @State private var store = FinGatewayStore.shared
     @State private var showChargeForm = false
     @State private var showWalletSheet = false
     @State private var cancelingCharge: FinCharge?
@@ -213,7 +240,19 @@ struct FinChargesView: View {
                 }
             }
         }
-        .task { await model.load() }
+        .task {
+            await model.load()
+            await store.load(showSpinner: false)
+        }
+        .sheet(item: $model.gatewayPix) { pix in
+            FinGatewayChargePixSheet(
+                charge: pix,
+                simulation: store.simulation,
+                provider: store.overview?.provider
+            ) {
+                Task { await model.load() }
+            }
+        }
         .sheet(isPresented: $showChargeForm) {
             FinChargeFormView(patient: model.patient) {
                 Task { await model.load() }
@@ -236,16 +275,16 @@ struct FinChargesView: View {
             }
         }
         .sheet(isPresented: $showWalletSheet) {
-            NavigationStack { FinWalletView() }
+            NavigationStack { FinGatewayHomeView() }
         }
         .sheet(item: $webLink) { link in
             FinSafariView(url: link.url).ignoresSafeArea()
         }
-        .alert("Carteira não conectada", isPresented: .init(
+        .alert("Recebimento online não ativado", isPresented: .init(
             get: { model.walletMissingMessage != nil },
             set: { if !$0 { model.walletMissingMessage = nil } }
         )) {
-            Button("Cadastrar Wallet ID") { showWalletSheet = true }
+            Button("Abrir Gateway Acolher") { showWalletSheet = true }
             Button("Agora não", role: .cancel) {}
         } message: {
             Text(model.walletMissingMessage ?? "")
@@ -517,6 +556,19 @@ struct FinChargesView: View {
     private func chargeMenu(_ charge: FinCharge) -> some View {
         Menu {
             if charge.status == .pending || charge.status == .overdue {
+                if store.isApproved {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Task { await model.pixDoGateway(charge) }
+                    } label: {
+                        Label(
+                            charge.gatewayName == "ACOLHER"
+                                ? "Ver Pix"
+                                : "Cobrar por Pix (Gateway Acolher)",
+                            systemImage: "qrcode"
+                        )
+                    }
+                }
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await model.pay(charge) }

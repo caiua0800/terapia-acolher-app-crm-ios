@@ -172,14 +172,16 @@ struct SettingsHomeView: View {
                         )
                     }
                     Divider().padding(.leading, 62)
-                    // A carteira Asaas mora no módulo Financeiro — aqui é só orientação.
-                    SetRow(
-                        icon: "creditcard",
-                        iconColor: Theme.warning,
-                        title: "Asaas · Carteira",
-                        subtitle: "Gerencie cobranças e carteira no módulo Financeiro",
-                        showChevron: false
-                    )
+                    NavigationLink {
+                        FinGatewayHomeView()
+                    } label: {
+                        SetRow(
+                            icon: "building.columns",
+                            iconColor: Theme.primary,
+                            title: "Gateway Acolher",
+                            subtitle: "Sua conta para receber por Pix e sacar"
+                        )
+                    }
                 }
             }
         }

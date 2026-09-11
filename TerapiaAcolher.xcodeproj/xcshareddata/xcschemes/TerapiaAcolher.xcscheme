@@ -70,6 +70,9 @@
                <Test
                   Identifier = "AiFlowUITests">
                </Test>
+               <Test
+                  Identifier = "GatewayFlowUITests">
+               </Test>
             </SkippedTests>
          </TestableReference>
       </Testables>
