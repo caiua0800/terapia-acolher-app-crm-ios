@@ -90,6 +90,7 @@ enum GwLedgerKind: String, Decodable {
     case withdrawal = "WITHDRAWAL"
     case withdrawalReversal = "WITHDRAWAL_REVERSAL"
     case adjustment = "ADJUSTMENT"
+    case platformPurchase = "PLATFORM_PURCHASE"
 
     var icon: String {
         switch self {
@@ -99,6 +100,7 @@ enum GwLedgerKind: String, Decodable {
         case .withdrawal: "arrow.up.circle"
         case .withdrawalReversal: "arrow.uturn.left.circle"
         case .adjustment: "slider.horizontal.3"
+        case .platformPurchase: "cart"
         }
     }
 
@@ -111,8 +113,20 @@ enum GwLedgerKind: String, Decodable {
         case .withdrawal: "Saque"
         case .withdrawalReversal: "Estorno de saque"
         case .adjustment: "Ajuste"
+        case .platformPurchase: "Compra na plataforma"
         }
     }
+
+    /// Categorias que fazem sentido como filtro do extrato (na ordem do menu).
+    static let filterable: [GwLedgerKind] = [
+        .chargeReceived, .withdrawal, .withdrawalReversal, .platformFee,
+        .providerFee, .platformPurchase, .adjustment, .openingBonus,
+    ]
+}
+
+enum GwWithdrawalOrigin: String, Decodable {
+    case manual = "MANUAL"
+    case auto = "AUTO"
 }
 
 enum GwWithdrawalStatus: String, Decodable {
@@ -124,7 +138,7 @@ enum GwWithdrawalStatus: String, Decodable {
 
     var label: String {
         switch self {
-        case .pendingApproval: "AGUARDANDO APROVAÇÃO"
+        case .pendingApproval: "EM ANÁLISE"
         case .processing: "EM PROCESSAMENTO"
         case .done: "ENVIADO"
         case .failed: "NÃO ENVIADO"
@@ -132,7 +146,8 @@ enum GwWithdrawalStatus: String, Decodable {
         }
     }
 
-    var canCancel: Bool { self == .pendingApproval }
+    /// Só o que ainda não saiu da conta pode ser cancelado; `DONE` já foi.
+    var canCancel: Bool { self == .pendingApproval || self == .processing }
 }
 
 enum GwPixKeyType: String, Codable, CaseIterable, Hashable {
@@ -147,7 +162,7 @@ enum GwPixKeyType: String, Codable, CaseIterable, Hashable {
         case .cpf: "CPF"
         case .cnpj: "CNPJ"
         case .email: "E-mail"
-        case .phone: "Telefone"
+        case .phone: "Celular"
         case .evp: "Aleatória"
         }
     }
@@ -261,6 +276,10 @@ struct GwAccount: Decodable {
     let canSubmit: Bool
     let pendingWithdrawals: Int
     let stats: GwStats
+    /// Preferências da conta (saque automático). Opcional pra tolerar API antiga.
+    let settings: GwSettings?
+
+    var autoWithdraw: GwAutoWithdraw { settings?.autoWithdraw ?? .desligado }
 
     func document(_ type: GwDocumentType) -> GwDocument? {
         documents.first { $0.type == type }
@@ -268,6 +287,22 @@ struct GwAccount: Decodable {
 
     /// Etapa (0-based) em que o assistente deve reabrir.
     var wizardStartIndex: Int { max(0, min(4, step - 1)) }
+}
+
+/// Saque automático: todo dia às 18h, se o saldo bater o mínimo escolhido.
+struct GwAutoWithdraw: Decodable {
+    let enabled: Bool
+    let minAmount: Double?
+    let pixKeyId: String?
+    let schedule: String?
+
+    static let desligado = GwAutoWithdraw(enabled: false, minAmount: nil, pixKeyId: nil, schedule: nil)
+
+    var scheduleLabel: String { schedule ?? "Todo dia às 18h" }
+}
+
+struct GwSettings: Decodable {
+    let autoWithdraw: GwAutoWithdraw
 }
 
 struct GwOverview: Decodable {
@@ -294,6 +329,10 @@ struct GwLedgerPage: Decodable {
     struct Summary: Decodable {
         let credits: Double
         let debits: Double
+        let net: Double?
+        let count: Int?
+
+        var liquido: Double { net ?? (credits - debits) }
     }
 
     let items: [GwLedgerEntry]
@@ -308,6 +347,8 @@ struct GwWithdrawal: Decodable, Identifiable {
     let amount: Double
     let fee: Double
     let netAmount: Double
+    let origin: GwWithdrawalOrigin?
+    let pixKeyId: String?
     let pixKeyType: GwPixKeyType
     let pixKeyMasked: String?
     let ownerName: String?
@@ -340,16 +381,156 @@ struct GwReceipt: Decodable, Identifiable {
     var id: String { withdrawal.id }
 }
 
-struct GwPixKey: Decodable, Identifiable {
+struct GwPixKey: Decodable, Identifiable, Hashable {
     let id: String
     let keyType: GwPixKeyType
     let key: String
     let keyMasked: String?
     let label: String?
     let ownerName: String?
+    let ownerDocumentMasked: String?
+    let isDefault: Bool
+    let verifiedAt: Date?
     let createdAt: Date?
 
+    enum CodingKeys: String, CodingKey {
+        case id, keyType, key, keyMasked, label, ownerName, ownerDocumentMasked, isDefault, verifiedAt, createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        keyType = try c.decode(GwPixKeyType.self, forKey: .keyType)
+        key = try c.decode(String.self, forKey: .key)
+        keyMasked = try c.decodeIfPresent(String.self, forKey: .keyMasked)
+        label = try c.decodeIfPresent(String.self, forKey: .label)
+        ownerName = try c.decodeIfPresent(String.self, forKey: .ownerName)
+        ownerDocumentMasked = try c.decodeIfPresent(String.self, forKey: .ownerDocumentMasked)
+        isDefault = try c.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
+        verifiedAt = try c.decodeIfPresent(Date.self, forKey: .verifiedAt)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+    }
+
+    static func == (lhs: GwPixKey, rhs: GwPixKey) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
     var display: String { keyMasked ?? key }
+    /// "Nubank" ou, sem apelido, o tipo da chave.
+    var title: String { label?.isEmpty == false ? label! : keyType.label }
+}
+
+// MARK: - Filtro do extrato
+
+struct GwLedgerFilter: Equatable {
+    enum Periodo: String, CaseIterable, Identifiable {
+        case tudo, hoje, seteDias, esteMes, mesPassado, personalizado
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .tudo: "Tudo"
+            case .hoje: "Hoje"
+            case .seteDias: "7 dias"
+            case .esteMes: "Este mês"
+            case .mesPassado: "Mês passado"
+            case .personalizado: "Período"
+            }
+        }
+    }
+
+    var periodo: Periodo = .tudo
+    var de: Date?
+    var ate: Date?
+    var type: GwLedgerType?
+    var kinds: Set<GwLedgerKind> = []
+    var search = ""
+    var minAmount: Double?
+    var maxAmount: Double?
+
+    var isEmpty: Bool {
+        periodo == .tudo && type == nil && kinds.isEmpty
+            && search.trimmingCharacters(in: .whitespaces).isEmpty
+            && minAmount == nil && maxAmount == nil
+    }
+
+    /// Quantos filtros estão ativos (pra badge no botão).
+    var count: Int {
+        var n = 0
+        if periodo != .tudo { n += 1 }
+        if type != nil { n += 1 }
+        if !kinds.isEmpty { n += 1 }
+        if !search.trimmingCharacters(in: .whitespaces).isEmpty { n += 1 }
+        if minAmount != nil || maxAmount != nil { n += 1 }
+        return n
+    }
+
+    /// Datas efetivas (dia-calendário) conforme o atalho escolhido.
+    var intervalo: (de: Date?, ate: Date?) {
+        let cal = Calendar.current
+        let hoje = cal.startOfDay(for: Date())
+        switch periodo {
+        case .tudo: return (nil, nil)
+        case .hoje: return (hoje, hoje)
+        case .seteDias: return (cal.date(byAdding: .day, value: -6, to: hoje), hoje)
+        case .esteMes:
+            let inicio = cal.date(from: cal.dateComponents([.year, .month], from: hoje))
+            return (inicio, hoje)
+        case .mesPassado:
+            let inicioEste = cal.date(from: cal.dateComponents([.year, .month], from: hoje))!
+            let inicio = cal.date(byAdding: .month, value: -1, to: inicioEste)
+            let fim = cal.date(byAdding: .day, value: -1, to: inicioEste)
+            return (inicio, fim)
+        case .personalizado: return (de, ate)
+        }
+    }
+
+    var query: [String: String?] {
+        let (de, ate) = intervalo
+        var q: [String: String?] = [:]
+        if let de { q["from"] = GwFormat.calendarDay(from: de) }
+        if let ate { q["to"] = GwFormat.calendarDay(from: ate) }
+        if let type { q["type"] = type.rawValue }
+        if !kinds.isEmpty {
+            q["kind"] = kinds.map(\.rawValue).sorted().joined(separator: ",")
+        }
+        let texto = search.trimmingCharacters(in: .whitespaces)
+        if !texto.isEmpty { q["search"] = texto }
+        if let minAmount { q["minAmount"] = String(format: "%.2f", minAmount) }
+        if let maxAmount { q["maxAmount"] = String(format: "%.2f", maxAmount) }
+        return q
+    }
+
+    /// Resumo curto do que está filtrado, pra mostrar acima da lista.
+    var descricao: String? {
+        var partes: [String] = []
+        if periodo != .tudo {
+            let (de, ate) = intervalo
+            if let de, let ate {
+                partes.append("\(GwFormat.day.string(from: de)) a \(GwFormat.day.string(from: ate))")
+            } else {
+                partes.append(periodo.label)
+            }
+        }
+        if let type { partes.append(type == .credit ? "só entradas" : "só saídas") }
+        if !kinds.isEmpty {
+            partes.append(kinds.count == 1 ? kinds.first!.label : "\(kinds.count) categorias")
+        }
+        if minAmount != nil || maxAmount != nil {
+            let de = minAmount.map(Formatters.brl) ?? "—"
+            let ate = maxAmount.map(Formatters.brl) ?? "—"
+            partes.append("de \(de) a \(ate)")
+        }
+        return partes.isEmpty ? nil : partes.joined(separator: " · ")
+    }
+}
+
+enum GwExportFormat: String, CaseIterable, Identifiable {
+    case csv, pdf
+
+    var id: String { rawValue }
+    var label: String { self == .csv ? "Planilha (CSV)" : "PDF" }
+    var icon: String { self == .csv ? "tablecells" : "doc.richtext" }
 }
 
 struct GwCharge: Decodable, Identifiable {
@@ -399,10 +580,23 @@ struct GwAddressBody: Encodable {
 
 struct GwWithdrawalBody: Encodable {
     var amount: Double
-    var pixKeyType: String
-    var pixKey: String
-    var saveKey: Bool?
-    var label: String?
+    var pixKeyId: String
+}
+
+/// Chaves sempre presentes: `null` explícito desliga o mínimo / troca a chave.
+struct GwAutoWithdrawBody: Encodable {
+    var enabled: Bool
+    var minAmount: Double?
+    var pixKeyId: String?
+
+    enum CodingKeys: String, CodingKey { case enabled, minAmount, pixKeyId }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(enabled, forKey: .enabled)
+        try c.encode(minAmount, forKey: .minAmount)
+        try c.encode(pixKeyId, forKey: .pixKeyId)
+    }
 }
 
 struct GwPixKeyBody: Encodable {
@@ -471,11 +665,28 @@ enum FinGatewayAPI {
         try await APIClient.shared.post("gateway/account/reopen")
     }
 
-    static func ledger(page: Int, pageSize: Int = 30) async throws -> GwLedgerPage {
-        try await APIClient.shared.get("gateway/ledger", query: [
-            "page": String(page),
-            "pageSize": String(pageSize),
-        ])
+    static func ledger(
+        page: Int,
+        pageSize: Int = 30,
+        filter: GwLedgerFilter = GwLedgerFilter()
+    ) async throws -> GwLedgerPage {
+        var query = filter.query
+        query["page"] = String(page)
+        query["pageSize"] = String(pageSize)
+        return try await APIClient.shared.get("gateway/ledger", query: query)
+    }
+
+    static func exportLedger(
+        format: GwExportFormat,
+        filter: GwLedgerFilter
+    ) async throws -> APIClient.DownloadedFile {
+        var query = filter.query
+        query["format"] = format.rawValue
+        return try await APIClient.shared.download(
+            "gateway/ledger/export",
+            query: query,
+            fallbackName: "extrato-gateway-acolher.\(format.rawValue)"
+        )
     }
 
     static func withdrawals(page: Int = 1, pageSize: Int = 30) async throws -> GwWithdrawalPage {
@@ -483,6 +694,18 @@ enum FinGatewayAPI {
             "page": String(page),
             "pageSize": String(pageSize),
         ])
+    }
+
+    static func receiptPDF(id: String, receiptCode: String?) async throws -> APIClient.DownloadedFile {
+        try await APIClient.shared.download(
+            "gateway/withdrawals/\(id)/receipt",
+            query: ["format": "pdf"],
+            fallbackName: "comprovante-\(receiptCode ?? id).pdf"
+        )
+    }
+
+    static func updateAutoWithdraw(_ body: GwAutoWithdrawBody) async throws -> GwAutoWithdraw {
+        try await APIClient.shared.put("gateway/settings/auto-withdraw", body: body)
     }
 
     static func requestWithdrawal(_ body: GwWithdrawalBody) async throws -> GwWithdrawal {
@@ -503,6 +726,10 @@ enum FinGatewayAPI {
 
     static func addPixKey(_ body: GwPixKeyBody) async throws -> GwPixKey {
         try await APIClient.shared.post("gateway/pix-keys", body: body)
+    }
+
+    static func setDefaultPixKey(id: String) async throws -> [GwPixKey] {
+        try await APIClient.shared.put("gateway/pix-keys/\(id)/default", body: Optional<Int>.none)
     }
 
     static func removePixKey(id: String) async throws -> GwOk {
@@ -619,6 +846,16 @@ enum GwMask {
 }
 
 enum GwFormat {
+    /// Double → texto pra campo de valor ("1.234,56"), sem o "R$".
+    static func amountText(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
     static let dayTime: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")

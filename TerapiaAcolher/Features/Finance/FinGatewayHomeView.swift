@@ -4,7 +4,7 @@ import SwiftUI
 //
 // Uma tela só, dirigida pelo status da conta: apresentação → assistente →
 // análise → conta ativa. O caminho antigo (conta Asaas própria + Wallet ID)
-// continua existindo, num link discreto no rodapé.
+// mora em Configurações → Integrações, fora daqui.
 
 struct FinGatewayHomeView: View {
     @State private var store = FinGatewayStore.shared
@@ -20,7 +20,6 @@ struct FinGatewayHomeView: View {
                 VStack(spacing: 16) {
                     conteudo
                     if let overview = store.overview {
-                        linkCarteiraPropria
                         GwProviderFooter(provider: overview.provider)
                     }
                 }
@@ -257,33 +256,10 @@ struct FinGatewayHomeView: View {
         }
     }
 
+    /// Dúvidas sobre análise ou operação financeira falam com o Asaas — mas
+    /// num item da lista, não num bloco de telefone estampado na tela.
     private func canaisDoProvedor(_ provider: GwProvider) -> some View {
-        ThemeCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("CANAIS DE ATENDIMENTO DO \(provider.name.uppercased())")
-                    .font(Theme.body(10, weight: .semibold))
-                    .tracking(1.1)
-                    .foregroundStyle(Theme.textSecondary)
-                Text("Dúvidas sobre a análise ou sobre os serviços financeiros falam direto com o \(provider.name).")
-                    .font(Theme.body(13))
-                    .foregroundStyle(Theme.textSecondary)
-                if let tel = URL(string: "tel://\(provider.supportPhone.filter(\.isNumber))") {
-                    Link(destination: tel) {
-                        Label(provider.supportPhone, systemImage: "phone")
-                            .font(Theme.body(14, weight: .semibold))
-                            .foregroundStyle(Theme.primary)
-                    }
-                }
-                if let mail = URL(string: "mailto:\(provider.supportEmail)") {
-                    Link(destination: mail) {
-                        Label(provider.supportEmail, systemImage: "envelope")
-                            .font(Theme.body(14, weight: .semibold))
-                            .foregroundStyle(Theme.primary)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        GwSupportRow(provider: provider)
     }
 
     // MARK: REJECTED / SUSPENDED
@@ -349,8 +325,12 @@ struct FinGatewayHomeView: View {
             metricas(conta)
             saquesRecentes
             atalhoChavesPix
+            atalhoSaqueAutomatico(conta)
             if let fees = store.overview?.fees {
                 GwFeesCard(fees: fees)
+            }
+            if let provider = store.overview?.provider {
+                GwSupportRow(provider: provider)
             }
         }
     }
@@ -378,7 +358,7 @@ struct FinGatewayHomeView: View {
             }
 
             if conta.pendingWithdrawals > 0 {
-                Text("\(conta.pendingWithdrawals) saque\(conta.pendingWithdrawals == 1 ? "" : "s") aguardando aprovação.")
+                Text("\(conta.pendingWithdrawals) saque\(conta.pendingWithdrawals == 1 ? "" : "s") em processamento.")
                     .font(Theme.body(12))
                     .foregroundStyle(.white.opacity(0.7))
             }
@@ -501,7 +481,7 @@ struct FinGatewayHomeView: View {
                         Text("Minhas chaves Pix")
                             .font(Theme.body(15, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Onde o dinheiro do saque cai.")
+                        Text("Só chaves no seu CPF/CNPJ. É onde o saque cai.")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -516,19 +496,54 @@ struct FinGatewayHomeView: View {
         .accessibilityIdentifier("gwChaves")
     }
 
-    // MARK: Caminho antigo
+    // MARK: Saque automático
 
-    private var linkCarteiraPropria: some View {
-        NavigationLink {
-            FinWalletView()
+    private func atalhoSaqueAutomatico(_ conta: GwAccount) -> some View {
+        let auto = conta.autoWithdraw
+        return NavigationLink {
+            FinGatewayAutoWithdrawView()
         } label: {
-            Text("Já tenho conta Asaas própria (Wallet ID)")
-                .font(Theme.body(13, weight: .medium))
-                .foregroundStyle(Theme.textSecondary)
-                .underline()
+            ThemeCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(auto.enabled ? Theme.success : Theme.textSecondary)
+                        .frame(width: 34, height: 34)
+                        .background(
+                            auto.enabled ? Theme.successSoft : Theme.background,
+                            in: RoundedRectangle(cornerRadius: 10)
+                        )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Saque automático")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(subtituloDoSaqueAutomatico(auto))
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    StatusBadge(
+                        label: auto.enabled ? "LIGADO" : "DESLIGADO",
+                        color: auto.enabled ? Theme.success : Theme.textSecondary,
+                        background: auto.enabled ? Theme.successSoft : Theme.border.opacity(0.5)
+                    )
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                }
+            }
         }
-        .buttonStyle(.pressable)
-        .padding(.top, 6)
+        .buttonStyle(.pressableSubtle)
+        .accessibilityIdentifier("gwSaqueAutomatico")
+    }
+
+    private func subtituloDoSaqueAutomatico(_ auto: GwAutoWithdraw) -> String {
+        guard auto.enabled else { return "O saldo vai sozinho pra sua chave, todo dia às 18h." }
+        if let minimo = auto.minAmount, minimo > 0 {
+            return "\(auto.scheduleLabel), quando o saldo passar de \(Formatters.brl(minimo))."
+        }
+        return "\(auto.scheduleLabel), com qualquer saldo disponível."
     }
 }
 
@@ -537,13 +552,18 @@ struct FinGatewayHomeView: View {
 struct GwWithdrawalRow: View {
     let saque: GwWithdrawal
 
+    private var destino: String {
+        let chave = "\(saque.pixKeyType.label) · \(saque.pixKeyMasked ?? "")"
+        return saque.origin == .auto ? "Automático · \(chave)" : chave
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(Formatters.brl(saque.amount))
                     .font(Theme.money(15, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
-                Text("\(saque.pixKeyType.label) · \(saque.pixKeyMasked ?? "")")
+                Text(destino)
                     .font(Theme.body(12))
                     .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)

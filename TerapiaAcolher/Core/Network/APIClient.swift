@@ -142,6 +142,57 @@ final class APIClient {
         )
     }
 
+    /// Arquivo devolvido pela API (PDF, CSV) com o nome sugerido pelo servidor.
+    struct DownloadedFile {
+        let data: Data
+        let fileName: String
+        let contentType: String?
+    }
+
+    /// GET que devolve o corpo bruto (comprovante em PDF, extrato em CSV).
+    /// O nome vem do `Content-Disposition`; sem ele, usa o `fallbackName`.
+    func download(
+        _ path: String,
+        query: [String: String?] = [:],
+        fallbackName: String
+    ) async throws -> DownloadedFile {
+        let (data, http) = try await perform(
+            path: path,
+            method: "GET",
+            query: query,
+            bodyData: nil,
+            contentType: "application/json",
+            allowRetry: true
+        )
+        let disposition = http.value(forHTTPHeaderField: "Content-Disposition") ?? ""
+        let nome = Self.fileName(fromDisposition: disposition) ?? fallbackName
+        return DownloadedFile(
+            data: data,
+            fileName: nome,
+            contentType: http.value(forHTTPHeaderField: "Content-Type")
+        )
+    }
+
+    /// `attachment; filename="extrato.csv"` ou `filename*=UTF-8''extrato.csv`.
+    private static func fileName(fromDisposition header: String) -> String? {
+        for parte in header.split(separator: ";") {
+            let item = parte.trimmingCharacters(in: .whitespaces)
+            if item.lowercased().hasPrefix("filename*=") {
+                let valor = item.dropFirst("filename*=".count)
+                if let apos = valor.range(of: "''") {
+                    let bruto = String(valor[apos.upperBound...])
+                    return bruto.removingPercentEncoding ?? bruto
+                }
+            }
+            if item.lowercased().hasPrefix("filename=") {
+                var valor = String(item.dropFirst("filename=".count))
+                valor = valor.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                if !valor.isEmpty { return valor }
+            }
+        }
+        return nil
+    }
+
     // MARK: - Núcleo
 
     private func request<Body: Encodable, Response: Decodable>(
@@ -169,6 +220,30 @@ final class APIClient {
         contentType: String,
         allowRetry: Bool
     ) async throws -> Response {
+        let (data, _) = try await perform(
+            path: path,
+            method: method,
+            query: query,
+            bodyData: bodyData,
+            contentType: contentType,
+            allowRetry: allowRetry
+        )
+        if data.isEmpty, let empty = EmptyResponse() as? Response {
+            return empty
+        }
+        return try decoder.decode(Response.self, from: data)
+    }
+
+    /// Faz a chamada, renova a sessão em 401 (uma vez) e devolve o corpo bruto
+    /// com a resposta. Quem chama decide se decodifica JSON ou guarda o arquivo.
+    private func perform(
+        path: String,
+        method: String,
+        query: [String: String?],
+        bodyData: Data?,
+        contentType: String,
+        allowRetry: Bool
+    ) async throws -> (Data, HTTPURLResponse) {
         var components = URLComponents(
             url: AppConfig.apiBaseURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
@@ -196,14 +271,15 @@ final class APIClient {
             // pros view models ignorarem em vez de mostrar alerta de erro.
             throw CancellationError()
         }
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let http = response as? HTTPURLResponse
+        let status = http?.statusCode ?? 0
 
         // O próprio refresh nunca dispara refresh (evita recursão infinita
         // quando o refresh token está expirado/revogado).
         let isRefreshCall = path == "auth/refresh"
         if status == 401, allowRetry, !isRefreshCall, let refreshHandler {
             if await refreshHandler() {
-                return try await rawRequest(
+                return try await perform(
                     path: path, method: method, query: query,
                     bodyData: bodyData, contentType: contentType, allowRetry: false
                 )
@@ -214,10 +290,7 @@ final class APIClient {
         guard (200 ..< 300).contains(status) else {
             throw APIError(statusCode: status, message: Self.extractMessage(from: data, status: status))
         }
-        if data.isEmpty, let empty = EmptyResponse() as? Response {
-            return empty
-        }
-        return try decoder.decode(Response.self, from: data)
+        return (data, http ?? HTTPURLResponse())
     }
 
     private static func extractMessage(from data: Data, status: Int) -> String {

@@ -1,6 +1,11 @@
 import SwiftUI
 
 // MARK: - Saque por Pix
+//
+// v2 (2026-09-12): o destino é sempre uma chave salva e verificada — sem
+// campo de chave livre. Com chave verificada não há fila de aprovação: na
+// simulação o saque sai na hora (`DONE`) e o comprovante abre em seguida;
+// com o Asaas real fica `PROCESSING` até o webhook.
 
 @MainActor
 @Observable
@@ -11,19 +16,21 @@ final class FinGatewayWithdrawModel {
     var isRequesting = false
     var cancelandoId: String?
     var carregandoComprovanteId: String?
+    var baixandoPdfId: String?
     var errorMessage: String?
     var sucesso: String?
 
     var valorTexto = ""
-    var tipoChave: GwPixKeyType = .cpf
-    var chave = ""
-    var salvarChave = true
-    var rotulo = ""
+    var chaveId: String?
 
     var valor: Double { GwMask.amount(valorTexto) ?? 0 }
 
+    var chaveEscolhida: GwPixKey? {
+        chaves.first { $0.id == chaveId } ?? chaves.first { $0.isDefault } ?? chaves.first
+    }
+
     func podePedir(saldo: Double, minimo: Double) -> Bool {
-        valor >= minimo && valor <= saldo && !chave.trimmingCharacters(in: .whitespaces).isEmpty
+        valor >= minimo && valor <= saldo && chaveEscolhida != nil
     }
 
     func carregar() async {
@@ -35,9 +42,7 @@ final class FinGatewayWithdrawModel {
             let pagina = try await saquesTask
             saques = pagina.items
             chaves = try await chavesTask
-            if chave.isEmpty, let primeira = chaves.first {
-                usar(primeira)
-            }
+            if chaveId == nil { chaveId = chaves.first { $0.isDefault }?.id ?? chaves.first?.id }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
@@ -45,34 +50,31 @@ final class FinGatewayWithdrawModel {
         }
     }
 
-    func usar(_ chaveSalva: GwPixKey) {
-        tipoChave = chaveSalva.keyType
-        chave = chaveSalva.key
-        salvarChave = false
-        rotulo = chaveSalva.label ?? ""
-    }
-
-    func pedir() async {
+    /// Devolve o saque criado pra a tela abrir o comprovante na hora.
+    func pedir() async -> GwWithdrawal? {
+        guard let chave = chaveEscolhida else { return nil }
         isRequesting = true
         defer { isRequesting = false }
         do {
-            let body = GwWithdrawalBody(
-                amount: valor,
-                pixKeyType: tipoChave.rawValue,
-                pixKey: chave.trimmingCharacters(in: .whitespaces),
-                saveKey: salvarChave,
-                label: rotulo.isEmpty ? nil : rotulo
+            let saque = try await FinGatewayAPI.requestWithdrawal(
+                GwWithdrawalBody(amount: valor, pixKeyId: chave.id)
             )
-            let saque = try await FinGatewayAPI.requestWithdrawal(body)
             valorTexto = ""
-            sucesso = "Saque de \(Formatters.brl(saque.amount)) pedido. Fica aguardando aprovação."
             Haptics.success()
             await FinGatewayStore.shared.load(showSpinner: false)
             await carregar()
+            if saque.status != .done {
+                sucesso = saque.status == .failed
+                    ? (saque.failReason ?? "O saque não foi enviado.")
+                    : "Saque de \(Formatters.brl(saque.amount)) em processamento. Você recebe um aviso quando cair."
+            }
+            return saque
         } catch is CancellationError {
+            return nil
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível pedir o saque."
             Haptics.warning()
+            return nil
         }
     }
 
@@ -101,17 +103,6 @@ final class FinGatewayWithdrawModel {
             return nil
         }
     }
-
-    /// Máscara conforme o tipo escolhido.
-    func aplicarMascara() {
-        let mascarada: String = switch tipoChave {
-        case .cpf: GwMask.cpf(chave)
-        case .cnpj: GwMask.cnpj(chave)
-        case .phone: GwMask.phone(chave)
-        case .email, .evp: chave
-        }
-        if mascarada != chave { chave = mascarada }
-    }
 }
 
 struct FinGatewayWithdrawView: View {
@@ -123,6 +114,18 @@ struct FinGatewayWithdrawView: View {
 
     private var fees: GwFees? { store.overview?.fees }
     private var minimo: Double { fees?.minWithdrawal ?? 1 }
+
+    /// Atalhos de valor: frações do saldo, arredondadas pra baixo em reais.
+    private var atalhos: [(String, Double)] {
+        let saldo = store.balance
+        guard saldo >= minimo else { return [] }
+        var lista: [(String, Double)] = []
+        for (rotulo, fracao) in [("25%", 0.25), ("50%", 0.5), ("Tudo", 1.0)] {
+            let valor = fracao == 1 ? saldo : (saldo * fracao).rounded(.down)
+            if valor >= minimo { lista.append((rotulo, valor)) }
+        }
+        return lista
+    }
 
     var body: some View {
         ZStack {
@@ -149,10 +152,18 @@ struct FinGatewayWithdrawView: View {
             FinGatewayReceiptSheet(receipt: recibo)
         }
         .alert("Confirmar saque?", isPresented: $confirmando) {
-            Button("Pedir saque") { Task { await model.pedir() } }
+            Button("Sacar agora") {
+                Task {
+                    if let saque = await model.pedir(), saque.status == .done {
+                        comprovante = await model.comprovante(saque)
+                    }
+                }
+            }
             Button("Voltar", role: .cancel) {}
         } message: {
-            Text("\(Formatters.brl(model.valor)) para a chave \(model.tipoChave.label) \(model.chave).")
+            if let chave = model.chaveEscolhida {
+                Text("\(Formatters.brl(model.valor)) para \(chave.title) (\(chave.keyType.label) \(chave.display)). Sem tarifa.")
+            }
         }
         .alert("Cancelar saque?", isPresented: .init(
             get: { cancelando != nil },
@@ -167,7 +178,7 @@ struct FinGatewayWithdrawView: View {
         } message: {
             Text("O valor volta para o seu saldo na hora.")
         }
-        .alert("Pronto", isPresented: .init(
+        .alert("Saque", isPresented: .init(
             get: { model.sucesso != nil },
             set: { if !$0 { model.sucesso = nil } }
         )) {
@@ -200,7 +211,7 @@ struct FinGatewayWithdrawView: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
             if let fees {
-                Text("Mínimo \(Formatters.brl(fees.minWithdrawal)) · limite de \(Formatters.brl(fees.dailyWithdrawalLimit)) por dia · sem tarifa de saque.")
+                Text("Mínimo \(Formatters.brl(fees.minWithdrawal)) · até \(Formatters.brl(fees.dailyWithdrawalLimit)) por dia · sem tarifa · cai na hora.")
                     .font(Theme.body(11))
                     .foregroundStyle(.white.opacity(0.6))
             }
@@ -213,7 +224,7 @@ struct FinGatewayWithdrawView: View {
     // MARK: Formulário
 
     private var formulario: some View {
-        PatientFormSection(icon: "arrow.up.circle", title: "PEDIR SAQUE") {
+        PatientFormSection(icon: "arrow.up.circle", title: "SACAR") {
             VStack(alignment: .leading, spacing: 14) {
                 GwField(label: "Valor") {
                     TextField("0,00", text: $model.valorTexto)
@@ -222,66 +233,22 @@ struct FinGatewayWithdrawView: View {
                         .accessibilityIdentifier("gwValorSaque")
                 }
 
-                if !model.chaves.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("CHAVES SALVAS")
-                            .font(Theme.body(10, weight: .semibold))
-                            .tracking(1.1)
-                            .foregroundStyle(Theme.textSecondary)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(model.chaves) { chaveSalva in
-                                    FilterChip(
-                                        label: chaveSalva.label ?? chaveSalva.display,
-                                        isSelected: model.chave == chaveSalva.key
-                                    ) {
-                                        model.usar(chaveSalva)
-                                    }
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
+                if !atalhos.isEmpty {
                     HStack(spacing: 8) {
-                        ForEach(GwPixKeyType.allCases, id: \.self) { tipo in
-                            FilterChip(label: tipo.label, isSelected: model.tipoChave == tipo) {
-                                model.tipoChave = tipo
-                                model.chave = ""
+                        ForEach(atalhos, id: \.0) { rotulo, valor in
+                            FilterChip(label: rotulo, isSelected: model.valor == valor && model.valor > 0) {
+                                model.valorTexto = GwFormat.amountText(valor)
                             }
                         }
                     }
-                    .padding(.vertical, 2)
                 }
 
-                GwField(label: "Chave Pix de destino") {
-                    TextField(model.tipoChave.placeholder, text: $model.chave)
-                        .keyboardType(teclado)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("gwChaveSaque")
-                        .onChange(of: model.chave) { _, _ in model.aplicarMascara() }
-                }
-
-                Toggle(isOn: $model.salvarChave) {
-                    Text("Salvar esta chave para os próximos saques")
-                        .font(Theme.body(14))
-                        .foregroundStyle(Theme.textPrimary)
-                }
-                .tint(Theme.primary)
+                destino
 
                 Divider().overlay(Theme.border)
 
-                GwValueRow(
-                    label: "Valor pedido",
-                    value: Formatters.brl(model.valor)
-                )
-                GwValueRow(
-                    label: "Tarifa de saque",
-                    value: Formatters.brl(fees?.withdrawalFee ?? 0)
-                )
+                GwValueRow(label: "Valor", value: Formatters.brl(model.valor))
+                GwValueRow(label: "Tarifa de saque", value: Formatters.brl(fees?.withdrawalFee ?? 0))
                 GwValueRow(
                     label: "Você recebe",
                     value: Formatters.brl(max(0, model.valor - (fees?.withdrawalFee ?? 0))),
@@ -290,7 +257,7 @@ struct FinGatewayWithdrawView: View {
                 )
 
                 PrimaryButton(
-                    title: "Pedir saque",
+                    title: "Sacar",
                     icon: "arrow.up.circle",
                     isLoading: model.isRequesting,
                     isEnabled: model.podePedir(saldo: store.balance, minimo: minimo)
@@ -298,18 +265,67 @@ struct FinGatewayWithdrawView: View {
                     confirmando = true
                 }
                 .accessibilityIdentifier("gwPedirSaque")
-
-                SeloAsaas(badgeUrl: store.overview?.provider.badgeUrl)
-                    .frame(maxWidth: .infinity, alignment: .center)
             }
         }
     }
 
-    private var teclado: UIKeyboardType {
-        switch model.tipoChave {
-        case .cpf, .cnpj, .phone: .numberPad
-        case .email: .emailAddress
-        case .evp: .asciiCapable
+    @ViewBuilder
+    private var destino: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("PARA QUAL CHAVE")
+                    .font(Theme.body(10, weight: .semibold))
+                    .tracking(1.1)
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+                NavigationLink {
+                    FinGatewayPixKeysView()
+                } label: {
+                    Text(model.chaves.isEmpty ? "Cadastrar" : "Gerenciar")
+                        .font(Theme.body(12, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                }
+                .buttonStyle(.pressable)
+            }
+
+            if model.isLoading, model.chaves.isEmpty {
+                SkeletonList(linhas: 2, avatarSize: 30)
+            } else if model.chaves.isEmpty {
+                NavigationLink {
+                    FinGatewayPixKeysView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "key")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                            .frame(width: 32, height: 32)
+                            .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 9))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Cadastre uma chave Pix sua")
+                                .font(Theme.body(14, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("O saque só vai pra uma conta no seu CPF/CNPJ.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                    }
+                    .padding(12)
+                    .background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1))
+                }
+                .buttonStyle(.pressableSubtle)
+                .accessibilityIdentifier("gwCadastrarChave")
+            } else {
+                ForEach(model.chaves) { chave in
+                    GwPixKeyOption(chave: chave, isSelected: model.chaveEscolhida?.id == chave.id) {
+                        model.chaveId = chave.id
+                    }
+                }
+            }
         }
     }
 
@@ -323,7 +339,7 @@ struct FinGatewayWithdrawView: View {
             EmptyStateView(
                 icon: "arrow.up.circle",
                 title: "Nenhum saque ainda",
-                message: "Os saques pedidos aparecem aqui com o status de cada um."
+                message: "Os saques aparecem aqui com o comprovante de cada um."
             )
         } else {
             ThemeCard(padding: 0) {
@@ -344,27 +360,29 @@ struct FinGatewayWithdrawView: View {
                                     .font(Theme.body(12))
                                     .foregroundStyle(Theme.danger)
                             }
-                            HStack(spacing: 10) {
-                                if saque.status.canCancel {
-                                    SecondaryButton(
-                                        title: "Cancelar",
-                                        icon: "xmark",
-                                        isLoading: model.cancelandoId == saque.id,
-                                        isEnabled: model.cancelandoId == nil,
-                                        tint: Theme.danger
-                                    ) {
-                                        cancelando = saque
+                            if saque.status.canCancel || saque.status == .done {
+                                HStack(spacing: 10) {
+                                    if saque.status.canCancel {
+                                        SecondaryButton(
+                                            title: "Cancelar",
+                                            icon: "xmark",
+                                            isLoading: model.cancelandoId == saque.id,
+                                            isEnabled: model.cancelandoId == nil,
+                                            tint: Theme.danger
+                                        ) {
+                                            cancelando = saque
+                                        }
                                     }
-                                }
-                                if saque.status == .done {
-                                    SecondaryButton(
-                                        title: "Comprovante",
-                                        icon: "doc.text",
-                                        isLoading: model.carregandoComprovanteId == saque.id,
-                                        isEnabled: model.carregandoComprovanteId == nil,
-                                        tint: Theme.primary
-                                    ) {
-                                        Task { comprovante = await model.comprovante(saque) }
+                                    if saque.status == .done {
+                                        SecondaryButton(
+                                            title: "Comprovante",
+                                            icon: "doc.text",
+                                            isLoading: model.carregandoComprovanteId == saque.id,
+                                            isEnabled: model.carregandoComprovanteId == nil,
+                                            tint: Theme.primary
+                                        ) {
+                                            Task { comprovante = await model.comprovante(saque) }
+                                        }
                                     }
                                 }
                             }
@@ -388,6 +406,9 @@ struct FinGatewayReceiptSheet: View {
     let receipt: GwReceipt
 
     @Environment(\.dismiss) private var dismiss
+    @State private var baixandoPdf = false
+    @State private var arquivo: GwArquivoBaixado?
+    @State private var erro: String?
 
     var body: some View {
         NavigationStack {
@@ -403,7 +424,7 @@ struct FinGatewayReceiptSheet: View {
                                 .font(Theme.moneyDisplay(30))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.textPrimary)
-                            Text("Saque enviado por Pix")
+                            Text(receipt.withdrawal.origin == .auto ? "Saque automático enviado por Pix" : "Saque enviado por Pix")
                                 .font(Theme.body(14))
                                 .foregroundStyle(Theme.textSecondary)
                         }
@@ -436,16 +457,16 @@ struct FinGatewayReceiptSheet: View {
                             }
                         }
 
-                        ShareLink(item: texto) {
-                            Label("Compartilhar comprovante", systemImage: "square.and.arrow.up")
-                                .font(Theme.body(15, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Theme.primary, in: Capsule())
+                        PrimaryButton(
+                            title: "Compartilhar PDF",
+                            icon: "square.and.arrow.up",
+                            isLoading: baixandoPdf
+                        ) {
+                            Task { await baixarPdf() }
                         }
+                        .accessibilityIdentifier("gwCompartilharComprovante")
 
-                        GwProviderFooter(provider: receipt.provider)
+                        GwProviderLegalFooter(provider: receipt.provider)
                     }
                     .padding(Theme.screenPadding)
                 }
@@ -458,28 +479,35 @@ struct FinGatewayReceiptSheet: View {
                         .foregroundStyle(Theme.primary)
                 }
             }
+            .sheet(item: $arquivo) { baixado in
+                GwShareSheet(url: baixado.url)
+                    .presentationDetents([.medium, .large])
+            }
+            .alert("Ops", isPresented: .init(
+                get: { erro != nil },
+                set: { if !$0 { erro = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(erro ?? "")
+            }
         }
         .presentationDetents([.large])
     }
 
-    private var texto: String {
-        var linhas = [
-            "Comprovante de saque · Gateway Acolher",
-            "Valor: \(Formatters.brl(receipt.withdrawal.netAmount))",
-            "Titular: \(receipt.account.legalName ?? "—") (\(receipt.account.cpfCnpjMasked ?? "—"))",
-            "Destino: \(receipt.withdrawal.pixKeyType.label) \(receipt.withdrawal.pixKeyMasked ?? "")",
-            "Pedido em: \(GwFormat.dayTime.string(from: receipt.withdrawal.requestedAt))",
-        ]
-        if let processado = receipt.withdrawal.processedAt {
-            linhas.append("Enviado em: \(GwFormat.dayTime.string(from: processado))")
+    private func baixarPdf() async {
+        baixandoPdf = true
+        defer { baixandoPdf = false }
+        do {
+            let pdf = try await FinGatewayAPI.receiptPDF(
+                id: receipt.withdrawal.id,
+                receiptCode: receipt.withdrawal.receiptCode
+            )
+            arquivo = try GwArquivoBaixado(pdf)
+            Haptics.success()
+        } catch is CancellationError {
+        } catch {
+            erro = (error as? APIError)?.message ?? "Não foi possível gerar o PDF do comprovante."
         }
-        if let codigo = receipt.withdrawal.receiptCode {
-            linhas.append("Comprovante: \(codigo)")
-        }
-        if let e2e = receipt.withdrawal.endToEndId {
-            linhas.append("ID da transação: \(e2e)")
-        }
-        linhas.append("Serviços financeiros prestados por \(receipt.provider.legalName).")
-        return linhas.joined(separator: "\n")
     }
 }

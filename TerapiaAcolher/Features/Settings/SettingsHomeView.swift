@@ -182,6 +182,19 @@ struct SettingsHomeView: View {
                             subtitle: "Sua conta para receber por Pix e sacar"
                         )
                     }
+                    Divider().padding(.leading, 62)
+                    // Caminho legado: quem já tem conta Asaas própria recebe
+                    // pelo Wallet ID. Saiu da tela do gateway pra cá em 2026-09-12.
+                    NavigationLink {
+                        FinWalletView()
+                    } label: {
+                        SetRow(
+                            icon: "wallet.pass",
+                            iconColor: Theme.textSecondary,
+                            title: "Conta Asaas própria (Wallet ID)",
+                            subtitle: "Só se você já recebe por uma conta sua no Asaas"
+                        )
+                    }
                 }
             }
         }

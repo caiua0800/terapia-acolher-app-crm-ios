@@ -1,22 +1,34 @@
 import SwiftUI
 
 // MARK: - Chaves Pix do terapeuta (destino dos saques)
+//
+// Regra do produto (2026-09-12): o saque só vai pra uma conta do próprio
+// terapeuta. O backend consulta a titularidade da chave e recusa (422) o que
+// não estiver no CPF/CNPJ da conta — a mensagem chega pronta e é mostrada
+// como veio. Uma chave é a padrão (pré-selecionada no saque); no máximo 5.
 
 @MainActor
 @Observable
 final class FinGatewayPixKeysModel {
+    static let limite = 5
+
     var keys: [GwPixKey] = []
     var isLoading = false
     var isSaving = false
     var removingId: String?
+    var definindoPadraoId: String?
     var errorMessage: String?
+    var sucesso: String?
 
     var novoTipo: GwPixKeyType = .cpf
     var novaChave = ""
     var novoRotulo = ""
 
+    var atingiuLimite: Bool { keys.count >= Self.limite }
+
     var podeSalvar: Bool {
-        switch novoTipo {
+        guard !atingiuLimite else { return false }
+        return switch novoTipo {
         case .cpf: GwMask.digits(novaChave).count == 11
         case .cnpj: GwMask.digits(novaChave).count == 14
         case .phone: GwMask.digits(novaChave).count >= 10
@@ -46,15 +58,31 @@ final class FinGatewayPixKeysModel {
                 key: novaChave.trimmingCharacters(in: .whitespaces),
                 label: novoRotulo.isEmpty ? nil : novoRotulo
             )
-            _ = try await FinGatewayAPI.addPixKey(body)
+            let chave = try await FinGatewayAPI.addPixKey(body)
             novaChave = ""
             novoRotulo = ""
             Haptics.success()
+            sucesso = "Chave \(chave.keyType.label) verificada: está no seu nome\(chave.ownerName.map { " (\($0))" } ?? "")."
             await carregar()
         } catch is CancellationError {
         } catch {
+            // 422 = chave de terceiro; 409 = repetida; 400 = limite. A frase do
+            // backend já explica — não reescrever.
             errorMessage = (error as? APIError)?.message ?? "Não foi possível salvar a chave."
             Haptics.warning()
+        }
+    }
+
+    func definirPadrao(_ chave: GwPixKey) async {
+        guard !chave.isDefault else { return }
+        definindoPadraoId = chave.id
+        defer { definindoPadraoId = nil }
+        do {
+            keys = try await FinGatewayAPI.setDefaultPixKey(id: chave.id)
+            Haptics.success()
+        } catch is CancellationError {
+        } catch {
+            errorMessage = (error as? APIError)?.message ?? "Não foi possível definir a chave padrão."
         }
     }
 
@@ -66,6 +94,7 @@ final class FinGatewayPixKeysModel {
             await carregar()
         } catch is CancellationError {
         } catch {
+            // 400 quando é a chave do saque automático — a mensagem vem pronta.
             errorMessage = (error as? APIError)?.message ?? "Não foi possível remover a chave."
         }
     }
@@ -92,6 +121,7 @@ struct FinGatewayPixKeysView: View {
             Theme.background.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 16) {
+                    regra
                     lista
                     formulario
                     if let provider = store.overview?.provider {
@@ -120,6 +150,14 @@ struct FinGatewayPixKeysView: View {
         } message: {
             Text("A chave sai da lista de destinos de saque. Você pode cadastrar de novo depois.")
         }
+        .alert("Chave verificada", isPresented: .init(
+            get: { model.sucesso != nil },
+            set: { if !$0 { model.sucesso = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.sucesso ?? "")
+        }
         .alert("Ops", isPresented: .init(
             get: { model.errorMessage != nil },
             set: { if !$0 { model.errorMessage = nil } }
@@ -130,6 +168,31 @@ struct FinGatewayPixKeysView: View {
         }
     }
 
+    // MARK: Regra, dita uma vez e curta
+
+    private var regra: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "person.badge.shield.checkmark")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Só chaves no seu CPF/CNPJ")
+                    .font(Theme.body(14, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("O saque vai sempre pra uma conta sua. A titularidade é conferida na hora do cadastro.")
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.primarySoft.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: Lista
+
     @ViewBuilder
     private var lista: some View {
         if model.isLoading, model.keys.isEmpty {
@@ -138,39 +201,13 @@ struct FinGatewayPixKeysView: View {
             EmptyStateView(
                 icon: "key",
                 title: "Nenhuma chave salva",
-                message: "Cadastre a chave Pix em que você quer receber os saques."
+                message: "Cadastre a chave Pix, no seu nome, em que você quer receber os saques."
             )
         } else {
             ThemeCard(padding: 0) {
                 VStack(spacing: 0) {
                     ForEach(model.keys) { chave in
-                        HStack(spacing: 12) {
-                            Image(systemName: "key")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Theme.primary)
-                                .frame(width: 32, height: 32)
-                                .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 9))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(chave.display)
-                                    .font(Theme.body(14, weight: .semibold))
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .lineLimit(1)
-                                Text(chave.label.map { "\(chave.keyType.label) · \($0)" } ?? chave.keyType.label)
-                                    .font(Theme.body(12))
-                                    .foregroundStyle(Theme.textSecondary)
-                            }
-                            Spacer(minLength: 8)
-                            AsyncIconButton(
-                                icon: "trash",
-                                isLoading: model.removingId == chave.id,
-                                isEnabled: model.removingId == nil,
-                                tint: Theme.danger
-                            ) {
-                                removendo = chave
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        linha(chave)
                         if chave.id != model.keys.last?.id {
                             Divider().overlay(Theme.border).padding(.leading, 58)
                         }
@@ -180,42 +217,127 @@ struct FinGatewayPixKeysView: View {
         }
     }
 
+    private func linha(_ chave: GwPixKey) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: chave.isDefault ? "star.fill" : "key")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(chave.isDefault ? Theme.warning : Theme.primary)
+                .frame(width: 32, height: 32)
+                .background(
+                    chave.isDefault ? Theme.warningSoft : Theme.primarySoft,
+                    in: RoundedRectangle(cornerRadius: 9)
+                )
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(chave.title)
+                        .font(Theme.body(14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                    if chave.isDefault {
+                        StatusBadge(label: "PADRÃO", color: Theme.warning, background: Theme.warningSoft)
+                    }
+                }
+                Text(chave.label == nil ? chave.display : "\(chave.keyType.label) · \(chave.display)")
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+                if chave.verifiedAt != nil {
+                    Label(
+                        chave.ownerName.map { "Verificada · \($0)" } ?? "Titularidade verificada",
+                        systemImage: "checkmark.seal.fill"
+                    )
+                    .font(Theme.body(11, weight: .medium))
+                    .foregroundStyle(Theme.success)
+                    .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            if !chave.isDefault {
+                AsyncIconButton(
+                    icon: "star",
+                    isLoading: model.definindoPadraoId == chave.id,
+                    isEnabled: model.definindoPadraoId == nil && model.removingId == nil,
+                    tint: Theme.warning
+                ) {
+                    Task { await model.definirPadrao(chave) }
+                }
+                .accessibilityLabel("Tornar padrão")
+            }
+            AsyncIconButton(
+                icon: "trash",
+                isLoading: model.removingId == chave.id,
+                isEnabled: model.removingId == nil && model.definindoPadraoId == nil,
+                tint: Theme.danger
+            ) {
+                removendo = chave
+            }
+            .accessibilityLabel("Remover")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: Formulário
+
+    @ViewBuilder
     private var formulario: some View {
-        PatientFormSection(icon: "plus.circle", title: "NOVA CHAVE") {
-            VStack(alignment: .leading, spacing: 14) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(GwPixKeyType.allCases, id: \.self) { tipo in
-                            FilterChip(label: tipo.label, isSelected: model.novoTipo == tipo) {
-                                model.novoTipo = tipo
-                                model.novaChave = ""
+        if model.atingiuLimite {
+            ThemeCard {
+                HStack(spacing: 10) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(Theme.textSecondary)
+                    Text("Limite de \(FinGatewayPixKeysModel.limite) chaves. Remova uma pra cadastrar outra.")
+                        .font(Theme.body(13))
+                        .foregroundStyle(Theme.textSecondary)
+                    Spacer(minLength: 0)
+                }
+            }
+        } else {
+            PatientFormSection(icon: "plus.circle", title: "NOVA CHAVE") {
+                VStack(alignment: .leading, spacing: 14) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(GwPixKeyType.allCases, id: \.self) { tipo in
+                                FilterChip(label: tipo.label, isSelected: model.novoTipo == tipo) {
+                                    model.novoTipo = tipo
+                                    model.novaChave = ""
+                                }
                             }
                         }
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
+                    GwField(label: "Chave", hint: dicaDoTipo) {
+                        TextField(model.novoTipo.placeholder, text: $model.novaChave)
+                            .keyboardType(teclado)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .accessibilityIdentifier("gwNovaChave")
+                            .onChange(of: model.novaChave) { _, _ in model.aplicarMascara() }
+                    }
+                    GwField(label: "Apelido", hint: "Opcional — o banco onde a chave está, por exemplo.") {
+                        TextField("Nubank", text: $model.novoRotulo)
+                            .accessibilityIdentifier("gwRotuloChave")
+                    }
+                    PrimaryButton(
+                        title: "Verificar e salvar",
+                        icon: "checkmark.seal",
+                        isLoading: model.isSaving,
+                        isEnabled: model.podeSalvar
+                    ) {
+                        Task { await model.adicionar() }
+                    }
+                    .accessibilityIdentifier("gwSalvarChave")
                 }
-                GwField(label: "Chave") {
-                    TextField(model.novoTipo.placeholder, text: $model.novaChave)
-                        .keyboardType(teclado)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityIdentifier("gwNovaChave")
-                        .onChange(of: model.novaChave) { _, _ in model.aplicarMascara() }
-                }
-                GwField(label: "Apelido", hint: "Opcional — ajuda a reconhecer a chave.") {
-                    TextField("Conta principal", text: $model.novoRotulo)
-                        .accessibilityIdentifier("gwRotuloChave")
-                }
-                PrimaryButton(
-                    title: "Salvar chave",
-                    icon: "checkmark",
-                    isLoading: model.isSaving,
-                    isEnabled: model.podeSalvar
-                ) {
-                    Task { await model.adicionar() }
-                }
-                .accessibilityIdentifier("gwSalvarChave")
             }
+        }
+    }
+
+    private var dicaDoTipo: String {
+        switch model.novoTipo {
+        case .cpf, .cnpj: "Precisa ser o mesmo documento da sua conta."
+        case .email: "O e-mail cadastrado como chave no seu banco."
+        case .phone: "O celular cadastrado como chave no seu banco."
+        case .evp: "A chave aleatória gerada pelo seu banco."
         }
     }
 
