@@ -90,7 +90,6 @@
 		E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784CFCF124134E8A5792C19D /* SetGoogleView.swift */; };
 		F1A7201AC6578B0E00A8B427 /* PushOptInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCE7F36CF7A21D2086E3D36 /* PushOptInSheet.swift */; };
 		F472883B3ADF860906548A01 /* SetTemplatesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270EB5275EB7FA6B199B0DAB /* SetTemplatesListView.swift */; };
-		F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */; };
 		F6BB08DCF8BD12AF887CFD8E /* FinanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83BAFF89B5616319BE165106 /* FinanceModels.swift */; };
 		F71B220893C9D8B5C6B0E2D8 /* AgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CC9EE47B4D16B4B987A168 /* AgendaView.swift */; };
 		F80393D15732389739B6A80D /* PatientsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072C9798DC11D2C096035921 /* PatientsListView.swift */; };
@@ -194,7 +193,6 @@
 		BDFB60343805E0A349238A47 /* AiFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiFlowUITests.swift; sourceTree = "<group>"; };
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
 		C2F6A455F161AADA394EF4EB /* PatientImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientImportView.swift; sourceTree = "<group>"; };
-		C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargeLinkSheet.swift; sourceTree = "<group>"; };
 		C57AF509EC3749A6BE1F2B12 /* FinGatewayPixKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayPixKeysView.swift; sourceTree = "<group>"; };
 		C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayChargePixSheet.swift; sourceTree = "<group>"; };
 		CD19D30BA20132213C2BA7C8 /* SetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetModels.swift; sourceTree = "<group>"; };
@@ -341,7 +339,6 @@
 				53E0558EBFC4D9F09706052A /* FinanceShared.swift */,
 				6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */,
 				54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */,
-				C3B9660345E50853BB2AA2FB /* FinChargeLinkSheet.swift */,
 				88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */,
 				9261C659523D773C27096526 /* FinGatewayAutoWithdrawView.swift */,
 				0864142FB9902FB91FA5C593 /* FinGatewayCameraView.swift */,
@@ -627,7 +624,6 @@
 				A97DFF148E13E2636A17C97B /* FilesModels.swift in Sources */,
 				AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */,
 				4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */,
-				F56CE1EBCDB0FB9030FA5FFA /* FinChargeLinkSheet.swift in Sources */,
 				40F18649584AB33299A43D18 /* FinChargesView.swift in Sources */,
 				440411A3185FA5EC89C75C0F /* FinGatewayAutoWithdrawView.swift in Sources */,
 				FCF992D2DBDC1BFEC8428E7A /* FinGatewayCameraView.swift in Sources */,

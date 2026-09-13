@@ -139,16 +139,6 @@ struct FinReminderResult: Decodable {
     let reminderSentAt: Date?
 }
 
-struct FinCheckoutResult: Decodable, Identifiable {
-    let id: String
-    let status: FinChargeStatus
-    let amount: Double
-    let splitFeeApplied: Double?
-    let invoiceUrl: String?
-    let pixQrCode: String?
-    let pixQrCodeImage: String?
-}
-
 // MARK: - Carteira Asaas
 
 struct FinWalletStatus: Decodable {
@@ -220,14 +210,6 @@ enum FinanceAPI {
         try await APIClient.shared.get("finance/charges/summary", query: ["patientId": patientId])
     }
 
-    static func fees() async throws -> FinFees {
-        try await APIClient.shared.get("payments/fees")
-    }
-
-    static func quote(amount: Double) async throws -> FinQuote {
-        try await APIClient.shared.get("payments/quote", query: ["amount": String(format: "%.2f", amount)])
-    }
-
     static func createCharge(_ body: FinChargeBody) async throws -> FinCharge {
         try await APIClient.shared.post("finance/charges", body: body)
     }
@@ -242,10 +224,6 @@ enum FinanceAPI {
 
     static func sendReminder(id: String) async throws -> FinReminderResult {
         try await APIClient.shared.post("finance/charges/\(id)/reminder")
-    }
-
-    static func checkout(id: String, billingType: String) async throws -> FinCheckoutResult {
-        try await APIClient.shared.post("finance/charges/\(id)/checkout", body: ["billingType": billingType])
     }
 
     static func walletStatus() async throws -> FinWalletStatus {
@@ -367,45 +345,3 @@ enum FinFormat {
     }
 }
 
-// MARK: - Taxas e métodos de cobrança online
-//
-// Vêm do servidor. A taxa NUNCA é cravada no app: ela mora em
-// PLATFORM_FEE_FIXED, e um app com 2,99 no código passaria a mentir o líquido
-// no dia em que o valor mudasse. Mentir sobre quanto o terapeuta recebe é o
-// pior erro possível neste módulo.
-
-struct FinFees: Decodable {
-    struct Method: Decodable, Identifiable, Hashable {
-        let id: String
-        let label: String
-        let description: String
-        let available: Bool
-    }
-
-    let platformFee: Double
-    let minOnlineCharge: Double
-    let methods: [Method]
-
-    var disponiveis: [Method] { methods.filter(\.available) }
-}
-
-/// Quanto o terapeuta recebe em cada método, para um valor específico.
-///
-/// Calculado no SERVIDOR. A taxa do cartão é percentual e ainda soma a
-/// antecipação — refazer essa conta no app garantiria divergir da cobrada de
-/// verdade, e o número que ele vê antes de criar tem que ser o que ele recebe.
-struct FinQuote: Decodable {
-    struct Metodo: Decodable, Identifiable, Hashable {
-        let id: String
-        let fee: Double
-        let net: Double
-        /// 0 = cai na hora (Pix). 1 = próximo dia útil (cartão antecipado).
-        let daysToReceive: Int
-    }
-
-    let amount: Double
-    let minOnlineCharge: Double
-    let methods: [Metodo]
-
-    func metodo(_ id: String) -> Metodo? { methods.first { $0.id == id } }
-}

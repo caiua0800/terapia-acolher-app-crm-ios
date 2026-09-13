@@ -5,62 +5,31 @@ import SwiftUI
 @MainActor
 final class FinChargeDetailModel {
     var charge: FinCharge
-    var metodos: [FinFees.Method] = []
     var isWorking = false
     /// Flag separada: com uma só, o spinner acenderia no botão errado.
     var isWorkingPix = false
     var alerta: String?
     var showAlerta = false
-    var checkout: FinCheckoutResult?
     var gatewayPix: GwCharge?
 
     init(charge: FinCharge) {
         self.charge = charge
     }
 
-    var temLink: Bool { (charge.gatewayInvoiceUrl?.isEmpty == false) }
-
-    /// Quando ele já escolheu ao criar, quer trocar.
-    var mostrarTodosOsMetodos = false
-
-    /// O método escolhido na criação, se ainda existir na lista do servidor.
-    var escolhaFeita: FinFees.Method? {
-        guard let id = charge.intendedBillingType else { return nil }
-        return metodos.first { $0.id == id }
+    /// Link do caminho antigo (conta Asaas própria). Só cobrança criada antes
+    /// do Gateway Acolher tem isso; hoje só o gateway cobra.
+    var linkAntigo: String? {
+        guard charge.gatewayName != "ACOLHER",
+              let url = charge.gatewayInvoiceUrl, !url.isEmpty else { return nil }
+        return url
     }
 
-    /// Um botão só quando a escolha já foi feita — repetir a pergunta aqui é
-    /// desfazer o que o terapeuta acabou de responder na tela anterior.
-    var metodosParaMostrar: [FinFees.Method] {
-        if mostrarTodosOsMetodos { return metodos }
-        if let escolha = escolhaFeita { return [escolha] }
-        return metodos
-    }
     var emAberto: Bool { charge.status == .pending || charge.status == .overdue }
 
     func carregar() async {
-        // Quais métodos existem HOJE vem do servidor: quando o cartão foi
-        // liberado, os apps já publicados passaram a oferecer sem release novo.
-        if let f = try? await FinanceAPI.fees() {
-            metodos = f.methods.filter(\.available)
-        }
         if let atual = try? await FinanceAPI.charges(patientId: charge.patientId)
             .first(where: { $0.id == charge.id }) {
             charge = atual
-        }
-    }
-
-    func gerarLink(_ metodoId: String) async {
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            checkout = try await FinanceAPI.checkout(id: charge.id, billingType: metodoId)
-            Haptics.success()
-            await carregar()
-        } catch let error as APIError {
-            present(error.message)
-        } catch {
-            present("Não foi possível gerar o link. Verifique sua conexão.")
         }
     }
 
@@ -153,15 +122,6 @@ struct FinChargeDetailView: View {
                 onChange()
             }
         }
-        .sheet(item: $model.checkout) { resultado in
-            FinChargeLinkSheet(
-                result: resultado,
-                patientName: model.charge.patient?.name ?? "seu paciente"
-            ) {
-                model.checkout = nil
-                onChange()
-            }
-        }
     }
 
     private var cabecalho: some View {
@@ -216,7 +176,7 @@ struct FinChargeDetailView: View {
                 }
                 if let taxa = model.charge.splitFeeApplied, taxa > 0 {
                     Divider().overlay(Theme.border)
-                    linha("Taxa do sistema", "− \(Formatters.brl(taxa))")
+                    linha("Taxas (plataforma + Pix)", "− \(Formatters.brl(taxa))")
                     Divider().overlay(Theme.border)
                     linha(
                         "Você recebe",
@@ -263,65 +223,53 @@ struct FinChargeDetailView: View {
                 .accessibilityIdentifier("gwCobrarPix")
                 SeloAsaas(badgeUrl: store.overview?.provider.badgeUrl)
             }
+        } else if store.overview != nil {
+            // Só o Gateway Acolher cobra. Sem conta aprovada, o caminho é abrir
+            // a conta — a cobrança continua existindo e pode ser marcada como
+            // paga por fora.
+            NavigationLink {
+                FinGatewayHomeView()
+            } label: {
+                ThemeCard {
+                    HStack(spacing: 12) {
+                        Image(systemName: "building.columns")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                            .frame(width: 34, height: 34)
+                            .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Para cobrar por Pix, abra sua conta no Gateway Acolher")
+                                .font(Theme.body(14, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("Leva cinco etapas, tudo dentro do app.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                    }
+                }
+            }
+            .buttonStyle(.pressableSubtle)
         }
 
-        if model.temLink, let urlString = model.charge.gatewayInvoiceUrl {
-            // Link já existe: o que ele quer é COPIAR e mandar.
-            PrimaryButton(title: "Ver link e copiar mensagem", icon: "text.bubble") {
-                model.checkout = FinCheckoutResult(
-                    id: model.charge.id,
-                    status: model.charge.status,
-                    amount: model.charge.amount,
-                    splitFeeApplied: model.charge.splitFeeApplied,
-                    invoiceUrl: urlString,
-                    pixQrCode: nil,
-                    pixQrCodeImage: nil
-                )
+        if let link = model.linkAntigo {
+            // Cobrança criada antes do gateway: o link do Asaas próprio ainda
+            // vale pro paciente, então dá pra copiar. Discreto de propósito.
+            Button {
+                UIPasteboard.general.string = link
+                Haptics.tap()
+            } label: {
+                Label("Copiar link antigo", systemImage: "doc.on.doc")
+                    .font(Theme.body(14, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
             }
-        } else if !store.isApproved {
-            // Checkout antigo (conta Asaas própria): só para quem ainda não
-            // tem conta aprovada no Gateway Acolher.
-            // A escolha JÁ FOI FEITA na criação: repetir a pergunta aqui é
-            // desfazer o que o terapeuta acabou de responder. Quando ela
-            // existe, sobra um botão só — os outros métodos ficam atrás de
-            // "usar outra forma", para o caso de ele querer trocar.
-            VStack(spacing: 10) {
-                ForEach(model.metodosParaMostrar) { metodo in
-                    Button {
-                        Task { await model.gerarLink(metodo.id) }
-                    } label: {
-                        HStack(spacing: 10) {
-                            if model.isWorking {
-                                ProgressView().controlSize(.small).tint(.white)
-                            } else {
-                                Image(systemName: metodo.id == "PIX" ? "qrcode" : "creditcard")
-                            }
-                            Text("Cobrar via \(metodo.label)")
-                                .font(Theme.body(16, weight: .semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(Theme.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.pressable)
-                    .disabled(model.isWorking)
-                }
-
-                if model.escolhaFeita != nil, model.metodos.count > 1 {
-                    Button {
-                        withAnimation { model.mostrarTodosOsMetodos = true }
-                    } label: {
-                        Text("Usar outra forma de recebimento")
-                            .font(Theme.body(14, weight: .medium))
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                    }
-                    .buttonStyle(.pressable)
-                }
-            }
+            .buttonStyle(.pressable)
         }
 
         Button {

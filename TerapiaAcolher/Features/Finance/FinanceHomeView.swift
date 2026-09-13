@@ -107,7 +107,6 @@ struct FinanceHomeView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     monthNavigator
-                    quickLinks
                     FinSegmentedControl(
                         options: [("Balanço", FinHomeViewModel.Tab.balanco), ("Registros", .registros)],
                         selection: $model.tab
@@ -199,38 +198,6 @@ struct FinanceHomeView: View {
                 .background(Theme.surface, in: Circle())
                 .overlay(Circle().stroke(Theme.border, lineWidth: 1))
         }
-    }
-
-    // MARK: Atalhos: Cobranças por paciente e Gateway Acolher
-
-    private var quickLinks: some View {
-        HStack(spacing: 10) {
-            NavigationLink {
-                FinChargesEntryView()
-            } label: {
-                quickLinkLabel(icon: "creditcard", title: "Cobranças")
-            }
-            NavigationLink {
-                FinGatewayHomeView()
-            } label: {
-                quickLinkLabel(icon: "building.columns", title: "Gateway Acolher")
-            }
-        }
-    }
-
-    private func quickLinkLabel(icon: String, title: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.primary)
-            Text(title)
-                .font(Theme.body(14, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 11)
-        .background(Theme.surface, in: Capsule())
-        .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
     }
 
     // MARK: Aba Registros

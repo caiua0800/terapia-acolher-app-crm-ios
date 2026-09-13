@@ -53,8 +53,6 @@ final class FinChargesViewModel {
 
     // Resultados de ações
     var reminderResult: FinReminderResult?
-    var checkoutResult: FinCheckoutResult?
-    var walletMissingMessage: String?
     var isWorking = false
     var workingChargeId: String? // cobrança com ação em voo (spinner na linha)
     /// Pix da cobrança gerado pelo Gateway Acolher (sheet com QR).
@@ -113,30 +111,6 @@ final class FinChargesViewModel {
         }
     }
 
-    func checkout(_ charge: FinCharge, billingType: String) async {
-        isWorking = true
-        workingChargeId = charge.id
-        defer {
-            isWorking = false
-            workingChargeId = nil
-        }
-        do {
-            checkoutResult = try await FinanceAPI.checkout(id: charge.id, billingType: billingType)
-            await load()
-        } catch let apiError as APIError {
-            // 400 sem Wallet ID cadastrado → oferecer o cadastro da carteira.
-            if apiError.statusCode == 400, apiError.message.localizedCaseInsensitiveContains("wallet") {
-                walletMissingMessage = apiError.message
-            } else {
-                errorMessage = apiError.message
-            }
-        } catch is CancellationError {
-            // requisição cancelada (refresh/troca de tela) — silencioso
-        } catch {
-            errorMessage = "Não foi possível gerar a cobrança online."
-        }
-    }
-
     /// Gera (ou reabre) o Pix da cobrança pelo Gateway Acolher.
     ///
     /// Cobrança que já tem Pix não gera outro: o segundo código confundiria o
@@ -191,9 +165,7 @@ struct FinChargesView: View {
     @State private var model: FinChargesViewModel
     @State private var store = FinGatewayStore.shared
     @State private var showChargeForm = false
-    @State private var showWalletSheet = false
     @State private var cancelingCharge: FinCharge?
-    @State private var webLink: FinWebLink?
 
     init(patient: FinPatientRef) {
         _model = State(initialValue: FinChargesViewModel(patient: patient))
@@ -207,6 +179,7 @@ struct FinChargesView: View {
                 VStack(spacing: 16) {
                     header
                     summaryCard
+                    if store.overview != nil, !store.isApproved { abrirContaCard }
                     chips
 
                     if model.isLoading, model.charges.isEmpty {
@@ -266,29 +239,6 @@ struct FinChargesView: View {
                 FinReminderSheet(result: result)
             }
         }
-        .sheet(isPresented: .init(
-            get: { model.checkoutResult != nil },
-            set: { if !$0 { model.checkoutResult = nil } }
-        )) {
-            if let result = model.checkoutResult {
-                FinCheckoutSheet(result: result)
-            }
-        }
-        .sheet(isPresented: $showWalletSheet) {
-            NavigationStack { FinGatewayHomeView() }
-        }
-        .sheet(item: $webLink) { link in
-            FinSafariView(url: link.url).ignoresSafeArea()
-        }
-        .alert("Recebimento online não ativado", isPresented: .init(
-            get: { model.walletMissingMessage != nil },
-            set: { if !$0 { model.walletMissingMessage = nil } }
-        )) {
-            Button("Abrir Gateway Acolher") { showWalletSheet = true }
-            Button("Agora não", role: .cancel) {}
-        } message: {
-            Text(model.walletMissingMessage ?? "")
-        }
         .alert("Cancelar cobrança?", isPresented: .init(
             get: { cancelingCharge != nil },
             set: { if !$0 { cancelingCharge = nil } }
@@ -300,7 +250,7 @@ struct FinChargesView: View {
             }
             Button("Voltar", role: .cancel) {}
         } message: {
-            Text("Se houver link de pagamento, ele também será cancelado.")
+            Text("Se houver Pix gerado, ele também será cancelado.")
         }
         .alert("Ops", isPresented: .init(
             get: { model.errorMessage != nil },
@@ -330,6 +280,43 @@ struct FinChargesView: View {
             Spacer()
         }
         .padding(.top, 6)
+    }
+
+    // MARK: Sem conta aprovada: só o gateway cobra
+
+    /// Cobrança "por fora" continua liberada; cobrar por Pix não. Em vez de
+    /// esconder o botão e deixar o terapeuta procurando, a tela diz o motivo e
+    /// leva pra abertura da conta.
+    private var abrirContaCard: some View {
+        NavigationLink {
+            FinGatewayHomeView()
+        } label: {
+            ThemeCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "building.columns")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 34, height: 34)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Para cobrar por Pix, abra sua conta no Gateway Acolher")
+                            .font(Theme.body(14, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Enquanto isso, você pode registrar cobranças recebidas por fora.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                }
+            }
+        }
+        .buttonStyle(.pressableSubtle)
+        .accessibilityIdentifier("cobrancasAbrirConta")
     }
 
     // MARK: Card A RECEBER / EM ATRASO
@@ -581,16 +568,13 @@ struct FinChargesView: View {
                 } label: {
                     Label("Enviar lembrete de cobrança", systemImage: "bell")
                 }
-                if let urlString = charge.gatewayInvoiceUrl, let url = URL(string: urlString) {
-                    Button {
-                        webLink = FinWebLink(url: url)
-                    } label: {
-                        Label("Abrir link de pagamento", systemImage: "safari")
-                    }
+                // Cobrança criada antes do Gateway Acolher (link do Asaas
+                // próprio): só copiar, sem gerar link novo por esse caminho.
+                if charge.gatewayName != "ACOLHER", let urlString = charge.gatewayInvoiceUrl, !urlString.isEmpty {
                     Button {
                         UIPasteboard.general.string = urlString
                     } label: {
-                        Label("Copiar link de pagamento", systemImage: "doc.on.doc")
+                        Label("Copiar link antigo", systemImage: "doc.on.doc")
                     }
                 }
                 Button(role: .destructive) {
@@ -598,12 +582,12 @@ struct FinChargesView: View {
                 } label: {
                     Label("Cancelar cobrança", systemImage: "xmark.circle")
                 }
-            } else if charge.status == .paid, let urlString = charge.gatewayInvoiceUrl,
-                      let url = URL(string: urlString) {
+            } else if charge.status == .paid, charge.gatewayName == "ACOLHER" {
                 Button {
-                    webLink = FinWebLink(url: url)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    Task { await model.pixDoGateway(charge) }
                 } label: {
-                    Label("Ver fatura", systemImage: "safari")
+                    Label("Ver Pix", systemImage: "qrcode")
                 }
             }
         } label: {
@@ -724,146 +708,5 @@ struct FinReminderSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
-    }
-}
-
-// MARK: - Sheet do checkout (link de pagamento + Pix copia-e-cola)
-
-struct FinCheckoutSheet: View {
-    let result: FinCheckoutResult
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var copiedLink = false
-    @State private var copiedPix = false
-    @State private var webLink: FinWebLink?
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.background.ignoresSafeArea()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(Theme.success)
-                            Text("Cobrança online gerada")
-                                .font(Theme.serifTitle(20))
-                                .foregroundStyle(Theme.textPrimary)
-                        }
-
-                        if let fee = result.splitFeeApplied {
-                            ThemeCard {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    feeRow("Valor da cobrança", Formatters.brl(result.amount))
-                                    feeRow("Taxa do sistema", "− \(Formatters.brl(fee))")
-                                    Divider()
-                                    HStack {
-                                        Text("Você recebe")
-                                            .font(Theme.body(14, weight: .semibold))
-                                            .foregroundStyle(Theme.textPrimary)
-                                        Spacer()
-                                        Text(Formatters.brl(result.amount - fee))
-                                            .font(Theme.money(15, weight: .bold))
-                                            .foregroundStyle(Theme.success)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-
-                        if let urlString = result.invoiceUrl, let url = URL(string: urlString) {
-                            ThemeCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("LINK DE PAGAMENTO")
-                                        .font(Theme.body(10, weight: .semibold))
-                                        .tracking(1.2)
-                                        .foregroundStyle(Theme.textSecondary)
-                                    Text(urlString)
-                                        .font(Theme.body(13))
-                                        .foregroundStyle(Theme.primary)
-                                        .lineLimit(2)
-                                    HStack(spacing: 10) {
-                                        Button {
-                                            webLink = FinWebLink(url: url)
-                                        } label: {
-                                            Label("Abrir", systemImage: "safari")
-                                                .font(Theme.body(14, weight: .semibold))
-                                        }
-                                        .buttonStyle(.borderedProminent)
-                                        .tint(Theme.primary)
-                                        Button {
-                                            UIPasteboard.general.string = urlString
-                                            withAnimation { copiedLink = true }
-                                        } label: {
-                                            Label(copiedLink ? "Copiado!" : "Copiar", systemImage: copiedLink ? "checkmark" : "doc.on.doc")
-                                                .font(Theme.body(14, weight: .semibold))
-                                        }
-                                        .buttonStyle(.bordered)
-                                        .tint(Theme.textPrimary)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-
-                        if let pix = result.pixQrCode {
-                            ThemeCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("PIX COPIA E COLA")
-                                        .font(Theme.body(10, weight: .semibold))
-                                        .tracking(1.2)
-                                        .foregroundStyle(Theme.textSecondary)
-                                    Text(pix)
-                                        .font(Theme.money(12))
-                                        .foregroundStyle(Theme.textPrimary)
-                                        .lineLimit(3)
-                                        .truncationMode(.middle)
-                                    Button {
-                                        UIPasteboard.general.string = pix
-                                        withAnimation { copiedPix = true }
-                                    } label: {
-                                        Label(copiedPix ? "Copiado!" : "Copiar código Pix", systemImage: copiedPix ? "checkmark" : "qrcode")
-                                            .font(Theme.body(14, weight: .semibold))
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(Theme.primary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-
-                        Text("Envie o link ou o código Pix pro paciente por onde preferir. Quando o pagamento cair, a cobrança é marcada como paga automaticamente.")
-                            .font(Theme.body(13))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    .padding(Theme.screenPadding)
-                }
-            }
-            .navigationTitle("Cobrança online")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fechar") { dismiss() }
-                        .foregroundStyle(Theme.primary)
-                }
-            }
-            .sheet(item: $webLink) { link in
-                FinSafariView(url: link.url).ignoresSafeArea()
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    private func feeRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(Theme.body(13))
-                .foregroundStyle(Theme.textSecondary)
-            Spacer()
-            Text(value)
-                .font(Theme.money(13))
-                .foregroundStyle(Theme.textPrimary)
-        }
     }
 }

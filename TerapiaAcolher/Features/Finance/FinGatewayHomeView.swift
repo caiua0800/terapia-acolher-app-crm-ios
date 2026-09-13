@@ -151,6 +151,8 @@ struct FinGatewayHomeView: View {
                 showOnboarding = true
             }
             .accessibilityIdentifier("gwAtivar")
+
+            atalhoCobrancas(ativo: false)
         }
     }
 
@@ -202,6 +204,7 @@ struct FinGatewayHomeView: View {
                 showOnboarding = true
             }
             .accessibilityIdentifier("gwContinuarCadastro")
+            atalhoCobrancas(ativo: false)
         }
     }
 
@@ -218,6 +221,7 @@ struct FinGatewayHomeView: View {
                 } ?? "Assim que a análise terminar você recebe um aviso aqui no app."
             )
             documentosEnviados(conta)
+            atalhoCobrancas(ativo: false)
             if let provider = store.overview?.provider {
                 canaisDoProvedor(provider)
             }
@@ -281,6 +285,7 @@ struct FinGatewayHomeView: View {
             ) {
                 Task { await reabrir() }
             }
+            atalhoCobrancas(ativo: false)
             if let provider = store.overview?.provider {
                 canaisDoProvedor(provider)
             }
@@ -296,6 +301,7 @@ struct FinGatewayHomeView: View {
                 message: "Enquanto estiver suspensa não é possível gerar Pix nem sacar.",
                 detail: conta.suspendedReason
             )
+            atalhoCobrancas(ativo: false)
             if let provider = store.overview?.provider {
                 canaisDoProvedor(provider)
             }
@@ -322,6 +328,7 @@ struct FinGatewayHomeView: View {
         VStack(spacing: 16) {
             if store.simulation { GwSimulationBanner() }
             cartaoSaldo(conta)
+            atalhoCobrancas(ativo: true)
             metricas(conta)
             saquesRecentes
             atalhoChavesPix
@@ -464,6 +471,41 @@ struct FinGatewayHomeView: View {
                 .padding(.bottom, 6)
             }
         }
+    }
+
+    /// Cobranças moram aqui: só o Gateway Acolher cobra. Sem conta aprovada a
+    /// linha continua, porque registrar cobrança recebida por fora é permitido.
+    private func atalhoCobrancas(ativo: Bool) -> some View {
+        NavigationLink {
+            FinChargesEntryView()
+        } label: {
+            ThemeCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "creditcard")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 34, height: 34)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cobranças")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(ativo
+                             ? "Cobre seus pacientes por Pix e acompanhe quem pagou."
+                             : "Registre o que você recebe por fora. Pix, só com a conta aprovada.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                }
+            }
+        }
+        .buttonStyle(.pressableSubtle)
+        .accessibilityIdentifier("gwCobrancas")
     }
 
     private var atalhoChavesPix: some View {

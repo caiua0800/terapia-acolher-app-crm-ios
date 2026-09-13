@@ -1,23 +1,4 @@
-import SafariServices
 import SwiftUI
-
-// MARK: - Navegador in-app (links de pagamento, PDFs)
-
-struct FinSafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
-    }
-
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
-}
-
-/// URL identificável pra usar com .sheet(item:).
-struct FinWebLink: Identifiable {
-    let url: URL
-    var id: String { url.absoluteString }
-}
 
 // MARK: - Segmented "Registros | Balanço" fiel ao design
 

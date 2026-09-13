@@ -14,39 +14,27 @@ struct FinChargeFormView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    /// Vem do servidor: taxa, valor mínimo e quais métodos existem hoje.
-    @State private var fees: FinFees?
-    /// Recalculado a cada mudança de valor: a taxa do cartão é percentual.
-    @State private var quote: FinQuote?
-    @State private var quoteTask: Task<Void, Never>?
-    /// Liga NO INSTANTE do toque/digitação, antes do debounce e da rede. Sem
-    /// isso o bloco do líquido some e reaparece do nada — o mesmo problema que
-    /// a busca de pacientes já tinha.
-    @State private var calculando = false
-    @State private var metodoId = "PIX"
+    /// Só o Gateway Acolher cobra: taxas e mínimo vêm de lá (do servidor —
+    /// a taxa nunca é cravada no app).
+    @State private var store = FinGatewayStore.shared
     /// Cobrança combinada fora do app (dinheiro, transferência direta) não
     /// passa pelo gateway e não tem taxa — por isso a escolha é explícita.
     @State private var online = true
-
-    /// Cobrança criada, com o link já gerado. Leva direto para o link em vez de
-    /// só fechar a tela: criar e não ter o que mandar ao paciente deixava o
-    /// terapeuta no meio do caminho.
-    @State private var recemCriada: FinCheckoutResult?
+    /// Pix do gateway gerado logo após criar. Criar e não ter o que mandar ao
+    /// paciente deixava o terapeuta no meio do caminho.
+    @State private var pixCriado: GwCharge?
+    /// Fecha o sheet quando o Pix for fechado (a cobrança já existe).
+    @State private var fecharAoFecharPix = false
 
     private var valor: Double? { FinFormat.parseAmount(amountText) }
 
-    /// O que cai na conta do terapeuta, calculado pelo SERVIDOR para o método
-    /// escolhido. Uma taxa só, somada — ele não precisa saber que ela se
-    /// divide entre gateway, antecipação e plataforma.
-    private var linhaDoMetodo: FinQuote.Metodo? {
-        guard online else { return nil }
-        return quote?.metodo(metodoId)
-    }
+    private var taxas: GwFees? { store.overview?.fees }
+    private var podeCobrarPorPix: Bool { store.isApproved }
 
-    private var minimo: Double { quote?.minOnlineCharge ?? fees?.minOnlineCharge ?? 5 }
+    private var minimo: Double { taxas?.minCharge ?? 5 }
 
     private var abaixoDoMinimo: Bool {
-        guard online, let valor else { return false }
+        guard online, podeCobrarPorPix, let valor else { return false }
         return valor > 0 && valor < minimo
     }
 
@@ -84,7 +72,6 @@ struct FinChargeFormView: View {
 
                         formaDeRecebimento
                         resumoDoLiquido
-                            .animation(.easeOut(duration: 0.2), value: metodoId)
                             .animation(.easeOut(duration: 0.2), value: online)
 
                         ThemeCard {
@@ -120,35 +107,22 @@ struct FinChargeFormView: View {
             }
             .navigationTitle("Nova cobrança")
             .navigationBarTitleDisplayMode(.inline)
-            // Taxa e métodos vêm do servidor. Se a chamada falhar, o resumo do
-            // líquido simplesmente não aparece — melhor não mostrar nada do que
-            // mostrar um número que pode estar errado.
-            .task { fees = try? await FinanceAPI.fees() }
-            // A taxa do cartão é percentual, então o líquido muda com o valor.
-            // Debounce curto: sem ele, cada tecla digitada viraria requisição.
-            .onChange(of: amountText) { _, _ in
-                quoteTask?.cancel()
-                guard let valor, valor > 0 else {
-                    quote = nil
-                    calculando = false
-                    return
-                }
-                calculando = true
-                quoteTask = Task {
-                    try? await Task.sleep(nanoseconds: 400_000_000)
-                    guard !Task.isCancelled else { return }
-                    let novo = try? await FinanceAPI.quote(amount: valor)
-                    guard !Task.isCancelled else { return }
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        quote = novo
-                        calculando = false
-                    }
-                }
+            // Taxas e situação da conta vêm do servidor. Se a chamada falhar, o
+            // resumo do líquido simplesmente não aparece — melhor não mostrar
+            // nada do que um número que pode estar errado.
+            .task {
+                await store.load(showSpinner: false)
+                if !podeCobrarPorPix { online = false }
             }
-            .sheet(item: $recemCriada) { resultado in
-                FinChargeLinkSheet(result: resultado, patientName: patient.name) {
-                    recemCriada = nil
-                    dismiss()
+            .sheet(item: $pixCriado, onDismiss: {
+                if fecharAoFecharPix { dismiss() }
+            }) { pix in
+                FinGatewayChargePixSheet(
+                    charge: pix,
+                    simulation: store.simulation,
+                    provider: store.overview?.provider
+                ) {
+                    onSaved()
                 }
             }
             .toolbar {
@@ -216,21 +190,22 @@ struct FinChargeFormView: View {
 
             ThemeCard(padding: 0) {
                 VStack(spacing: 0) {
-                    ForEach(fees?.methods ?? []) { metodo in
-                        opcao(
-                            titulo: metodo.label,
-                            subtitulo: metodo.description,
-                            icone: metodo.id == "PIX" ? "qrcode" : "creditcard",
-                            marcado: online && metodoId == metodo.id,
-                            habilitado: metodo.available
-                        ) {
-                            online = true
-                            metodoId = metodo.id
-                        }
-                        Divider().overlay(Theme.border)
+                    // Só o Gateway Acolher cobra. Sem conta aprovada a opção
+                    // aparece, mas apagada, com o motivo — e leva pra abrir.
+                    opcao(
+                        titulo: "Pix pelo Gateway Acolher",
+                        subtitulo: podeCobrarPorPix
+                            ? (taxas.map { "Cai no seu saldo na hora · taxa \(Formatters.brl($0.totalPerCharge))" } ?? "Cai no seu saldo na hora")
+                            : "Abra sua conta no Gateway Acolher para cobrar por Pix",
+                        icone: "qrcode",
+                        marcado: online && podeCobrarPorPix,
+                        habilitado: podeCobrarPorPix
+                    ) {
+                        online = true
                     }
+                    Divider().overlay(Theme.border)
 
-                    // Recebimento por fora não passa pelo gateway: sem link,
+                    // Recebimento por fora não passa pelo gateway: sem Pix,
                     // sem taxa. Existe porque muita sessão é paga em dinheiro
                     // ou por transferência direta, e a cobrança serve só de
                     // controle.
@@ -238,12 +213,30 @@ struct FinChargeFormView: View {
                         titulo: "Combinar por fora",
                         subtitulo: "Dinheiro, transferência — sem taxa",
                         icone: "hand.raised",
-                        marcado: !online,
+                        marcado: !online || !podeCobrarPorPix,
                         habilitado: true
                     ) {
                         online = false
                     }
                 }
+            }
+
+            if store.overview != nil, !podeCobrarPorPix {
+                NavigationLink {
+                    FinGatewayHomeView()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "building.columns")
+                        Text("Abrir minha conta no Gateway Acolher")
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .font(Theme.body(13, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .padding(.leading, 2)
+                    .padding(.top, 2)
+                }
+                .buttonStyle(.pressable)
             }
         }
     }
@@ -300,49 +293,25 @@ struct FinChargeFormView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(Theme.warning)
-                    Text("Cobrança online a partir de \(Formatters.brl(minimo)). Abaixo disso, combine por fora.")
+                    Text("Cobrança por Pix a partir de \(Formatters.brl(minimo)). Abaixo disso, combine por fora.")
                         .font(Theme.body(13))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-        } else if calculando, let valor, valor > 0 {
-            // Esqueleto no formato exato do resumo: quando o número chega, é
-            // troca de conteúdo, não a caixa inteira aparecendo de repente.
+        } else if online, podeCobrarPorPix, let taxas, let valor, valor > 0 {
+            // Taxa da plataforma e tarifa Pix do Asaas, sempre separadas
+            // (regra do playbook) — e o líquido é o que ele recebe de fato.
             ThemeCard {
                 VStack(spacing: 10) {
                     linha("Valor da cobrança", Formatters.brl(valor), destaque: false)
-                    HStack {
-                        Text("Taxa do sistema")
-                            .font(Theme.body(13))
-                            .foregroundStyle(Theme.textSecondary)
-                        Spacer()
-                        SkeletonBlock(width: 62, height: 13)
-                    }
+                    linha("Taxa de plataforma Terapia Acolher", "− \(Formatters.brl(taxas.platformFixed))", destaque: false)
+                    linha("Tarifa Pix Asaas", "− \(Formatters.brl(taxas.providerPixFixed))", destaque: false)
                     Divider().overlay(Theme.border)
-                    HStack {
-                        Text("Você recebe")
-                            .font(Theme.body(15, weight: .semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Spacer()
-                        SkeletonBlock(width: 104, height: 22, cornerRadius: 8)
-                    }
-                }
-            }
-            .transition(.opacity)
-        } else if let m = linhaDoMetodo, let valor, valor > 0 {
-            ThemeCard {
-                VStack(spacing: 10) {
-                    linha("Valor da cobrança", Formatters.brl(valor), destaque: false)
-                    linha("Taxa do sistema", "− \(Formatters.brl(m.fee))", destaque: false)
-                    Divider().overlay(Theme.border)
-                    linha("Você recebe", Formatters.brl(m.net), destaque: true)
-                    // Prazo junto do valor, sempre. "Você recebe R$ X" sem
-                    // dizer QUANDO vira promessa falsa no cartão, que leva 32
-                    // dias sem antecipação.
+                    linha("Você recebe", Formatters.brl(max(0, valor - taxas.totalPerCharge)), destaque: true)
                     HStack {
                         Spacer()
-                        Text(m.daysToReceive == 0 ? "na sua conta na hora" : "na sua conta em 1 dia útil")
+                        Text("no seu saldo do gateway na hora")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -369,36 +338,35 @@ struct FinChargeFormView: View {
         guard let amount = FinFormat.parseAmount(amountText) else { return }
         isSaving = true
         defer { isSaving = false }
+        let porPix = online && podeCobrarPorPix
         let body = FinChargeBody(
             patientId: patient.id,
             description: descriptionText.trimmingCharacters(in: .whitespaces),
             amount: amount,
             dueDate: FinFormat.isoDay.string(from: dueDate),
             referenceMonth: FinFormat.monthQuery.string(from: referenceMonthDate),
-            intendedBillingType: online ? metodoId : nil
+            intendedBillingType: porPix ? "PIX" : nil
         )
         do {
             let criada = try await FinanceAPI.createCharge(body)
             onSaved()
-            guard online else {
+            guard porPix else {
                 dismiss()
                 return
             }
-            // Gera o link na sequência. Criar a cobrança e não ter o que mandar
+            // Gera o Pix na sequência. Criar a cobrança e não ter o que mandar
             // ao paciente deixava o terapeuta no meio do caminho: ele tinha que
-            // achar a cobrança na lista e só então pedir o link.
+            // achar a cobrança na lista e só então pedir o Pix.
             do {
-                recemCriada = try await FinanceAPI.checkout(
-                    id: criada.id,
-                    billingType: metodoId
-                )
+                pixCriado = try await FinGatewayAPI.createPix(chargeId: criada.id)
+                fecharAoFecharPix = true
                 Haptics.success()
             } catch {
                 // A cobrança FOI criada. Tratar como erro genérico faria ele
                 // criar tudo de novo e ficar com duas.
                 errorMessage = (error as? APIError).map {
-                    "Cobrança criada, mas o link não foi gerado: \($0.message)"
-                } ?? "Cobrança criada, mas o link não foi gerado. Você pode gerá-lo abrindo a cobrança."
+                    "Cobrança criada, mas o Pix não foi gerado: \($0.message)"
+                } ?? "Cobrança criada, mas o Pix não foi gerado. Você pode gerá-lo abrindo a cobrança."
             }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso

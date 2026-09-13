@@ -450,7 +450,7 @@ struct PatientDetailView: View {
                 rowDivider
                 // Esta linha tinha chevron e valor mas NÃO era link: não levava
                 // a lugar nenhum. Aponta pra tela de cobranças do paciente, que
-                // já existia completa (resumo, filtros, pagar, lembrete, checkout).
+                // já existia completa (resumo, filtros, pagar, lembrete, Pix do gateway).
                 NavigationLink {
                     FinChargesView(
                         patient: FinPatientRef(id: detail.id, name: detail.name)
@@ -459,7 +459,7 @@ struct PatientDetailView: View {
                     sectionRow(
                         icon: "dollarsign",
                         tint: Theme.warning,
-                        title: "Financeiro",
+                        title: "Cobranças",
                         subtitle: "Cobranças e valores do paciente",
                         trailing: Formatters.brl(detail.pendingBalance ?? 0)
                     )
