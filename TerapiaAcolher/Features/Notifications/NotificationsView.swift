@@ -32,7 +32,19 @@ struct NotifItem: Decodable, Identifiable {
     /// Ícone e cor por tipo, fiéis ao MVP: calendário verde (sessão),
     /// cifrão âmbar (cobrança), check verde (atendida), alerta vermelho
     /// (falta), asterisco lilás (modelo atualizado).
+    var isSupport: Bool { data?.kind == "SUPPORT" }
+
     var icon: String {
+        if isSupport { return "bubble.left.and.bubble.right" }
+        return iconByType
+    }
+
+    var tint: Color {
+        if isSupport { return Theme.primary }
+        return tintByType
+    }
+
+    private var iconByType: String {
         switch type {
         case "SESSION_SOON": "calendar"
         case "CHARGE_DUE": "dollarsign"
@@ -43,7 +55,7 @@ struct NotifItem: Decodable, Identifiable {
         }
     }
 
-    var tint: Color {
+    private var tintByType: Color {
         switch type {
         case "SESSION_SOON": Theme.primary
         case "CHARGE_DUE": Theme.warning
@@ -60,6 +72,9 @@ struct NotifData: Decodable {
     let sessionId: String?
     let chargeId: String?
     let templateId: String?
+    /// `SUPPORT` quando veio do chat de suporte.
+    let kind: String?
+    let ticketId: String?
 }
 
 /// Filtros locais (chips) — Sessões = SESSION_*; Financeiro = CHARGE_*.
@@ -89,6 +104,7 @@ struct NotificationsView: View {
     @State private var viewModel = NotificationsViewModel.shared
 
     @State private var push = PushManager.shared
+    @State private var supportRoute: SupChatRoute?
     @State private var isAskingPush = false
 
     /// Convite pra ligar as notificações. Pedir permissão aqui, e não na
@@ -193,6 +209,9 @@ struct NotificationsView: View {
             }
         }
         .task { await viewModel.load() }
+        .navigationDestination(item: $supportRoute) { rota in
+            SupportChatView(ticketId: rota.id)
+        }
         .alert("Ops", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -219,6 +238,9 @@ struct NotificationsView: View {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.filtered) { item in
                     Button {
+                        if item.isSupport, let ticketId = item.data?.ticketId {
+                            supportRoute = SupChatRoute(id: ticketId)
+                        }
                         Task { await viewModel.markRead(item) }
                     } label: {
                         NotifCell(item: item)

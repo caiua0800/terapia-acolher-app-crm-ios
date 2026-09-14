@@ -10,7 +10,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses
     case gateway, financeiro, vitrine, leads, creditos
-    case configuracoes
+    case suporte, configuracoes
 
     var id: String { rawValue }
 
@@ -26,6 +26,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .vitrine: "Minha Vitrine"
         case .leads: "Meus leads"
         case .creditos: "Créditos"
+        case .suporte: "Suporte"
         case .configuracoes: "Configurações"
         }
     }
@@ -42,6 +43,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .vitrine: "storefront"
         case .leads: "tray.full"
         case .creditos: "sparkles"
+        case .suporte: "bubble.left.and.bubble.right"
         case .configuracoes: "gearshape"
         }
     }
@@ -57,7 +59,9 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         // Leads são reais e ficam sempre; Créditos é loja em demonstração e
         // some do menu com uma flag.
         todas.append((header: "LEADS", items: LeadsCreditsDemo.enabled ? [.leads, .creditos] : [.leads]))
-        todas.append((header: "CONTA", items: [.configuracoes]))
+        // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
+        // que era terapeuta↔paciente pelo WhatsApp).
+        todas.append((header: "CONTA", items: [.suporte, .configuracoes]))
         return todas
     }
 }
@@ -69,6 +73,9 @@ struct MainShellView: View {
     @State private var optIn = PushOptIn.shared
     @Environment(\.openURL) private var openURL
     @State private var deepLink = DeepLink.shared
+    @State private var support = SupportStore.shared
+    @State private var network = NetworkMonitor.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -88,8 +95,20 @@ struct MainShellView: View {
                                     .frame(width: 38, height: 38)
                                     .background(Theme.surface, in: Circle())
                                     .overlay(Circle().stroke(Theme.border, lineWidth: 1))
+                                    // Resposta do suporte com o menu fechado: sem este ponto
+                                    // o terapeuta só descobriria abrindo o menu.
+                                    .overlay(alignment: .topTrailing) {
+                                        if support.unreadCount > 0 {
+                                            Circle()
+                                                .fill(Theme.danger)
+                                                .frame(width: 10, height: 10)
+                                                .overlay(Circle().stroke(Theme.background, lineWidth: 2))
+                                                .offset(x: 1, y: -1)
+                                        }
+                                    }
                             }
                             .accessibilityIdentifier("menuButton")
+                            .accessibilityLabel(support.unreadCount > 0 ? "Menu, suporte respondeu" : "Menu")
                         }
                         ToolbarItem(placement: .principal) {
                             Text(selection.title)
@@ -143,6 +162,7 @@ struct MainShellView: View {
             case "financeiro": selection = .financeiro
             case "vitrine": selection = .vitrine
             case "configuracoes": selection = .configuracoes
+            case "suporte": selection = .suporte
             default: break
             }
             deepLink.pendingSection = nil
@@ -151,6 +171,20 @@ struct MainShellView: View {
             guard let url else { return }
             deepLink.externalURL = nil
             openURL(url)
+        }
+        // Suporte em tempo real: conecta com a casca autenticada, derruba no
+        // logout, e reconecta ao voltar do background ou quando a rede volta.
+        .onAppear { support.start() }
+        .onDisappear { support.stop() }
+        .onChange(of: scenePhase) { _, fase in
+            switch fase {
+            case .active: support.appBecameActive()
+            case .background: support.appWentToBackground()
+            default: break
+            }
+        }
+        .onChange(of: network.isOnline) { _, online in
+            support.networkChanged(isOnline: online)
         }
         .task {
             await PushManager.shared.refreshAuthorization()
@@ -193,6 +227,7 @@ struct MainShellView: View {
         case .vitrine: VitrineView()
         case .leads: LeadsListView()
         case .creditos: LeadsCreditsView()
+        case .suporte: SupportHomeView()
         case .configuracoes: SettingsHomeView()
         }
     }
@@ -266,6 +301,16 @@ struct SideMenuView: View {
                 Text(item.title)
                     .font(Theme.body(15, weight: selection == item ? .semibold : .regular))
                 Spacer()
+                if item == .suporte, SupportStore.shared.unreadCount > 0 {
+                    let naoLidas = SupportStore.shared.unreadCount
+                    Text(naoLidas > 99 ? "99+" : "\(naoLidas)")
+                        .font(Theme.body(11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(Theme.danger, in: Capsule())
+                        .accessibilityLabel("\(naoLidas) mensagens não lidas")
+                }
             }
             .foregroundStyle(selection == item ? Color.white : Color.white.opacity(0.75))
             .padding(.horizontal, 14)

@@ -20,6 +20,8 @@ final class DeepLink {
     /// Pedido de abrir "Meu perfil" — usado pelo aviso de perfil incompleto,
     /// que precisa levar o terapeuta até onde a pendência se resolve.
     var abrirPerfil = false
+    /// Conversa do suporte a abrir (notificação com `kind == "SUPPORT"`).
+    var supportTicketId: String?
 }
 
 /// Registro de push e tratamento do toque.
@@ -165,6 +167,16 @@ extension PushManager: UNUserNotificationCenterDelegate {
                     body: [String: String]()
                 ) as Ok
             }
+        }
+
+        // Resposta ou finalização no chat de suporte: abre a conversa.
+        if (userInfo["kind"] as? String) == "SUPPORT"
+            || ((userInfo["data"] as? [String: Any])?["kind"] as? String) == "SUPPORT" {
+            let ticketId = (userInfo["ticketId"] as? String)
+                ?? ((userInfo["data"] as? [String: Any])?["ticketId"] as? String)
+            if let ticketId { DeepLink.shared.supportTicketId = ticketId }
+            DeepLink.shared.pendingSection = "suporte"
+            return
         }
 
         // `section` e `url` vêm do painel de suporte e valem para QUALQUER
