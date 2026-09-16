@@ -4,7 +4,7 @@ import Observation
 // MARK: - ViewModel do detalhe
 
 enum AgendaSessionAction {
-    case attend, miss, cancel
+    case attend, miss, cancel, resetRoom
 }
 
 @Observable
@@ -19,6 +19,12 @@ final class AgendaSessionDetailModel {
     var isActing: Bool { actingAction != nil }
     /// Nova tentativa a partir do estado de erro — spinner no próprio botão.
     var isRetrying = false
+    /// Sala do Meet criada pela clínica: confirmação antes de trocar o link.
+    var confirmingRoomReset = false
+    var showTranscript = false
+    var transcript: AgendaTranscriptResponse?
+    var isLoadingTranscript = false
+    var transcriptError: String?
 
     init(sessionId: String, preloaded: AgendaSession?) {
         self.sessionId = sessionId
@@ -70,6 +76,40 @@ final class AgendaSessionDetailModel {
             )
             self.toast = AgendaToastData(message: "Sessão cancelada", showUndo: false)
             await self.load()
+        }
+    }
+
+    /// Sala nova quando a antiga virou sala de espera ou o link vazou.
+    /// A transcrição da sala anterior não some: fica marcada como descartada.
+    @MainActor
+    func resetRoom() async {
+        await performAction(.resetRoom) {
+            let updated: AgendaSession = try await APIClient.shared.post(
+                "sessions/\(self.sessionId)/meet/redefinir"
+            )
+            self.session = updated
+            self.confirmingRoomReset = false
+            self.transcript = nil
+            self.showTranscript = false
+            self.toast = AgendaToastData(message: "Sala nova criada", showUndo: false)
+        }
+    }
+
+    /// Só busca quando o terapeuta pede: a primeira chamada vai ao Google.
+    @MainActor
+    func loadTranscript() async {
+        guard transcript == nil, !isLoadingTranscript else { return }
+        isLoadingTranscript = true
+        transcriptError = nil
+        defer { isLoadingTranscript = false }
+        do {
+            transcript = try await APIClient.shared.get("sessions/\(sessionId)/transcricao")
+        } catch is CancellationError {
+            // requisição cancelada — silencioso
+        } catch let error as APIError {
+            transcriptError = error.message
+        } catch {
+            transcriptError = "Não foi possível buscar a transcrição."
         }
     }
 
@@ -304,6 +344,71 @@ struct AgendaSessionDetailView: View {
                     .background(Color(hex: 0x3E5461))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
+
+                if session.salaDaClinica == true && session.isScheduled {
+                    if model.confirmingRoomReset {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Vamos criar um link novo. O link atual deixa de valer, e quem já tiver ele não entra mais. A transcrição da sala anterior fica guardada, marcada como descartada.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textPrimary)
+                            HStack(spacing: 8) {
+                                Button("Voltar") { model.confirmingRoomReset = false }
+                                    .font(Theme.body(12, weight: .bold))
+                                    .disabled(model.actingAction == .resetRoom)
+                                Spacer()
+                                Button {
+                                    Task { await model.resetRoom() }
+                                } label: {
+                                    if model.actingAction == .resetRoom {
+                                        ProgressView().controlSize(.small)
+                                    } else {
+                                        Text("Criar link novo")
+                                            .font(Theme.body(12, weight: .bold))
+                                    }
+                                }
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.white.opacity(0.6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        Button {
+                            model.confirmingRoomReset = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text(session.meetResetCount ?? 0 > 0
+                                     ? "REDEFINIR SALA · \(session.meetResetCount ?? 0)ª vez"
+                                     : "REDEFINIR SALA")
+                                    .font(Theme.body(11, weight: .bold))
+                                    .tracking(0.8)
+                            }
+                            .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                }
+
+                if session.salaDaClinica == true {
+                    Divider().padding(.vertical, 2)
+                    Button {
+                        model.showTranscript.toggle()
+                        if model.showTranscript { Task { await model.loadTranscript() } }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.quote")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(model.showTranscript ? "OCULTAR TRANSCRIÇÃO" : "VER TRANSCRIÇÃO")
+                                .font(Theme.body(11, weight: .bold))
+                                .tracking(0.8)
+                        }
+                        .foregroundStyle(Theme.textSecondary)
+                    }
+
+                    if model.showTranscript {
+                        transcriptBlock
+                    }
+                }
             } else {
                 Text("Sessão online sem link de videochamada.")
                     .font(Theme.body(13))
@@ -317,6 +422,45 @@ struct AgendaSessionDetailView: View {
         .padding(14)
         .background(Color(hex: 0xDDEAF3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Transcrição do Meet: automática, então entra como apoio e não como
+    /// documento. O terapeuta revisa antes de levar pro prontuário.
+    @ViewBuilder
+    private var transcriptBlock: some View {
+        if model.isLoadingTranscript {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Buscando a transcrição no Google…")
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        } else if let erro = model.transcriptError {
+            Text(erro)
+                .font(Theme.body(12))
+                .foregroundStyle(Theme.danger)
+        } else if let resposta = model.transcript, resposta.disponivel {
+            ForEach(resposta.transcricoes.filter { !$0.descartada }) { t in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\(t.participantes.joined(separator: " · ")) · \(t.trechos) \(t.trechos == 1 ? "trecho" : "trechos")")
+                        .font(Theme.body(11))
+                        .foregroundStyle(Theme.textSecondary)
+                    ForEach(t.falas) { fala in
+                        (Text("\(fala.falante): ").font(Theme.body(13, weight: .bold))
+                         + Text(fala.texto).font(Theme.body(13)))
+                            .foregroundStyle(Theme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Text("Transcrição automática do Google. Revise antes de usar no prontuário.")
+                        .font(Theme.body(11))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+        } else {
+            Text("Ainda não há transcrição. Ela aparece alguns minutos depois que a chamada termina.")
+                .font(Theme.body(12))
+                .foregroundStyle(Theme.textSecondary)
+        }
     }
 
     private func meetURL(_ link: String) -> URL? {

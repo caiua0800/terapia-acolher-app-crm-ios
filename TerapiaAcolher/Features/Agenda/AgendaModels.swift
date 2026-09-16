@@ -29,6 +29,9 @@ struct AgendaSession: Decodable, Identifiable, Hashable {
     let recurrence: String  // NONE | WEEKLY | BIWEEKLY | MONTHLY
     let recurrenceGroupId: String?
     let meetLink: String?
+    /// Sala criada pela conta Workspace da clínica: libera redefinir sala e transcrição.
+    let salaDaClinica: Bool?
+    let meetResetCount: Int?
     let observations: String?
 
     var isOnline: Bool { type == "ONLINE" }
@@ -490,4 +493,33 @@ extension View {
     func agendaToast(_ toast: Binding<AgendaToastData?>) -> some View {
         modifier(AgendaToastModifier(toast: toast))
     }
+}
+
+// MARK: - Transcrição da sessão online
+
+/// Um trecho falado, como o Google devolve: quem falou, quando e o quê.
+struct AgendaTranscriptEntry: Decodable, Identifiable {
+    let inicio: String
+    let fim: String
+    let falante: String
+    let texto: String
+
+    var id: String { inicio + falante }
+}
+
+struct AgendaTranscript: Decodable, Identifiable {
+    let id: String
+    let participantes: [String]
+    let falas: [AgendaTranscriptEntry]
+    let trechos: Int
+    let descartada: Bool
+    let documentoApagadoDoDrive: Bool
+}
+
+/// GET sessions/<id>/transcricao
+struct AgendaTranscriptResponse: Decodable {
+    let sessionId: String
+    let salaConfigurada: Bool
+    let disponivel: Bool
+    let transcricoes: [AgendaTranscript]
 }
