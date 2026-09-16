@@ -4,7 +4,7 @@ import Observation
 // MARK: - ViewModel do detalhe
 
 enum AgendaSessionAction {
-    case attend, miss, cancel, resetRoom
+    case attend, miss, cancel, resetRoom, endCall
 }
 
 @Observable
@@ -76,6 +76,27 @@ final class AgendaSessionDetailModel {
             )
             self.toast = AgendaToastData(message: "Sessão cancelada", showUndo: false)
             await self.load()
+        }
+    }
+
+    /// Encerra a chamada para todos. O terapeuta entra como co-anfitrião e não
+    /// consegue encerrar sozinho; sem isto a sala fica aberta depois que ele sai
+    /// e o Google não fecha a transcrição.
+    @MainActor
+    func endCall() async {
+        await performAction(.endCall) {
+            struct Resultado: Decodable { let encerrada: Bool; let transcricaoGravada: Bool }
+            let r: Resultado = try await APIClient.shared.post(
+                "sessions/\(self.sessionId)/meet/encerrar"
+            )
+            self.transcript = nil
+            self.toast = AgendaToastData(
+                message: r.transcricaoGravada
+                    ? "Chamada encerrada. Transcrição disponível."
+                    : "Chamada encerrada. A transcrição aparece em alguns minutos.",
+                showUndo: false
+            )
+            if self.showTranscript { await self.loadTranscript() }
         }
     }
 
@@ -346,6 +367,30 @@ struct AgendaSessionDetailView: View {
                 }
 
                 if session.salaDaClinica == true && session.isScheduled {
+                    Button {
+                        Task { await model.endCall() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if model.actingAction == .endCall {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "phone.down.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            Text("ENCERRAR CHAMADA PARA TODOS")
+                                .font(Theme.body(11, weight: .bold))
+                                .tracking(0.8)
+                        }
+                        .foregroundStyle(Color(hex: 0x3E5461))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(hex: 0x3E5461).opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .disabled(model.actingAction == .endCall)
+
                     if model.confirmingRoomReset {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Vamos criar um link novo. O link atual deixa de valer, e quem já tiver ele não entra mais. A transcrição da sala anterior fica guardada, marcada como descartada.")
