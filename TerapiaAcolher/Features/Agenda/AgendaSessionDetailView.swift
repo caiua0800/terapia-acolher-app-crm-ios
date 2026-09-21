@@ -444,16 +444,23 @@ struct AgendaSessionDetailView: View {
                                 Image(systemName: "phone.down.fill")
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            Text("ENCERRAR CHAMADA PARA TODOS")
+                            // Continua disponível porque o link segue valendo
+                            // e alguém pode ter começado outra chamada — mas,
+                            // já encerrada, o botão em destaque parecia dizer
+                            // que o encerramento não tinha funcionado.
+                            Text(session.meetEndedAt == nil ? "ENCERRAR CHAMADA PARA TODOS" : "ENCERRAR DE NOVO")
                                 .font(Theme.body(11, weight: .bold))
                                 .tracking(0.8)
                         }
-                        .foregroundStyle(Color(hex: 0x3E5461))
+                        .foregroundStyle(session.meetEndedAt == nil ? Color(hex: 0x3E5461) : Theme.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(hex: 0x3E5461).opacity(0.3), lineWidth: 1)
+                                .stroke(
+                                    Color(hex: 0x3E5461).opacity(session.meetEndedAt == nil ? 0.3 : 0),
+                                    lineWidth: 1
+                                )
                         )
                     }
                     .disabled(model.actingAction == .endCall)
