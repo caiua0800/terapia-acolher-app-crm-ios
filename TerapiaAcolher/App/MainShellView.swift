@@ -8,9 +8,9 @@ import SwiftUI
 ///   terapeuta está quando precisa deles, não tinha entrada nenhuma.
 enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
-    case pacientes, prontuarios, anamneses
+    case pacientes, prontuarios, anamneses, transcricoes
     case gateway, financeiro, vitrine, leads, creditos
-    case suporte, configuracoes
+    case suporte, assinatura, configuracoes
 
     var id: String { rawValue }
 
@@ -21,12 +21,14 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .pacientes: "Pacientes"
         case .prontuarios: "Prontuários"
         case .anamneses: "Anamneses"
+        case .transcricoes: "Transcrições"
         case .gateway: "Gateway Acolher"
         case .financeiro: "Fluxo de caixa"
         case .vitrine: "Minha Vitrine"
         case .leads: "Meus leads"
         case .creditos: "Créditos"
         case .suporte: "Suporte"
+        case .assinatura: "Assinatura"
         case .configuracoes: "Configurações"
         }
     }
@@ -38,12 +40,14 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .pacientes: "person.2"
         case .prontuarios: "doc.text"
         case .anamneses: "pencil.line"
+        case .transcricoes: "text.bubble"
         case .gateway: "building.columns"
         case .financeiro: "dollarsign"
         case .vitrine: "storefront"
         case .leads: "tray.full"
         case .creditos: "sparkles"
         case .suporte: "bubble.left.and.bubble.right"
+        case .assinatura: "creditcard"
         case .configuracoes: "gearshape"
         }
     }
@@ -53,7 +57,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         var todas: [(header: String, items: [MenuDestination])] = [
             ("PRINCIPAL", [.inicio, .agenda]),
         ]
-        todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses]))
+        todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses, .transcricoes]))
         // Gateway Acolher é seção própria (Caiuã, 2026-09-11); "Fluxo de caixa" é o caixa manual.
         todas.append((header: "GESTÃO", items: [.gateway, .financeiro, .vitrine]))
         // Leads são reais e ficam sempre; Créditos é loja em demonstração e
@@ -61,7 +65,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         todas.append((header: "LEADS", items: LeadsCreditsDemo.enabled ? [.leads, .creditos] : [.leads]))
         // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
         // que era terapeuta↔paciente pelo WhatsApp).
-        todas.append((header: "CONTA", items: [.suporte, .configuracoes]))
+        todas.append((header: "CONTA", items: [.suporte, .assinatura, .configuracoes]))
         return todas
     }
 }
@@ -222,12 +226,14 @@ struct MainShellView: View {
         case .pacientes: PatientsListView()
         case .prontuarios: RecordsHomeView(kind: .record)
         case .anamneses: RecordsHomeView(kind: .anamnesis)
+        case .transcricoes: TranscriptsView()
         case .gateway: FinGatewayHomeView()
         case .financeiro: FinanceHomeView()
         case .vitrine: VitrineView()
         case .leads: LeadsListView()
         case .creditos: LeadsCreditsView()
         case .suporte: SupportHomeView()
+        case .assinatura: SubscriptionView()
         case .configuracoes: SettingsHomeView()
         }
     }
