@@ -4,6 +4,9 @@ import Observation
 // MARK: - Modos da agenda
 
 enum AgendaMode: String, CaseIterable, Identifiable {
+    /// Primeira e padrão: quem abre a agenda no meio do expediente quer saber
+    /// o que ainda falta HOJE, não rolar a lista dos próximos 30 dias.
+    case today = "Hoje"
     case list = "Lista"
     case week = "Semana"
     case month = "Mês"
@@ -31,7 +34,10 @@ final class AgendaViewModel {
     /// Recorrência gera no máximo 12 ocorrências, então nada passa disso.
     static let horizonMonths = 18
 
-    var mode: AgendaMode = .list
+    var mode: AgendaMode = .today
+
+    // Hoje: só o dia corrente, do primeiro ao último minuto.
+    var todaySessions: [AgendaSession] = []
 
     // Lista: começa em hoje → +30 dias e vai esticando a janela conforme rola.
     // Pagina por TEMPO, não por contagem: a lista é agrupada por dia e cortar
@@ -76,6 +82,7 @@ final class AgendaViewModel {
         if errorMessage != nil { isRetrying = true }
         defer { isRetrying = false }
         switch mode {
+        case .today: await loadToday()
         case .list: await loadList()
         case .week: await loadWeek()
         case .month: await loadMonth()
@@ -89,6 +96,13 @@ final class AgendaViewModel {
         if let status: SetGoogleStatus = try? await APIClient.shared.get("integrations/google/status") {
             googleConnected = status.connected
         }
+    }
+
+    @MainActor
+    func loadToday() async {
+        let from = calendar.startOfDay(for: .now)
+        let to = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: from) ?? from
+        await fetch(from: from, to: to) { self.todaySessions = $0.sorted { $0.startsAt < $1.startsAt } }
     }
 
     /// Primeira janela (e recarga do pull-to-refresh): zera a paginação.
@@ -351,7 +365,7 @@ struct AgendaView: View {
         }
     }
 
-    // MARK: Seletor Lista | Semana | Mês (chips segmentados como no print)
+    // MARK: Seletor Hoje | Lista | Semana | Mês (chips segmentados como no print)
 
     private var modePicker: some View {
         HStack(spacing: 4) {
@@ -364,6 +378,8 @@ struct AgendaView: View {
                     Text(mode.rawValue)
                         .font(Theme.body(14, weight: model.mode == mode ? .semibold : .regular))
                         .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
                         .background(
@@ -401,6 +417,7 @@ struct AgendaView: View {
             Spacer()
         } else {
             switch model.mode {
+            case .today: AgendaTodayView(model: model)
             case .list: AgendaListView(model: model)
             case .week: AgendaWeekView(model: model)
             case .month: AgendaMonthView(model: model)
@@ -572,5 +589,87 @@ struct AgendaListView: View {
             }
             .refreshable { await model.loadList() }
         }
+    }
+}
+
+// MARK: - Visão HOJE (só o dia corrente)
+
+/// O dia de hoje sozinho, com o estado do expediente no cabeçalho.
+///
+/// A lista já começa em hoje, mas mistura as próximas semanas — e a pergunta
+/// mais frequente de quem abre a agenda ("o que ainda falta hoje?") ficava a
+/// uma rolagem de distância. Aqui ela é respondida sem toque nenhum.
+struct AgendaTodayView: View {
+    let model: AgendaViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                header
+
+                if model.todaySessions.isEmpty {
+                    EmptyStateView(
+                        icon: "calendar",
+                        title: "Nada hoje",
+                        message: "Nenhuma sessão marcada para hoje. Veja a Lista para os próximos dias."
+                    )
+                    .padding(.top, 40)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(model.todaySessions) { session in
+                        AgendaSessionListItem(session: session)
+                    }
+                }
+            }
+            .padding(.horizontal, Theme.screenPadding)
+            .padding(.bottom, 100)
+        }
+        .refreshable { await model.loadToday() }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Hoje")
+                    .font(Theme.serifTitle(19))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("\(AgendaFormat.weekday.string(from: .now)) · \(AgendaFormat.dayMonth.string(from: .now))")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if !model.todaySessions.isEmpty {
+                    Text(model.todaySessions.count == 1 ? "1 SESSÃO" : "\(model.todaySessions.count) SESSÕES")
+                        .font(Theme.body(10, weight: .bold))
+                        .tracking(0.6)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Theme.primarySoft)
+                        .foregroundStyle(Theme.success)
+                        .clipShape(Capsule())
+                }
+            }
+
+            if let resumo {
+                Text(resumo)
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+        .padding(.top, 10)
+    }
+
+    /// "Próxima" é a que ainda não terminou: durante a sessão das 14h, dizer
+    /// que a próxima é às 15h esconde justamente a que está acontecendo.
+    private var resumo: String? {
+        let agora = Date()
+        if let emAndamento = model.todaySessions.first(where: {
+            $0.startsAt <= agora && $0.endsAt > agora
+        }) {
+            return "Em andamento até \(AgendaFormat.time.string(from: emAndamento.endsAt))"
+        }
+        if let proxima = model.todaySessions.first(where: { $0.startsAt > agora }) {
+            return "Próxima às \(AgendaFormat.time.string(from: proxima.startsAt))"
+        }
+        return model.todaySessions.isEmpty ? nil : "Todas as sessões de hoje já passaram"
     }
 }

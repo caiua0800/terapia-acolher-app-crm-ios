@@ -55,6 +55,42 @@ final class AgendaNewSessionModel {
         return true
     }
 
+    /// Duração já escolhida — "agora" desloca o horário, não redefine a sessão.
+    private var currentDuration: TimeInterval {
+        let duration = endTime.timeIntervalSince(startTime)
+        return duration > 0 ? duration : 50 * 60
+    }
+
+    /// Agora, com o minuto arredondado para baixo de 5 em 5.
+    private var roundedNow: Date {
+        let calendar = AgendaFormat.calendar
+        var parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: .now)
+        parts.minute = ((parts.minute ?? 0) / 5) * 5
+        parts.second = 0
+        return calendar.date(from: parts) ?? .now
+    }
+
+    /// Marcado como "agora" quando o início já está no minuto redondo atual.
+    var isNow: Bool {
+        let calendar = AgendaFormat.calendar
+        let now = roundedNow
+        return calendar.isDate(date, inSameDayAs: now)
+            && calendar.dateComponents([.hour, .minute], from: startTime)
+                == calendar.dateComponents([.hour, .minute], from: now)
+    }
+
+    /// O outro caso do formulário: o atendimento que já está acontecendo.
+    ///
+    /// Arredonda o minuto para BAIXO (de 5 em 5) — para cima, a sessão
+    /// começaria depois do que já começou.
+    func startNow() {
+        let now = roundedNow
+        let duration = currentDuration
+        date = now
+        startTime = now
+        endTime = now.addingTimeInterval(duration)
+    }
+
     /// Ao mudar o início, preserva a duração atual.
     func startChanged(oldValue: Date) {
         let duration = endTime.timeIntervalSince(oldValue)
@@ -271,6 +307,32 @@ struct AgendaNewSessionView: View {
                     }
                     .padding(14)
                 }
+
+                Divider().overlay(Theme.border)
+
+                Button {
+                    Haptics.tap()
+                    model.startNow()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Começar agora")
+                            .font(Theme.body(14, weight: .semibold))
+                        Spacer()
+                        Text(model.isNow
+                             ? "Hoje, \(AgendaFormat.time.string(from: model.startTime))"
+                             : "Preenche data e hora")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .foregroundStyle(model.isNow ? Theme.primary : Theme.textPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(model.isNow ? Theme.primarySoft : Color.clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.pressableSubtle)
 
                 Divider().overlay(Theme.border)
 
