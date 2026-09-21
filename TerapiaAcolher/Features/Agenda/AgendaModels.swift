@@ -32,6 +32,11 @@ struct AgendaSession: Decodable, Identifiable, Hashable {
     /// Sala criada pela conta Workspace da clínica: libera redefinir sala e transcrição.
     let salaDaClinica: Bool?
     let meetResetCount: Int?
+    /// Quando a chamada foi encerrada para todos. O link do Meet continua
+    /// valendo depois disso — quem tiver o endereço começa uma chamada NOVA.
+    let meetEndedAt: Date?
+    /// Só vem no detalhe da sessão.
+    let transcricaoPronta: Bool?
     let observations: String?
 
     var isOnline: Bool { type == "ONLINE" }

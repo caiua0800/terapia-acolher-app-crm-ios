@@ -90,7 +90,15 @@ final class AgendaSessionDetailModel {
             let r: Resultado = try await APIClient.shared.post(
                 "sessions/\(self.sessionId)/meet/encerrar"
             )
+            // Dizer "encerrada" quando a chamada ao Google falhou é pior que
+            // não ter o botão: o terapeuta sai achando que fechou a sala.
+            guard r.encerrada else {
+                self.errorMessage = "Não foi possível encerrar a chamada agora. Tente de novo em instantes."
+                return
+            }
             self.transcript = nil
+            // Recarrega para a tela passar a mostrar o estado de encerrada.
+            await self.load()
             self.toast = AgendaToastData(
                 message: r.transcricaoGravada
                     ? "Chamada encerrada. Transcrição disponível."
@@ -360,20 +368,50 @@ struct AgendaSessionDetailView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
+                if let encerradaEm = session.meetEndedAt {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Chamada encerrada às \(AgendaFormat.time.string(from: encerradaEm))")
+                            .font(Theme.body(12.5, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(session.transcricaoPronta == true
+                             ? "A transcrição já está disponível."
+                             : "Transcrição pendente — ela chega em alguns minutos.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                        // O Google mantém o link de pé depois de encerrar: quem
+                        // tiver o endereço começa uma chamada NOVA. Sem dizer
+                        // isso, o botão de redefinir sala não faz sentido.
+                        Text("O link continua valendo — entrar de novo começa uma nova chamada. Para invalidá-lo, use “Redefinir sala”.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Theme.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.border, lineWidth: 1)
+                    )
+                }
+
                 Button {
                     if let url = meetURL(link) { openURL(url) }
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "play.fill")
                             .font(.system(size: 12, weight: .bold))
-                        Text("ENTRAR NA REUNIÃO")
+                        Text(session.meetEndedAt == nil ? "ENTRAR NA REUNIÃO" : "ENTRAR DE NOVO")
                             .font(Theme.body(13, weight: .bold))
                             .tracking(0.8)
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(session.meetEndedAt == nil ? .white : Color(hex: 0x3E5461))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
-                    .background(Color(hex: 0x3E5461))
+                    .background(session.meetEndedAt == nil ? Color(hex: 0x3E5461) : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color(hex: 0x3E5461).opacity(session.meetEndedAt == nil ? 0 : 0.3), lineWidth: 1)
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
