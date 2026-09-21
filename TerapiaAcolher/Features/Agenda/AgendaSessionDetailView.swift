@@ -33,6 +33,21 @@ final class AgendaSessionDetailModel {
     }
 
     @MainActor
+    /// Enquanto a transcrição não chega, recarrega de tempos em tempos.
+    ///
+    /// O Google leva alguns minutos depois do encerramento. Sem isto o cartão
+    /// ficava em "pendente" até o terapeuta sair da tela e voltar — e ninguém
+    /// volta para conferir. A espera morre junto com a tela (a Task é
+    /// cancelada) e desiste depois de meia hora.
+    func aguardarTranscricao() async {
+        for _ in 0..<30 {
+            guard session?.meetEndedAt != nil, session?.transcricaoPronta != true else { return }
+            try? await Task.sleep(for: .seconds(60))
+            guard !Task.isCancelled else { return }
+            await load()
+        }
+    }
+
     func load() async {
         isLoading = session == nil && errorMessage == nil
         if errorMessage != nil { isRetrying = true }
@@ -189,7 +204,10 @@ struct AgendaSessionDetailView: View {
         }
         .setToolbarTitle("Sessão")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.load() }
+        .task {
+            await model.load()
+            await model.aguardarTranscricao()
+        }
         .agendaToast(Bindable(model).toast)
         .alert("Não deu certo", isPresented: .init(
             get: { model.actionError != nil },
