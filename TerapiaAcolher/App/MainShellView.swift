@@ -22,7 +22,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .prontuarios: "Prontuários"
         case .anamneses: "Anamneses"
         case .transcricoes: "Transcrições"
-        case .gateway: "Gateway Acolher"
+        case .gateway: "Acolher Financeiro"
         case .financeiro: "Fluxo de caixa"
         case .vitrine: "Minha Vitrine"
         case .leads: "Meus leads"
@@ -58,7 +58,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
             ("PRINCIPAL", [.inicio, .agenda]),
         ]
         todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses, .transcricoes]))
-        // Gateway Acolher é seção própria (Caiuã, 2026-09-11); "Fluxo de caixa" é o caixa manual.
+        // Acolher Financeiro é seção própria (Caiuã, 2026-09-11); "Fluxo de caixa" é o caixa manual.
         todas.append((header: "GESTÃO", items: [.gateway, .financeiro, .vitrine]))
         // Leads são reais e ficam sempre; Créditos é loja em demonstração e
         // some do menu com uma flag.

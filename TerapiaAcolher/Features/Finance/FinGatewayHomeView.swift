@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Gateway Acolher — porta de entrada da conta do terapeuta
+// MARK: - Acolher Financeiro — porta de entrada da conta do terapeuta
 //
 // Uma tela só, dirigida pelo status da conta: apresentação → assistente →
 // análise → conta ativa. O caminho antigo (conta Asaas própria + Wallet ID)
@@ -32,7 +32,7 @@ struct FinGatewayHomeView: View {
             }
             .refreshable { await recarregar() }
         }
-        .setToolbarTitle("Gateway Acolher")
+        .setToolbarTitle("Acolher Financeiro")
         .navigationBarTitleDisplayMode(.inline)
         .task { await recarregar() }
         .sheet(isPresented: $showOnboarding, onDismiss: {
@@ -102,7 +102,7 @@ struct FinGatewayHomeView: View {
 
     private var falhaAoCarregar: some View {
         VStack(spacing: 14) {
-            Text(store.errorMessage ?? "Não foi possível carregar o Gateway Acolher.")
+            Text(store.errorMessage ?? "Não foi possível carregar o Acolher Financeiro.")
                 .font(Theme.body(14))
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -133,7 +133,7 @@ struct FinGatewayHomeView: View {
                                     .foregroundStyle(Theme.primary)
                             )
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("Gateway Acolher")
+                            Text("Acolher Financeiro")
                                 .font(Theme.serifTitle(21))
                                 .foregroundStyle(Theme.textPrimary)
                             Text("Receba de seus pacientes sem sair do aplicativo.")
@@ -772,7 +772,7 @@ struct FinGatewayHomeView: View {
         }
     }
 
-    /// Cobranças moram aqui: só o Gateway Acolher cobra. Sem conta aprovada a
+    /// Cobranças moram aqui: só o Acolher Financeiro cobra. Sem conta aprovada a
     /// linha continua, porque registrar cobrança recebida por fora é permitido.
     private func atalhoCobrancas(ativo: Bool) -> some View {
         NavigationLink {

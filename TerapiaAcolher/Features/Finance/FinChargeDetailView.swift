@@ -17,7 +17,7 @@ final class FinChargeDetailModel {
     }
 
     /// Link do caminho antigo (conta Asaas própria). Só cobrança criada antes
-    /// do Gateway Acolher tem isso; hoje só o gateway cobra.
+    /// do Acolher Financeiro tem isso; hoje só o gateway cobra.
     var linkAntigo: String? {
         guard charge.gatewayName != "ACOLHER",
               let url = charge.gatewayInvoiceUrl, !url.isEmpty else { return nil }
@@ -33,7 +33,7 @@ final class FinChargeDetailModel {
         }
     }
 
-    /// Pix pelo Gateway Acolher — caminho principal de quem tem conta aprovada.
+    /// Pix pelo Acolher Financeiro — caminho principal de quem tem conta aprovada.
     func pixDoGateway() async {
         isWorkingPix = true
         defer { isWorkingPix = false }
@@ -224,7 +224,7 @@ struct FinChargeDetailView: View {
                 PrimaryButton(
                     title: model.charge.gatewayName == "ACOLHER"
                         ? "Ver Pix"
-                        : "Cobrar por Pix (Gateway Acolher)",
+                        : "Cobrar por Pix (Acolher Financeiro)",
                     icon: "qrcode",
                     isLoading: model.isWorkingPix
                 ) {
@@ -233,7 +233,7 @@ struct FinChargeDetailView: View {
                 .accessibilityIdentifier("gwCobrarPix")
             }
         } else if store.overview != nil {
-            // Só o Gateway Acolher cobra. Sem conta aprovada, o caminho é abrir
+            // Só o Acolher Financeiro cobra. Sem conta aprovada, o caminho é abrir
             // a conta — a cobrança continua existindo e pode ser marcada como
             // paga por fora.
             NavigationLink {
@@ -247,7 +247,7 @@ struct FinChargeDetailView: View {
                             .frame(width: 34, height: 34)
                             .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Para cobrar por Pix, abra sua conta no Gateway Acolher")
+                            Text("Para cobrar por Pix, abra sua conta no Acolher Financeiro")
                                 .font(Theme.body(14, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
                                 .fixedSize(horizontal: false, vertical: true)

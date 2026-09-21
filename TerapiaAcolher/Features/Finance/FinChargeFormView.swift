@@ -14,7 +14,7 @@ struct FinChargeFormView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    /// Só o Gateway Acolher cobra: taxas e mínimo vêm de lá (do servidor —
+    /// Só o Acolher Financeiro cobra: taxas e mínimo vêm de lá (do servidor —
     /// a taxa nunca é cravada no app).
     @State private var store = FinGatewayStore.shared
     /// Cobrança combinada fora do app (dinheiro, transferência direta) não
@@ -198,13 +198,13 @@ struct FinChargeFormView: View {
 
             ThemeCard(padding: 0) {
                 VStack(spacing: 0) {
-                    // Só o Gateway Acolher cobra. Sem conta aprovada a opção
+                    // Só o Acolher Financeiro cobra. Sem conta aprovada a opção
                     // aparece, mas apagada, com o motivo — e leva pra abrir.
                     opcao(
-                        titulo: "Pix pelo Gateway Acolher",
+                        titulo: "Pix pelo Acolher Financeiro",
                         subtitulo: podeCobrarPorPix
                             ? (taxas.map { "Cai no seu saldo na hora · taxa \(Formatters.brl($0.totalPerCharge))" } ?? "Cai no seu saldo na hora")
-                            : "Abra sua conta no Gateway Acolher para cobrar por Pix",
+                            : "Abra sua conta no Acolher Financeiro para cobrar por Pix",
                         icone: "qrcode",
                         marcado: online && podeCobrarPorPix,
                         habilitado: podeCobrarPorPix
@@ -235,7 +235,7 @@ struct FinChargeFormView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "building.columns")
-                        Text("Abrir minha conta no Gateway Acolher")
+                        Text("Abrir minha conta no Acolher Financeiro")
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .semibold))
                     }
@@ -319,7 +319,7 @@ struct FinChargeFormView: View {
                     linha("Você recebe", Formatters.brl(max(0, valor - taxas.totalPerCharge)), destaque: true)
                     HStack {
                         Spacer()
-                        Text("no seu saldo do gateway na hora")
+                        Text("no seu saldo do Acolher Financeiro na hora")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }

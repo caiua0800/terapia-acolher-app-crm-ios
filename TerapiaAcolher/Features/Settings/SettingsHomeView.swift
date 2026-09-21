@@ -178,7 +178,7 @@ struct SettingsHomeView: View {
                         SetRow(
                             icon: "building.columns",
                             iconColor: Theme.primary,
-                            title: "Gateway Acolher",
+                            title: "Acolher Financeiro",
                             subtitle: "Sua conta para receber por Pix e sacar"
                         )
                     }

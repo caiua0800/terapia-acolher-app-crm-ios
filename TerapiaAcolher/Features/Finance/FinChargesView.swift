@@ -55,7 +55,7 @@ final class FinChargesViewModel {
     var reminderResult: FinReminderResult?
     var isWorking = false
     var workingChargeId: String? // cobrança com ação em voo (spinner na linha)
-    /// Pix da cobrança gerado pelo Gateway Acolher (sheet com QR).
+    /// Pix da cobrança gerado pelo Acolher Financeiro (sheet com QR).
     var gatewayPix: GwCharge?
 
     init(patient: FinPatientRef) {
@@ -111,7 +111,7 @@ final class FinChargesViewModel {
         }
     }
 
-    /// Gera (ou reabre) o Pix da cobrança pelo Gateway Acolher.
+    /// Gera (ou reabre) o Pix da cobrança pelo Acolher Financeiro.
     ///
     /// Cobrança que já tem Pix não gera outro: o segundo código confundiria o
     /// paciente que recebeu o primeiro.
@@ -309,7 +309,7 @@ struct FinChargesView: View {
                         .frame(width: 34, height: 34)
                         .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Para cobrar por Pix, abra sua conta no Gateway Acolher")
+                        Text("Para cobrar por Pix, abra sua conta no Acolher Financeiro")
                             .font(Theme.body(14, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -566,7 +566,7 @@ struct FinChargesView: View {
                         Label(
                             charge.gatewayName == "ACOLHER"
                                 ? "Ver Pix"
-                                : "Cobrar por Pix (Gateway Acolher)",
+                                : "Cobrar por Pix (Acolher Financeiro)",
                             systemImage: "qrcode"
                         )
                     }
@@ -583,7 +583,7 @@ struct FinChargesView: View {
                 } label: {
                     Label("Enviar lembrete de cobrança", systemImage: "bell")
                 }
-                // Cobrança criada antes do Gateway Acolher (link do Asaas
+                // Cobrança criada antes do Acolher Financeiro (link do Asaas
                 // próprio): só copiar, sem gerar link novo por esse caminho.
                 if charge.gatewayName != "ACOLHER", let urlString = charge.gatewayInvoiceUrl, !urlString.isEmpty {
                     Button {

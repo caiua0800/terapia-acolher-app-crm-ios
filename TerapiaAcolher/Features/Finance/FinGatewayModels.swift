@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Gateway Acolher — DTOs do terapeuta
+// MARK: - Acolher Financeiro — DTOs do terapeuta
 //
 // Contrato: backend/docs/GATEWAY-ACOLHER.md. Dinheiro chega em reais (número
 // com 2 casas), datas em ISO-8601 — exceto `birthDate`, que é dia-calendário
@@ -709,7 +709,7 @@ enum FinGatewayAPI {
         return try await APIClient.shared.download(
             "gateway/ledger/export",
             query: query,
-            fallbackName: "extrato-gateway-acolher.\(format.rawValue)"
+            fallbackName: "extrato-acolher-financeiro.\(format.rawValue)"
         )
     }
 
@@ -807,7 +807,7 @@ final class FinGatewayStore {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message
-                ?? "Não foi possível carregar o Gateway Acolher."
+                ?? "Não foi possível carregar o Acolher Financeiro."
         }
     }
 

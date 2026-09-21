@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Pix da cobrança gerado pelo Gateway Acolher
+// MARK: - Pix da cobrança gerado pelo Acolher Financeiro
 //
 // O servidor manda `pixQrCodeImage` nulo de propósito: o QR é desenhado aqui
 // a partir do copia-e-cola, então nada de imagem trafega pela rede.

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Fluxo do Gateway Acolher contra o backend LOCAL (nunca produção).
+/// Fluxo do Acolher Financeiro contra o backend LOCAL (nunca produção).
 ///
 /// Rodar (backend em http://localhost:3010, usuário de teste já criado):
 ///   xcodebuild test -only-testing:TerapiaAcolherUITests/GatewayFlowUITests/test01AbrirConta
@@ -131,7 +131,7 @@ final class GatewayFlowUITests: XCTestCase {
 
     private func abrirGateway() {
         openSection("Fluxo de caixa")
-        XCTAssertTrue(tapButton("Gateway Acolher"), "atalho do Gateway não apareceu")
+        XCTAssertTrue(tapButton("Acolher Financeiro"), "atalho do Gateway não apareceu")
         sleep(4)
     }
 
@@ -320,7 +320,7 @@ final class GatewayFlowUITests: XCTestCase {
         sleep(4)
         shoot("14-detalhe-da-cobranca")
 
-        XCTAssertTrue(tapButton("Cobrar por Pix (Gateway Acolher)"), "ação de cobrar por Pix")
+        XCTAssertTrue(tapButton("Cobrar por Pix (Acolher Financeiro)"), "ação de cobrar por Pix")
         sleep(6)
         shoot("15-pix-com-qrcode")
 

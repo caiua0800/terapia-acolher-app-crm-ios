@@ -104,7 +104,7 @@ enum SupCategory: String, CaseIterable, Identifiable, Encodable {
         case .pacientes: "Pacientes"
         case .prontuarios: "Prontuários"
         case .financeiro: "Fluxo de caixa"
-        case .gateway: "Gateway Acolher"
+        case .gateway: "Acolher Financeiro"
         case .assinatura: "Assinatura"
         case .aplicativo: "Aplicativo"
         case .outro: "Outro assunto"

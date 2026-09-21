@@ -659,7 +659,7 @@ struct GwComoFuncionaCard: View {
                     .foregroundStyle(Theme.textSecondary)
 
                 passo(1, "Crie a cobrança", "Descrição, valor e vencimento. Fica na ficha do paciente.")
-                passo(2, "Cobre por Pix", "QR Code e copia-e-cola gerados na hora pelo Gateway Acolher.")
+                passo(2, "Cobre por Pix", "QR Code e copia-e-cola gerados na hora pelo Acolher Financeiro.")
                 passo(
                     3,
                     "Cai no seu saldo",
