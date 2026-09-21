@@ -99,6 +99,7 @@ struct FinanceHomeView: View {
     @State private var editingTransaction: FinTransaction?
     @State private var deletingTransaction: FinTransaction?
     @State private var hasAppeared = false
+    @State private var gatewayStore = FinGatewayStore.shared
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -116,6 +117,11 @@ struct FinanceHomeView: View {
                     case .registros: registrosTab
                     case .balanco: balancoTab
                     }
+
+                    // Entram aqui as linhas vindas da conta do provedor
+                    // (recebimentos e tarifas), então esta tela também
+                    // identifica quem presta o serviço financeiro.
+                    GwProviderFooter(provider: gatewayStore.overview?.provider ?? .asaasPadrao)
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.bottom, 90)
@@ -129,6 +135,9 @@ struct FinanceHomeView: View {
             .padding(.bottom, 24)
         }
         .task { await model.load() }
+        // Só pelo selo: sem o provedor carregado a tela cairia no texto
+        // padrão, e o identificador do prestador é exigência do playbook.
+        .task { if gatewayStore.overview == nil { await gatewayStore.load(showSpinner: false) } }
         // .task não roda de novo ao voltar de uma tela empurrada (a view não
         // sai da hierarquia) — o onAppear recarrega nesses retornos. Na
         // primeira aparição só o .task carrega (hasAppeared ainda é false).

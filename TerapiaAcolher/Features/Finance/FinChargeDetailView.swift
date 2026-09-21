@@ -135,11 +135,17 @@ struct FinChargeDetailView: View {
                 .monospacedDigit()
                 .foregroundStyle(Theme.textPrimary)
 
-            StatusBadge(
-                label: rotuloStatus,
-                color: corStatus,
-                background: corStatus.opacity(0.14)
-            )
+            HStack(spacing: 6) {
+                StatusBadge(
+                    label: rotuloStatus,
+                    color: corStatus,
+                    background: corStatus.opacity(0.14)
+                )
+                if model.charge.gatewayName == "ACOLHER",
+                   model.charge.status != .paid, model.charge.status != .canceled {
+                    StatusBadge(label: "PIX GERADO", color: Theme.primary, background: Theme.primarySoft)
+                }
+            }
 
             if let nome = model.charge.patient?.name {
                 Text(nome)
@@ -281,7 +287,7 @@ struct FinChargeDetailView: View {
                 onChange()
             }
         } label: {
-            Label("Marcar como paga", systemImage: "checkmark.circle")
+            Label("Marcar como recebida por fora", systemImage: "checkmark.circle")
                 .font(Theme.body(15, weight: .semibold))
                 .foregroundStyle(Theme.success)
                 .frame(maxWidth: .infinity)

@@ -139,29 +139,6 @@ struct FinReminderResult: Decodable {
     let reminderSentAt: Date?
 }
 
-// MARK: - Carteira Asaas
-
-struct FinWalletStatus: Decodable {
-    let connected: Bool
-    let gateway: String
-    let walletId: String?
-    let connectedAt: Date?
-}
-
-struct FinWalletGuide: Decodable {
-    struct Step: Decodable, Identifiable {
-        let order: Int
-        let title: String
-        let description: String
-        var id: Int { order }
-    }
-
-    let title: String
-    let intro: String
-    let steps: [Step]
-    let notes: [String]
-}
-
 struct FinDeleted: Decodable {
     let deleted: Bool
 }
@@ -224,18 +201,6 @@ enum FinanceAPI {
 
     static func sendReminder(id: String) async throws -> FinReminderResult {
         try await APIClient.shared.post("finance/charges/\(id)/reminder")
-    }
-
-    static func walletStatus() async throws -> FinWalletStatus {
-        try await APIClient.shared.get("payments/wallet")
-    }
-
-    static func upsertWallet(walletId: String) async throws -> FinWalletStatus {
-        try await APIClient.shared.post("payments/wallet", body: ["walletId": walletId])
-    }
-
-    static func walletGuide() async throws -> FinWalletGuide {
-        try await APIClient.shared.get("payments/guide")
     }
 
     static func patients(search: String?) async throws -> [FinPatientRef] {

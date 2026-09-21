@@ -278,6 +278,9 @@ struct GwShareSheet: UIViewControllerRepresentable {
 
 struct GwFeesCard: View {
     let fees: GwFees
+    /// O nome do provedor vem do servidor — o rótulo da tarifa não pode ser
+    /// cravado, é a linha que o playbook exige separada e identificada.
+    var provider: GwProvider = .asaasPadrao
     var title: String = "O QUE É DESCONTADO DE CADA COBRANÇA RECEBIDA"
 
     var body: some View {
@@ -292,7 +295,7 @@ struct GwFeesCard: View {
                     value: Formatters.brl(fees.platformFixed)
                 )
                 GwValueRow(
-                    label: "Tarifa Pix Asaas",
+                    label: "Tarifa Pix \(provider.name)",
                     value: Formatters.brl(fees.providerPixFixed)
                 )
                 Divider().overlay(Theme.border)
@@ -301,7 +304,11 @@ struct GwFeesCard: View {
                     value: Formatters.brl(fees.totalPerCharge),
                     destaque: true
                 )
-                Text("Saque para uma chave Pix sua, sem tarifa e na hora.")
+                // A tarifa vem do servidor: cravar "sem tarifa" faria o app
+                // mentir no dia em que o provedor passar a cobrar o saque.
+                Text(fees.withdrawalFee > 0
+                     ? "Saque para uma chave Pix sua, na hora, com tarifa de \(Formatters.brl(fees.withdrawalFee))."
+                     : "Saque para uma chave Pix sua, sem tarifa e na hora.")
                     .font(Theme.body(12))
                     .foregroundStyle(Theme.textSecondary)
             }
@@ -398,6 +405,9 @@ struct GwStateCard: View {
 struct GwField<Field: View>: View {
     let label: String
     var hint: String? = nil
+    /// Mensagem de erro do campo. Substitui a dica e tinge a borda — sem isso
+    /// o formulário só dizia "não dá para continuar", sem dizer onde.
+    var erro: String? = nil
     @ViewBuilder var field: () -> Field
 
     var body: some View {
@@ -414,9 +424,13 @@ struct GwField<Field: View>: View {
                 .background(Theme.background, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(Theme.border, lineWidth: 1)
+                        .stroke(erro == nil ? Theme.border : Theme.danger, lineWidth: 1)
                 )
-            if let hint, !hint.isEmpty {
+            if let erro, !erro.isEmpty {
+                Text(erro)
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.danger)
+            } else if let hint, !hint.isEmpty {
                 Text(hint)
                     .font(Theme.body(11))
                     .foregroundStyle(Theme.textSecondary)
@@ -570,6 +584,114 @@ struct GwCopyButton: View {
                 try? await Task.sleep(for: .seconds(2))
                 withAnimation { copiado = false }
             }
+        }
+    }
+}
+
+
+// MARK: - Linha do extrato
+
+/// Uma movimentação da conta. Mora aqui porque aparece no extrato completo e
+/// na prévia do painel — duas cópias divergiriam na primeira mudança.
+struct GwLedgerEntryRow: View {
+    let entrada: GwLedgerEntry
+    /// A prévia do painel não mostra saldo acumulado: ali o saldo já está no
+    /// cartão logo acima, e repetir por linha só rouba largura do texto.
+    var mostraSaldo: Bool = true
+
+    var body: some View {
+        let credito = entrada.type == .credit
+        HStack(spacing: 12) {
+            Circle()
+                .fill(credito ? Theme.successSoft : Theme.dangerSoft)
+                .frame(width: 38, height: 38)
+                .overlay(
+                    Image(systemName: entrada.kind.icon)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(credito ? Theme.success : Theme.danger)
+                )
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entrada.description)
+                    .font(Theme.body(14, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(2)
+                Text("\(entrada.kind.label) · \(GwFormat.shortDayTime.string(from: entrada.createdAt))")
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("\(credito ? "+" : "−") \(Formatters.brl(entrada.amount))")
+                    .font(Theme.money(14, weight: .semibold))
+                    .foregroundStyle(credito ? Theme.success : Theme.danger)
+                    .lineLimit(1)
+                if mostraSaldo {
+                    Text("Saldo \(Formatters.brl(entrada.balanceAfter))")
+                        .font(Theme.body(10))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Como funciona a cobrança
+
+/// Três passos e o custo, no mesmo texto do CRM web.
+///
+/// Existe porque "cobrar por Pix" é a parte do app em que o terapeuta mexe com
+/// dinheiro de outra pessoa: saber de antemão o que acontece e quanto sai
+/// evita a descoberta pelo extrato.
+struct GwComoFuncionaCard: View {
+    let fees: GwFees
+    var provider: GwProvider = .asaasPadrao
+
+    var body: some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("COMO FUNCIONA")
+                    .font(Theme.body(10, weight: .semibold))
+                    .tracking(1.1)
+                    .foregroundStyle(Theme.textSecondary)
+
+                passo(1, "Crie a cobrança", "Descrição, valor e vencimento. Fica na ficha do paciente.")
+                passo(2, "Cobre por Pix", "QR Code e copia-e-cola gerados na hora pelo Gateway Acolher.")
+                passo(
+                    3,
+                    "Cai no seu saldo",
+                    "Pagamento confirmado vira saldo na hora, já descontados \(Formatters.brl(fees.totalPerCharge)) por cobrança."
+                )
+
+                Text("Recebeu em dinheiro ou transferência? Marque a cobrança como recebida por fora — sem taxa.")
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func passo(_ numero: Int, _ titulo: String, _ descricao: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(numero)")
+                .font(Theme.body(12, weight: .bold))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 22, height: 22)
+                .background(Theme.primarySoft, in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titulo)
+                    .font(Theme.body(14, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(descricao)
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
     }
 }

@@ -23,6 +23,14 @@ final class FinGatewayWithdrawModel {
     var valorTexto = ""
     var chaveId: String?
 
+    /// Filtro do histórico. `nil` = todos.
+    var filtroStatus: GwWithdrawalStatus?
+    var carregandoMais = false
+    private var pagina = 1
+    private var totalDeSaques = 0
+
+    var temMaisSaques: Bool { saques.count < totalDeSaques }
+
     var valor: Double { GwMask.amount(valorTexto) ?? 0 }
 
     var chaveEscolhida: GwPixKey? {
@@ -37,16 +45,52 @@ final class FinGatewayWithdrawModel {
         if saques.isEmpty { isLoading = true }
         defer { isLoading = false }
         do {
-            async let saquesTask = FinGatewayAPI.withdrawals(page: 1)
+            async let saquesTask = FinGatewayAPI.withdrawals(page: 1, status: filtroStatus)
             async let chavesTask = FinGatewayAPI.pixKeys()
-            let pagina = try await saquesTask
-            saques = pagina.items
+            let primeira = try await saquesTask
+            saques = primeira.items
+            pagina = 1
+            totalDeSaques = primeira.total
             chaves = try await chavesTask
             if chaveId == nil { chaveId = chaves.first { $0.isDefault }?.id ?? chaves.first?.id }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível carregar os saques."
+        }
+    }
+
+    /// Troca o filtro e recarrega só a lista — as chaves não mudam com isso.
+    func filtrar(_ status: GwWithdrawalStatus?) async {
+        guard filtroStatus != status else { return }
+        filtroStatus = status
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let primeira = try await FinGatewayAPI.withdrawals(page: 1, status: status)
+            saques = primeira.items
+            pagina = 1
+            totalDeSaques = primeira.total
+        } catch is CancellationError {
+        } catch {
+            errorMessage = (error as? APIError)?.message ?? "Não foi possível filtrar os saques."
+        }
+    }
+
+    /// Próxima página, anexada ao fim. Sem isto o histórico parava nos 30
+    /// primeiros e não havia como chegar num saque antigo pelo app.
+    func carregarMais() async {
+        guard !carregandoMais, temMaisSaques else { return }
+        carregandoMais = true
+        defer { carregandoMais = false }
+        do {
+            let proxima = try await FinGatewayAPI.withdrawals(page: pagina + 1, status: filtroStatus)
+            let conhecidos = Set(saques.map(\.id))
+            saques.append(contentsOf: proxima.items.filter { !conhecidos.contains($0.id) })
+            pagina += 1
+            totalDeSaques = proxima.total
+        } catch {
+            // Falhar ao paginar não derruba o que já está na tela.
         }
     }
 
@@ -113,6 +157,7 @@ struct FinGatewayWithdrawView: View {
     @State private var comprovante: GwReceipt?
 
     private var fees: GwFees? { store.overview?.fees }
+    private var tarifa: Double { fees?.withdrawalFee ?? 0 }
     private var minimo: Double { fees?.minWithdrawal ?? 1 }
 
     /// Atalhos de valor: frações do saldo, arredondadas pra baixo em reais.
@@ -120,7 +165,7 @@ struct FinGatewayWithdrawView: View {
         let saldo = store.balance
         guard saldo >= minimo else { return [] }
         var lista: [(String, Double)] = []
-        for (rotulo, fracao) in [("25%", 0.25), ("50%", 0.5), ("Tudo", 1.0)] {
+        for (rotulo, fracao) in [("25%", 0.25), ("50%", 0.5), ("75%", 0.75), ("Tudo", 1.0)] {
             let valor = fracao == 1 ? saldo : (saldo * fracao).rounded(.down)
             if valor >= minimo { lista.append((rotulo, valor)) }
         }
@@ -134,6 +179,7 @@ struct FinGatewayWithdrawView: View {
                 VStack(spacing: 16) {
                     saldoCard
                     formulario
+                    filtrosDoHistorico
                     historico
                     GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                 }
@@ -160,7 +206,9 @@ struct FinGatewayWithdrawView: View {
             Button("Voltar", role: .cancel) {}
         } message: {
             if let chave = model.chaveEscolhida {
-                Text("\(Formatters.brl(model.valor)) para \(chave.title) (\(chave.keyType.label) \(chave.display)). Sem tarifa.")
+                Text(tarifa > 0
+                     ? "\(Formatters.brl(model.valor)) para \(chave.title) (\(chave.keyType.label) \(chave.display)). Tarifa de \(Formatters.brl(tarifa)) — você recebe \(Formatters.brl(max(0, model.valor - tarifa)))."
+                     : "\(Formatters.brl(model.valor)) para \(chave.title) (\(chave.keyType.label) \(chave.display)). Sem tarifa.")
             }
         }
         .alert("Cancelar saque?", isPresented: .init(
@@ -209,7 +257,7 @@ struct FinGatewayWithdrawView: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
             if let fees {
-                Text("Mínimo \(Formatters.brl(fees.minWithdrawal)) · até \(Formatters.brl(fees.dailyWithdrawalLimit)) por dia · sem tarifa · cai na hora.")
+                Text("Mínimo \(Formatters.brl(fees.minWithdrawal)) · até \(Formatters.brl(fees.dailyWithdrawalLimit)) por dia · \(fees.withdrawalFee > 0 ? "tarifa de \(Formatters.brl(fees.withdrawalFee))" : "sem tarifa") · cai na hora.")
                     .font(Theme.body(11))
                     .foregroundStyle(.white.opacity(0.6))
             }
@@ -329,6 +377,32 @@ struct FinGatewayWithdrawView: View {
 
     // MARK: Histórico
 
+    /// Chips de status. Ficam fora do `if` da lista vazia de propósito: com o
+    /// filtro escondido quando não há resultado, não haveria como voltar.
+    @ViewBuilder
+    private var filtrosDoHistorico: some View {
+        if !model.saques.isEmpty || model.filtroStatus != nil {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    FilterChip(label: "Todos", isSelected: model.filtroStatus == nil) {
+                        Task { await model.filtrar(nil) }
+                    }
+                    ForEach(FinGatewayWithdrawView.statusFiltraveis, id: \.self) { status in
+                        FilterChip(
+                            label: status.chipLabel,
+                            isSelected: model.filtroStatus == status
+                        ) {
+                            Task { await model.filtrar(status) }
+                        }
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+        }
+    }
+
+    static let statusFiltraveis: [GwWithdrawalStatus] = [.done, .processing, .pendingApproval, .failed, .canceled]
+
     @ViewBuilder
     private var historico: some View {
         if model.isLoading, model.saques.isEmpty {
@@ -336,8 +410,10 @@ struct FinGatewayWithdrawView: View {
         } else if model.saques.isEmpty {
             EmptyStateView(
                 icon: "arrow.up.circle",
-                title: "Nenhum saque ainda",
-                message: "Os saques aparecem aqui com o comprovante de cada um."
+                title: model.filtroStatus == nil ? "Nenhum saque ainda" : "Nenhum saque com esse status",
+                message: model.filtroStatus == nil
+                    ? "Os saques aparecem aqui com o comprovante de cada um."
+                    : "Toque em \"Todos\" para ver o histórico completo."
             )
         } else {
             ThemeCard(padding: 0) {
@@ -391,6 +467,28 @@ struct FinGatewayWithdrawView: View {
                             Divider().overlay(Theme.border).padding(.leading, Theme.cardPadding)
                         }
                     }
+
+                    if model.temMaisSaques {
+                        Divider().overlay(Theme.border)
+                        Button {
+                            Haptics.tap()
+                            Task { await model.carregarMais() }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if model.carregandoMais {
+                                    ProgressView().controlSize(.small).tint(Theme.primary)
+                                }
+                                Text("Carregar mais")
+                                    .font(Theme.body(14, weight: .semibold))
+                                    .foregroundStyle(Theme.primary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.pressableSubtle)
+                        .disabled(model.carregandoMais)
+                    }
                 }
                 .padding(.bottom, 6)
             }
@@ -430,6 +528,17 @@ struct FinGatewayReceiptSheet: View {
 
                         ThemeCard {
                             VStack(spacing: 10) {
+                                if receipt.withdrawal.fee > 0 {
+                                    GwValueRow(
+                                        label: "Valor bruto",
+                                        value: Formatters.brl(receipt.withdrawal.amount)
+                                    )
+                                    GwValueRow(
+                                        label: "Tarifa de saque",
+                                        value: "− \(Formatters.brl(receipt.withdrawal.fee))"
+                                    )
+                                    Divider().overlay(Theme.border)
+                                }
                                 GwValueRow(label: "Titular", value: receipt.account.legalName ?? "—")
                                 GwValueRow(label: "Documento", value: receipt.account.cpfCnpjMasked ?? "—")
                                 GwValueRow(

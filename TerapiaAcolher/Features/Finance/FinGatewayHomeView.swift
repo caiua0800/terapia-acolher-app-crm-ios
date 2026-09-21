@@ -12,6 +12,9 @@ struct FinGatewayHomeView: View {
     @State private var isReopening = false
     @State private var isRetrying = false
     @State private var ultimosSaques: [GwWithdrawal] = []
+    @State private var resumoCobrancas: FinChargeSummary?
+    @State private var ultimasMovimentacoes: [GwLedgerEntry] = []
+    @State private var chaves: [GwPixKey] = []
 
     var body: some View {
         ZStack {
@@ -53,11 +56,21 @@ struct FinGatewayHomeView: View {
         await store.load()
         guard store.isApproved else {
             ultimosSaques = []
+            resumoCobrancas = nil
+            ultimasMovimentacoes = []
+            chaves = []
             return
         }
-        if let pagina = try? await FinGatewayAPI.withdrawals(page: 1, pageSize: 3) {
-            ultimosSaques = pagina.items
-        }
+        // Em paralelo: são quatro quadros independentes do mesmo painel, e em
+        // série o painel montaria de cima para baixo com quatro esperas.
+        async let saques = try? await FinGatewayAPI.withdrawals(page: 1, pageSize: 3)
+        async let resumo = try? await FinanceAPI.chargesSummary(patientId: nil)
+        async let extrato = try? await FinGatewayAPI.ledger(page: 1, pageSize: 6)
+        async let pix = try? await FinGatewayAPI.pixKeys()
+        ultimosSaques = (await saques)?.items ?? []
+        resumoCobrancas = await resumo
+        ultimasMovimentacoes = (await extrato)?.items ?? []
+        chaves = (await pix) ?? []
     }
 
     // MARK: Conteúdo por estado
@@ -138,7 +151,7 @@ struct FinGatewayHomeView: View {
             }
 
             if let fees = store.overview?.fees {
-                GwFeesCard(fees: fees)
+                GwFeesCard(fees: fees, provider: store.overview?.provider ?? .asaasPadrao)
             }
 
             if let badge = store.overview?.provider.badgeUrl {
@@ -221,10 +234,14 @@ struct FinGatewayHomeView: View {
                 icon: "clock.badge.checkmark",
                 iconColor: Theme.primary,
                 title: "Conta em análise",
-                message: conta.submittedAt.map {
-                    "Enviada em \(GwFormat.dayTime.string(from: $0)). Assim que a análise terminar você recebe um aviso aqui no app."
-                } ?? "Assim que a análise terminar você recebe um aviso aqui no app."
+                message: {
+                    let quem = store.overview?.provider.name ?? "A instituição de pagamento"
+                    let prazo = "O \(quem), instituição de pagamento que opera a conta, confere tudo em até 2 dias úteis e você recebe um aviso aqui no app."
+                    guard let enviada = conta.submittedAt else { return prazo }
+                    return "Enviada em \(GwFormat.dayTime.string(from: enviada)). \(prazo)"
+                }()
             )
+            dadosEnviados(conta)
             documentosEnviados(conta)
             atalhoCobrancas(ativo: false)
             if let provider = store.overview?.provider {
@@ -265,6 +282,92 @@ struct FinGatewayHomeView: View {
         }
     }
 
+    /// O que foi enviado, para conferir sem precisar reabrir o cadastro.
+    private func dadosEnviados(_ conta: GwAccount) -> some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("O QUE FOI ENVIADO")
+                    .font(Theme.body(10, weight: .semibold))
+                    .tracking(1.1)
+                    .foregroundStyle(Theme.textSecondary)
+                if let nome = conta.legalName, !nome.isEmpty {
+                    GwValueRow(label: "Nome", value: nome)
+                }
+                if let documento = conta.cpfCnpjMasked, !documento.isEmpty {
+                    GwValueRow(label: conta.personType == .pj ? "CNPJ" : "CPF", value: documento)
+                }
+                if let endereco = conta.address {
+                    GwValueRow(
+                        label: "Endereço",
+                        value: "\(endereco.street), \(endereco.number) — \(endereco.city)/\(endereco.state)"
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Só os recusados: com a lista inteira, encontrar o que precisa refazer
+    /// vira caça ao erro.
+    @ViewBuilder
+    private func documentosARenviar(_ conta: GwAccount) -> some View {
+        let recusados = conta.documents.filter { $0.status == .rejected }
+        if !recusados.isEmpty {
+            ThemeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("DOCUMENTOS A REENVIAR")
+                        .font(Theme.body(10, weight: .semibold))
+                        .tracking(1.1)
+                        .foregroundStyle(Theme.danger)
+                    ForEach(recusados) { documento in
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: documento.type.icon)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.danger)
+                                .frame(width: 26)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(documento.title)
+                                    .font(Theme.body(14, weight: .medium))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(documento.rejectionReason?.isEmpty == false
+                                     ? documento.rejectionReason!
+                                     : "Precisa ser enviado de novo.")
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(Theme.danger)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    /// Saldo continua existindo com a conta suspensa — esconder isso é o que
+    /// mais assusta quem tem dinheiro parado lá.
+    @ViewBuilder
+    private func saldoRetido(_ conta: GwAccount) -> some View {
+        if conta.balance > 0 {
+            ThemeCard {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("SALDO RETIDO")
+                        .font(Theme.body(10, weight: .semibold))
+                        .tracking(1.1)
+                        .foregroundStyle(Theme.textSecondary)
+                    Text(Formatters.brl(conta.balance))
+                        .font(Theme.moneyDisplay(24))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("O valor continua seu e fica retido até a conta ser liberada.")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
     /// Dúvidas sobre análise ou operação financeira falam com o Asaas — mas
     /// num item da lista, não num bloco de telefone estampado na tela.
     private func canaisDoProvedor(_ provider: GwProvider) -> some View {
@@ -282,6 +385,7 @@ struct FinGatewayHomeView: View {
                 message: "Dá pra corrigir e enviar de novo — seus dados continuam salvos.",
                 detail: conta.rejectionReason
             )
+            documentosARenviar(conta)
             documentosEnviados(conta)
             PrimaryButton(
                 title: "Corrigir e reenviar",
@@ -303,9 +407,13 @@ struct FinGatewayHomeView: View {
                 icon: "pause.circle",
                 iconColor: Theme.warning,
                 title: "Conta suspensa",
-                message: "Enquanto estiver suspensa não é possível gerar Pix nem sacar.",
+                message: {
+                    let quem = store.overview?.provider.name ?? "a instituição de pagamento"
+                    return "Enquanto estiver suspensa não é possível gerar Pix nem sacar. A liberação depende da análise do \(quem), a instituição de pagamento que opera a conta — fale com o suporte dele abaixo."
+                }(),
                 detail: conta.suspendedReason
             )
+            saldoRetido(conta)
             atalhoCobrancas(ativo: false)
             if let provider = store.overview?.provider {
                 canaisDoProvedor(provider)
@@ -333,13 +441,14 @@ struct FinGatewayHomeView: View {
         VStack(spacing: 16) {
             if store.simulation { GwSimulationBanner() }
             cartaoSaldo(conta)
-            atalhoCobrancas(ativo: true)
+            cartaoCobrancas
             metricas(conta)
+            ultimasMovimentacoesCard
             saquesRecentes
-            atalhoChavesPix
+            chavesCard
             atalhoSaqueAutomatico(conta)
             if let fees = store.overview?.fees {
-                GwFeesCard(fees: fees)
+                GwFeesCard(fees: fees, provider: store.overview?.provider ?? .asaasPadrao)
             }
             if let provider = store.overview?.provider {
                 GwSupportRow(provider: provider)
@@ -375,27 +484,212 @@ struct FinGatewayHomeView: View {
                     .foregroundStyle(.white.opacity(0.7))
             }
 
-            HStack(spacing: 10) {
-                NavigationLink {
-                    FinGatewayWithdrawView()
-                } label: {
-                    acaoDoCartao(icon: "arrow.up.circle", title: "Sacar", destaque: true)
-                }
-                .buttonStyle(.pressable)
-                .accessibilityIdentifier("gwSacar")
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    NavigationLink {
+                        FinChargesEntryView()
+                    } label: {
+                        acaoDoCartao(icon: "creditcard", title: "Cobrar", destaque: true)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("gwCobrar")
 
-                NavigationLink {
-                    FinGatewayLedgerView()
-                } label: {
-                    acaoDoCartao(icon: "list.bullet.rectangle", title: "Extrato", destaque: false)
+                    NavigationLink {
+                        FinGatewayWithdrawView()
+                    } label: {
+                        acaoDoCartao(icon: "arrow.up.circle", title: "Sacar", destaque: true)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("gwSacar")
                 }
-                .buttonStyle(.pressable)
-                .accessibilityIdentifier("gwExtrato")
+                HStack(spacing: 10) {
+                    NavigationLink {
+                        FinGatewayLedgerView()
+                    } label: {
+                        acaoDoCartao(icon: "list.bullet.rectangle", title: "Extrato", destaque: false)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("gwExtrato")
+
+                    NavigationLink {
+                        FinGatewayPixKeysView()
+                    } label: {
+                        acaoDoCartao(icon: "key", title: "Chaves Pix", destaque: false)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("gwChaves")
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(Theme.ink, in: RoundedRectangle(cornerRadius: 20))
+    }
+
+
+    // MARK: Blocos do painel
+
+    /// Cobranças com os números: quanto ainda entra e quanto já atrasou.
+    /// Sem eles o painel mandava para outra tela para responder "quanto tenho
+    /// a receber?", que é justamente a pergunta do painel.
+    private var cartaoCobrancas: some View {
+        NavigationLink {
+            FinChargesEntryView()
+        } label: {
+            ThemeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "creditcard")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                            .frame(width: 34, height: 34)
+                            .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Cobranças")
+                                .font(Theme.body(15, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("Cobre seus pacientes por Pix e acompanhe quem pagou.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                    }
+
+                    if let resumo = resumoCobrancas {
+                        Divider().overlay(Theme.border)
+                        HStack(spacing: 12) {
+                            resumoDeCobranca(
+                                rotulo: "A receber",
+                                valor: resumo.toReceive,
+                                cor: Theme.textPrimary
+                            )
+                            Divider().overlay(Theme.border).frame(height: 32)
+                            resumoDeCobranca(
+                                rotulo: "Em atraso",
+                                valor: resumo.overdue,
+                                cor: resumo.overdue > 0 ? Theme.danger : Theme.textPrimary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        .buttonStyle(.pressableSubtle)
+        .accessibilityIdentifier("gwCobrancas")
+    }
+
+    private func resumoDeCobranca(rotulo: String, valor: Double, cor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(rotulo.uppercased())
+                .font(Theme.body(10, weight: .semibold))
+                .tracking(1.1)
+                .foregroundStyle(Theme.textSecondary)
+            Text(Formatters.brl(valor))
+                .font(Theme.money(15, weight: .semibold))
+                .foregroundStyle(cor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Prévia do extrato: o painel responde "o que entrou hoje?" sem exigir
+    /// abrir a tela cheia.
+    @ViewBuilder
+    private var ultimasMovimentacoesCard: some View {
+        if !ultimasMovimentacoes.isEmpty {
+            ThemeCard(padding: 0) {
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("ÚLTIMAS MOVIMENTAÇÕES")
+                            .font(Theme.body(10, weight: .semibold))
+                            .tracking(1.1)
+                            .foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        NavigationLink {
+                            FinGatewayLedgerView()
+                        } label: {
+                            Text("Ver extrato")
+                                .font(Theme.body(12, weight: .semibold))
+                                .foregroundStyle(Theme.primary)
+                        }
+                        .buttonStyle(.pressable)
+                    }
+                    .padding(.horizontal, Theme.cardPadding)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+
+                    ForEach(ultimasMovimentacoes) { entrada in
+                        GwLedgerEntryRow(entrada: entrada, mostraSaldo: false)
+                        if entrada.id != ultimasMovimentacoes.last?.id {
+                            Divider().overlay(Theme.border).padding(.leading, 64)
+                        }
+                    }
+                }
+                .padding(.bottom, 6)
+            }
+        }
+    }
+
+    /// As chaves no painel: é onde o terapeuta confere para onde o dinheiro
+    /// vai antes de sacar.
+    @ViewBuilder
+    private var chavesCard: some View {
+        if chaves.isEmpty {
+            atalhoChavesPix
+        } else {
+            NavigationLink {
+                FinGatewayPixKeysView()
+            } label: {
+                ThemeCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("MINHAS CHAVES PIX")
+                                .font(Theme.body(10, weight: .semibold))
+                                .tracking(1.1)
+                                .foregroundStyle(Theme.textSecondary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                        }
+                        ForEach(chaves) { chave in
+                            HStack(spacing: 10) {
+                                Image(systemName: "key")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Theme.primary)
+                                    .frame(width: 22)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(chave.title)
+                                        .font(Theme.body(14, weight: .medium))
+                                        .foregroundStyle(Theme.textPrimary)
+                                        .lineLimit(1)
+                                    Text("\(chave.keyType.label) · \(chave.display)")
+                                        .font(Theme.body(11))
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer(minLength: 8)
+                                if chave.isDefault {
+                                    StatusBadge(
+                                        label: "PADRÃO",
+                                        color: Theme.success,
+                                        background: Theme.successSoft
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .buttonStyle(.pressableSubtle)
+            .accessibilityIdentifier("gwChavesCard")
+        }
     }
 
     private func acaoDoCartao(icon: String, title: String, destaque: Bool) -> some View {
@@ -434,7 +728,7 @@ struct FinGatewayHomeView: View {
             MetricCard(
                 icon: "percent",
                 iconColor: Theme.textSecondary,
-                label: "Tarifa Pix Asaas",
+                label: "Tarifa Pix \(store.overview?.provider.name ?? GwProvider.asaasPadrao.name)",
                 value: Formatters.brl(conta.stats.providerFeesTotal)
             )
         }

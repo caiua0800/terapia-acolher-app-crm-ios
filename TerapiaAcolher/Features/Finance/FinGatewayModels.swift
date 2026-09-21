@@ -136,6 +136,18 @@ enum GwWithdrawalStatus: String, Decodable {
     case failed = "FAILED"
     case canceled = "CANCELED"
 
+    /// Rótulo curto dos chips de filtro — a badge grita em caixa alta, o
+    /// chip não.
+    var chipLabel: String {
+        switch self {
+        case .pendingApproval: "Em análise"
+        case .processing: "Processando"
+        case .done: "Enviados"
+        case .failed: "Não enviados"
+        case .canceled: "Cancelados"
+        }
+    }
+
     var label: String {
         switch self {
         case .pendingApproval: "EM ANÁLISE"
@@ -701,10 +713,15 @@ enum FinGatewayAPI {
         )
     }
 
-    static func withdrawals(page: Int = 1, pageSize: Int = 30) async throws -> GwWithdrawalPage {
+    static func withdrawals(
+        page: Int = 1,
+        pageSize: Int = 30,
+        status: GwWithdrawalStatus? = nil
+    ) async throws -> GwWithdrawalPage {
         try await APIClient.shared.get("gateway/withdrawals", query: [
             "page": String(page),
             "pageSize": String(pageSize),
+            "status": status?.rawValue,
         ])
     }
 
@@ -808,6 +825,49 @@ final class FinGatewayStore {
 }
 
 // MARK: - Máscaras e formatação do Gateway
+
+/// Validação de CPF/CNPJ pelo dígito verificador.
+///
+/// Contar 11 dígitos aceita "111.111.111-11" e manda para o provedor um
+/// cadastro que volta recusado dias depois. O cálculo é o mesmo do web
+/// (`assistente.tsx`), e aqui é a única defesa antes do envio.
+enum GwDocumentoValido {
+    static func cpf(_ raw: String) -> Bool {
+        let d = raw.compactMap(\.wholeNumberValue)
+        guard d.count == 11, Set(d).count > 1 else { return false }
+        for tamanho in [9, 10] {
+            var soma = 0
+            for i in 0..<tamanho { soma += d[i] * (tamanho + 1 - i) }
+            let resto = (soma * 10) % 11
+            let digito = resto == 10 ? 0 : resto
+            if digito != d[tamanho] { return false }
+        }
+        return true
+    }
+
+    static func cnpj(_ raw: String) -> Bool {
+        let d = raw.compactMap(\.wholeNumberValue)
+        guard d.count == 14, Set(d).count > 1 else { return false }
+        let pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        let pesos2 = [6] + pesos1
+        for pesos in [pesos1, pesos2] {
+            let soma = zip(d, pesos).reduce(0) { $0 + $1.0 * $1.1 }
+            let resto = soma % 11
+            let digito = resto < 2 ? 0 : 11 - resto
+            if digito != d[pesos.count] { return false }
+        }
+        return true
+    }
+}
+
+/// As 27 unidades federativas. Campo livre deixava passar "SPP" e "XX".
+enum GwUF {
+    static let todas = [
+        "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
+        "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC",
+        "SP", "SE", "TO",
+    ]
+}
 
 enum GwMask {
     static func cpf(_ raw: String) -> String { PatientMask.cpf(raw) }

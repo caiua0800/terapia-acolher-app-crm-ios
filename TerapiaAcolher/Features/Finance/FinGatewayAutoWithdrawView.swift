@@ -93,6 +93,15 @@ struct FinGatewayAutoWithdrawView: View {
 
     private var minimoDaConta: Double { store.overview?.fees.minWithdrawal ?? 1 }
 
+    /// A tarifa é do servidor: cravar "sem tarifa" faria o app mentir no dia
+    /// em que o provedor passar a cobrar o saque.
+    private var textoDaTarifa: String {
+        let tarifa = store.overview?.fees.withdrawalFee ?? 0
+        return tarifa > 0
+            ? " Cada envio tem tarifa de \(Formatters.brl(tarifa))."
+            : " Sem tarifa de saque."
+    }
+
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -140,7 +149,7 @@ struct FinGatewayAutoWithdrawView: View {
                     Text("O saldo vai sozinho pra sua conta")
                         .font(Theme.body(15, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Todo dia às 18h, se o saldo passar do mínimo que você escolher, o valor é enviado por Pix pra chave escolhida. Sem tarifa de saque.")
+                    Text("Todo dia às 18h, se o saldo passar do mínimo que você escolher, o valor é enviado por Pix pra chave escolhida.\(textoDaTarifa)")
                         .font(Theme.body(13))
                         .foregroundStyle(Theme.textSecondary)
                 }

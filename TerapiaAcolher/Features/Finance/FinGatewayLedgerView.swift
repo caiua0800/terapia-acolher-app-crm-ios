@@ -346,40 +346,7 @@ struct FinGatewayLedgerView: View {
     }
 
     private func linha(_ entrada: GwLedgerEntry) -> some View {
-        let credito = entrada.type == .credit
-        return HStack(spacing: 12) {
-            Circle()
-                .fill(credito ? Theme.successSoft : Theme.dangerSoft)
-                .frame(width: 38, height: 38)
-                .overlay(
-                    Image(systemName: entrada.kind.icon)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(credito ? Theme.success : Theme.danger)
-                )
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entrada.description)
-                    .font(Theme.body(14, weight: .semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(2)
-                Text("\(entrada.kind.label) · \(GwFormat.shortDayTime.string(from: entrada.createdAt))")
-                    .font(Theme.body(11))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("\(credito ? "+" : "−") \(Formatters.brl(entrada.amount))")
-                    .font(Theme.money(14, weight: .semibold))
-                    .foregroundStyle(credito ? Theme.success : Theme.danger)
-                    .lineLimit(1)
-                Text("Saldo \(Formatters.brl(entrada.balanceAfter))")
-                    .font(Theme.body(10))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        GwLedgerEntryRow(entrada: entrada)
     }
 }
 

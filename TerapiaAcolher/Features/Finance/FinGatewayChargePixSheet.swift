@@ -121,9 +121,20 @@ struct FinGatewayChargePixSheet: View {
     }
 
     private var validade: some View {
-        Text(atual.status == .expired ? "Pix expirado" : GwFormat.expiry(atual.expiresAt))
-            .font(Theme.body(12, weight: .semibold))
-            .foregroundStyle(atual.status == .expired ? Theme.danger : Theme.textSecondary)
+        VStack(spacing: 4) {
+            Text(atual.status == .expired ? "Pix expirado" : GwFormat.expiry(atual.expiresAt))
+                .font(Theme.body(12, weight: .semibold))
+                .foregroundStyle(atual.status == .expired ? Theme.danger : Theme.textSecondary)
+            // Ninguém precisa ficar conferindo: quando o pagamento cai, a
+            // cobrança se marca sozinha e o líquido entra no saldo.
+            if atual.status != .expired {
+                Text("Quando o pagamento cair, a cobrança é marcada como paga e o valor líquido entra no seu saldo automaticamente.")
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var copiaECola: some View {
@@ -140,7 +151,10 @@ struct FinGatewayChargePixSheet: View {
                     .truncationMode(.middle)
                 HStack(spacing: 10) {
                     GwCopyButton(title: "Copiar código", value: atual.pixCopyPaste, icon: "qrcode")
-                    ShareLink(item: atual.pixCopyPaste) {
+                    // Manda a MENSAGEM pronta, não o código cru: colado no
+                    // WhatsApp sozinho, o código parece spam e o paciente não
+                    // sabe o que fazer com ele.
+                    ShareLink(item: mensagemParaOPaciente) {
                         Label("Enviar", systemImage: "square.and.arrow.up")
                             .font(Theme.body(15, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
@@ -158,6 +172,21 @@ struct FinGatewayChargePixSheet: View {
         }
     }
 
+    /// Texto pronto para mandar ao paciente — o mesmo do CRM web.
+    private var mensagemParaOPaciente: String {
+        let primeiroNome = atual.patientName?
+            .split(separator: " ").first
+            .map { ", \($0)" } ?? ""
+        let descricao = atual.description.map { " (\($0))" } ?? ""
+        return """
+        Oi\(primeiroNome)! Segue o Pix de \(Formatters.brl(atual.amount))\(descricao):
+
+        \(atual.pixCopyPaste)
+
+        É só copiar esse código e pagar pelo Pix. Qualquer dúvida é só me chamar.
+        """
+    }
+
     private var valores: some View {
         ThemeCard {
             VStack(alignment: .leading, spacing: 10) {
@@ -167,7 +196,7 @@ struct FinGatewayChargePixSheet: View {
                     value: "− \(Formatters.brl(atual.platformFee))"
                 )
                 GwValueRow(
-                    label: "Tarifa Pix Asaas",
+                    label: "Tarifa Pix \(provider?.name ?? GwProvider.asaasPadrao.name)",
                     value: "− \(Formatters.brl(atual.providerFee))"
                 )
                 Divider().overlay(Theme.border)

@@ -97,7 +97,11 @@ struct FinChargeFormView: View {
                             }
                         }
 
-                        PrimaryButton(title: "Criar cobrança", isLoading: isSaving, isEnabled: isValid) {
+                        PrimaryButton(
+                            title: online && podeCobrarPorPix ? "Criar e gerar Pix" : "Criar cobrança",
+                            isLoading: isSaving,
+                            isEnabled: isValid
+                        ) {
                             Task { await save() }
                         }
                         .padding(.top, 4)
@@ -310,7 +314,7 @@ struct FinChargeFormView: View {
                 VStack(spacing: 10) {
                     linha("Valor da cobrança", Formatters.brl(valor), destaque: false)
                     linha("Taxa de plataforma Terapia Acolher", "− \(Formatters.brl(taxas.platformFixed))", destaque: false)
-                    linha("Tarifa Pix Asaas", "− \(Formatters.brl(taxas.providerPixFixed))", destaque: false)
+                    linha("Tarifa Pix \(store.overview?.provider.name ?? GwProvider.asaasPadrao.name)", "− \(Formatters.brl(taxas.providerPixFixed))", destaque: false)
                     Divider().overlay(Theme.border)
                     linha("Você recebe", Formatters.brl(max(0, valor - taxas.totalPerCharge)), destaque: true)
                     HStack {

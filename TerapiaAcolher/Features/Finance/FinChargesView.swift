@@ -194,6 +194,13 @@ struct FinChargesView: View {
                         chargeList
                     }
 
+                    if let fees = store.overview?.fees {
+                        GwComoFuncionaCard(
+                            fees: fees,
+                            provider: store.overview?.provider ?? .asaasPadrao
+                        )
+                    }
+
                     // Tela de gestão de valores: identifica o prestador.
                     GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                 }
@@ -461,6 +468,11 @@ struct FinChargesView: View {
                     .lineLimit(1)
                 HStack(spacing: 6) {
                     statusBadge(charge.status)
+                    // Já existe Pix desta cobrança: sem o selo, a única forma
+                    // de saber era abrir a cobrança e esperar carregar.
+                    if charge.gatewayName == "ACOLHER", charge.status != .paid, charge.status != .canceled {
+                        StatusBadge(label: "PIX GERADO", color: Theme.primary, background: Theme.primarySoft)
+                    }
                     Text(dueLabel(charge))
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
@@ -563,7 +575,7 @@ struct FinChargesView: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await model.pay(charge) }
                 } label: {
-                    Label("Marcar como paga", systemImage: "checkmark.circle")
+                    Label("Marcar como recebida por fora", systemImage: "checkmark.circle")
                 }
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()

@@ -35,6 +35,7 @@ final class FinGatewayOnboardingModel {
     var state = ""
     // Etapa 5
     var aceitouTermos = false
+    var registrandoAceite = false
 
     /// Uma flag por ação (regra do projeto): o spinner acende só no controle
     /// tocado — nunca no botão errado.
@@ -97,8 +98,27 @@ final class FinGatewayOnboardingModel {
 
     var cpfCnpjJaGravado: Bool { account?.cpfCnpjMasked?.isEmpty == false }
 
+    /// Documento válido pelo dígito verificador — contar dígitos deixava
+    /// passar "111.111.111-11" e o cadastro voltava recusado dias depois.
+    var documentoValido: Bool {
+        // Já gravado no servidor: aqui só vem mascarado, não há o que validar.
+        if cpfCnpjJaGravado && GwMask.digits(cpfCnpj).isEmpty { return true }
+        return personType == .pf
+            ? GwDocumentoValido.cpf(cpfCnpj)
+            : GwDocumentoValido.cnpj(cpfCnpj)
+    }
+
+    /// Só reclama depois que o campo tem tamanho de documento — apontar erro
+    /// no primeiro dígito digitado é ruído.
+    var erroDoDocumento: String? {
+        let digitos = GwMask.digits(cpfCnpj)
+        let esperado = personType == .pf ? 11 : 14
+        guard digitos.count == esperado, !documentoValido else { return nil }
+        return "\(personType.documentLabel) inválido — confira os números."
+    }
+
     var podeAvancarDados: Bool {
-        let documentoOk = GwMask.digits(cpfCnpj).count == (personType == .pf ? 11 : 14)
+        let documentoOk = documentoValido
         let nascimentoOk = personType == .pj || GwFormat.calendarDay(fromTyped: birthDate) != nil
         return legalName.trimmingCharacters(in: .whitespaces).count >= 3
             && documentoOk
@@ -121,6 +141,8 @@ final class FinGatewayOnboardingModel {
     var documentosPedidos: [GwDocumentType] {
         account?.requiredDocuments ?? [.identityFront, .identityBack, .selfie]
     }
+
+    var aceiteRegistrado: Bool { account?.termsAcceptedAt != nil }
 
     var podeEnviarParaAnalise: Bool {
         aceitouTermos && documentosPendentes.isEmpty && account != nil
@@ -178,6 +200,25 @@ final class FinGatewayOnboardingModel {
             state: state.uppercased()
         )
         return await executar { try await FinGatewayAPI.saveAddress(body) }
+    }
+
+    /// Grava o aceite no instante do toque, como no web.
+    ///
+    /// Antes ele só era enviado junto do `submit()`: se o envio falhasse, o
+    /// terapeuta tinha marcado o aceite e o servidor não tinha registro nenhum
+    /// disso — justamente o documento que precisa ficar guardado.
+    @MainActor
+    func registrarAceite() async {
+        guard aceitouTermos, account?.termsAcceptedAt == nil, !registrandoAceite else { return }
+        registrandoAceite = true
+        defer { registrandoAceite = false }
+        do {
+            let atualizada = try await FinGatewayAPI.acceptTerms(version: terms.version)
+            account = atualizada
+            FinGatewayStore.shared.apply(atualizada)
+        } catch {
+            // Silencioso: o envio para análise tenta de novo antes de submeter.
+        }
     }
 
     func enviarParaAnalise() async -> Bool {
@@ -303,6 +344,7 @@ struct FinGatewayOnboardingView: View {
 
     /// Documento aguardando origem (câmera ou galeria).
     @State private var escolhendoOrigem: GwDocumentType?
+    @State private var removendo: GwDocument?
     @State private var capturando: GwDocumentType?
     @State private var galeriaPara: GwDocumentType?
     @State private var mostrandoGaleria = false
@@ -357,6 +399,19 @@ struct FinGatewayOnboardingView: View {
                 }
             }
             .interactiveDismissDisabled(model.isSavingStep || model.isSubmitting)
+            .alert("Remover documento?", isPresented: .init(
+                get: { removendo != nil },
+                set: { if !$0 { removendo = nil } }
+            )) {
+                Button("Remover", role: .destructive) {
+                    if let documento = removendo {
+                        Task { await model.removerDocumento(documento) }
+                    }
+                }
+                Button("Voltar", role: .cancel) {}
+            } message: {
+                Text("O arquivo sai do cadastro e você precisa enviar outro no lugar.")
+            }
             .confirmationDialog(
                 "Enviar documento",
                 isPresented: .init(
@@ -369,9 +424,13 @@ struct FinGatewayOnboardingView: View {
                     if FinGatewayCameraView.isAvailable {
                         Button("Tirar foto agora") { capturando = tipo }
                     }
-                    Button("Escolher da galeria") {
-                        galeriaPara = tipo
-                        mostrandoGaleria = true
+                    // Selfie não aceita galeria: é ela que comprova que a
+                    // pessoa está aqui agora. Foto salva serve para qualquer um.
+                    if tipo != .selfie {
+                        Button("Escolher da galeria") {
+                            galeriaPara = tipo
+                            mostrandoGaleria = true
+                        }
                     }
                     if tipo.acceptsPDF {
                         Button("Escolher um PDF") {
@@ -382,7 +441,11 @@ struct FinGatewayOnboardingView: View {
                     Button("Cancelar", role: .cancel) {}
                 }
             } message: {
-                Text(escolhendoOrigem?.hint ?? "")
+                if escolhendoOrigem == .selfie, !FinGatewayCameraView.isAvailable {
+                    Text("A selfie só pode ser tirada pela câmera — este aparelho não tem uma disponível. Conclua a abertura pelo site.")
+                } else {
+                    Text(escolhendoOrigem?.hint ?? "")
+                }
             }
             .fullScreenCover(item: $capturando) { tipo in
                 FinGatewayCameraView(
@@ -492,7 +555,7 @@ struct FinGatewayOnboardingView: View {
                 subtitle: "Recebo no CNPJ (MEI ou empresa)",
                 isSelected: model.personType == .pj
             ) { model.personType = .pj }
-            GwFeesCard(fees: model.fees)
+            GwFeesCard(fees: model.fees, provider: model.provider)
         }
     }
 
@@ -513,7 +576,8 @@ struct FinGatewayOnboardingView: View {
                     label: model.personType.documentLabel,
                     hint: model.cpfCnpjJaGravado
                         ? "Guardado: \(model.account?.cpfCnpjMasked ?? "") — digite de novo para confirmar."
-                        : nil
+                        : nil,
+                    erro: model.erroDoDocumento
                 ) {
                     TextField(
                         model.personType == .pf ? "000.000.000-00" : "00.000.000/0000-00",
@@ -565,7 +629,10 @@ struct FinGatewayOnboardingView: View {
                         .autocorrectionDisabled()
                         .accessibilityIdentifier("gwEmail")
                 }
-                GwField(label: "Renda mensal aproximada", hint: "Opcional — ajuda na análise.") {
+                GwField(
+                    label: "Renda mensal aproximada",
+                    hint: "Informação exigida pelo \(model.provider.name), a instituição de pagamento que opera a conta."
+                ) {
                     TextField("3.000", text: $model.incomeText)
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("gwIncome")
@@ -613,18 +680,18 @@ struct FinGatewayOnboardingView: View {
                             .accessibilityIdentifier("gwCity")
                     }
                     GwField(label: "UF") {
-                        TextField("SP", text: $model.state)
-                            .textInputAutocapitalization(.characters)
-                            .autocorrectionDisabled()
-                            .accessibilityIdentifier("gwState")
-                            .onChange(of: model.state) { _, novo in
-                                let limpo = String(
-                                    novo.uppercased().filter(\.isLetter).prefix(2)
-                                )
-                                if limpo != novo { model.state = limpo }
+                        Picker("UF", selection: $model.state) {
+                            Text("—").tag("")
+                            ForEach(GwUF.todas, id: \.self) { uf in
+                                Text(uf).tag(uf)
                             }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .tint(Theme.textPrimary)
+                        .accessibilityIdentifier("gwState")
                     }
-                    .frame(width: 90)
+                    .frame(width: 100)
                 }
             }
         }
@@ -635,8 +702,8 @@ struct FinGatewayOnboardingView: View {
     private var etapaDocumentos: some View {
         VStack(spacing: 12) {
             Text(FinGatewayCameraView.isAvailable
-                ? "Tire as fotos agora, com boa luz. Elas vão direto para a análise."
-                : "Este aparelho não tem câmera disponível — escolha as imagens da galeria.")
+                ? "O \(model.provider.name), instituição de pagamento que opera a conta, precisa conferir quem está abrindo ela. Tire as fotos com boa luz — elas vão criptografadas e só são vistas pela análise."
+                : "Este aparelho não tem câmera disponível — escolha as imagens da galeria. Elas vão criptografadas para a análise do \(model.provider.name).")
                 .font(Theme.body(13))
                 .foregroundStyle(Theme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -713,6 +780,25 @@ struct FinGatewayOnboardingView: View {
                             }
                         }
                         Spacer(minLength: 0)
+
+                        // Remover existia no model e não tinha botão: mandar a
+                        // foto errada só dava para "enviar de novo", e a errada
+                        // continuava no cadastro.
+                        Button {
+                            Haptics.tap()
+                            removendo = documento
+                        } label: {
+                            if model.removingDocumentId == documento.id {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(Theme.danger)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(model.removingDocumentId != nil)
+                        .accessibilityLabel("Remover \(documento.title)")
                     }
                 }
 
@@ -735,7 +821,7 @@ struct FinGatewayOnboardingView: View {
 
     private var etapaTermos: some View {
         VStack(spacing: 14) {
-            GwFeesCard(fees: model.fees)
+            GwFeesCard(fees: model.fees, provider: model.provider)
 
             PatientFormSection(icon: "doc.text", title: "CONDIÇÕES DO SERVIÇO") {
                 VStack(alignment: .leading, spacing: 12) {
@@ -744,12 +830,42 @@ struct FinGatewayOnboardingView: View {
                         .foregroundStyle(Theme.textSecondary)
                     Divider().overlay(Theme.border)
                     Toggle(isOn: $model.aceitouTermos) {
-                        Text("Li e aceito as condições acima (versão \(model.terms.version)).")
+                        Text("Li e aceito a cláusula acima e autorizo a abertura da conta de pagamento no \(model.provider.name).")
                             .font(Theme.body(14))
                             .foregroundStyle(Theme.textPrimary)
                     }
                     .tint(Theme.primary)
                     .accessibilityIdentifier("gwAceite")
+                    .onChange(of: model.aceitouTermos) { _, _ in
+                        Task { await model.registrarAceite() }
+                    }
+
+                    HStack(spacing: 6) {
+                        if model.registrandoAceite {
+                            ProgressView().controlSize(.small).tint(Theme.textSecondary)
+                        } else if model.aceiteRegistrado {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.success)
+                        }
+                        Text(model.aceiteRegistrado
+                             ? "Versão \(model.terms.version) · aceite registrado"
+                             : "Versão \(model.terms.version)")
+                            .font(Theme.body(11))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                }
+            }
+
+            PatientFormSection(icon: "checklist", title: "CONFERÊNCIA") {
+                VStack(alignment: .leading, spacing: 10) {
+                    conferenciaLinha("Dados pessoais", ok: model.cpfCnpjJaGravado || model.podeAvancarDados)
+                    conferenciaLinha("Endereço", ok: model.podeAvancarEndereco)
+                    conferenciaLinha(
+                        "Documentos (\(model.documentosPedidos.count - model.documentosPendentes.count) de \(model.documentosPedidos.count))",
+                        ok: model.documentosPendentes.isEmpty
+                    )
+                    conferenciaLinha("Aceite das condições", ok: model.aceiteRegistrado)
                 }
             }
 
@@ -759,6 +875,18 @@ struct FinGatewayOnboardingView: View {
                         + model.documentosPendentes.map(\.label).joined(separator: ", ") + "."
                 )
             }
+        }
+    }
+
+    private func conferenciaLinha(_ titulo: String, ok: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 15))
+                .foregroundStyle(ok ? Theme.success : Theme.textSecondary.opacity(0.5))
+            Text(titulo)
+                .font(Theme.body(14))
+                .foregroundStyle(ok ? Theme.textPrimary : Theme.textSecondary)
+            Spacer(minLength: 0)
         }
     }
 
