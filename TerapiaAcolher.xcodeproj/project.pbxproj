@@ -10,6 +10,7 @@
 		0BA3A80F60729B99283CC24F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99C166FA6BE1FBE9A3BFE98 /* Components.swift */; };
 		0BEB9CB4AE7EF3AF1D7A5579 /* RecNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */; };
 		0D4AEB785038CC660BC0971E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1789733F05F834AF2551531A /* APIClient.swift */; };
+		0F91C810FC6982A92C0EB317 /* SubscriptionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BA8722857B72DCDB93FA5A /* SubscriptionBanner.swift */; };
 		18ADB07BB6FD98EAEA9299D5 /* LeadsCheckoutSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59EC2F5530E2E00E9348098D /* LeadsCheckoutSheet.swift */; };
 		18E51764031F0641ECD90E5B /* FinGatewayChargePixSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */; };
 		19E6275F147F8C90568BF650 /* PatientImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F6A455F161AADA394EF4EB /* PatientImportView.swift */; };
@@ -120,6 +121,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		01BA8722857B72DCDB93FA5A /* SubscriptionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionBanner.swift; sourceTree = "<group>"; };
 		0377288FE401272734328942 /* LeadDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadDetailView.swift; sourceTree = "<group>"; };
 		06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthRegisterView.swift; sourceTree = "<group>"; };
 		072C9798DC11D2C096035921 /* PatientsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientsListView.swift; sourceTree = "<group>"; };
@@ -423,6 +425,7 @@
 		BFB574FAC4CEDD6EDBAFB944 /* Subscription */ = {
 			isa = PBXGroup;
 			children = (
+				01BA8722857B72DCDB93FA5A /* SubscriptionBanner.swift */,
 				2ED8BD47A06008523EB6F41C /* SubscriptionModels.swift */,
 				C012D826105BD8E4A20AC26A /* SubscriptionView.swift */,
 			);
@@ -736,6 +739,7 @@
 				BAC31C526CBFABFAB0F76A08 /* SetVerifyPhoneView.swift in Sources */,
 				6B95BDF5C1A48CFB95FE01D7 /* SettingsHomeView.swift in Sources */,
 				1A387C9314EAE346F3C5EE61 /* Skeleton.swift in Sources */,
+				0F91C810FC6982A92C0EB317 /* SubscriptionBanner.swift in Sources */,
 				238A3C5D08ACDEF181551DDB /* SubscriptionModels.swift in Sources */,
 				6B46FBDDF3A68E7A198A1FA5 /* SubscriptionView.swift in Sources */,
 				EC439ACAF66782FB280AEB41 /* SupportChatModel.swift in Sources */,

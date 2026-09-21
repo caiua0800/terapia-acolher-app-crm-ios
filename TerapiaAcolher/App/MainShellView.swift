@@ -84,7 +84,12 @@ struct MainShellView: View {
     var body: some View {
         ZStack(alignment: .leading) {
             NavigationStack {
-                destinationView
+                VStack(spacing: 0) {
+                    // Estado da assinatura: fato da conta, então fica na casca
+                    // como o aviso de conexão — e some sozinha quem está em dia.
+                    SubscriptionBanner(selection: $selection)
+                    destinationView
+                }
                     // Sem isto a barra fica em modo "large title" com o título
                     // VAZIO (o título real vai no item .principal) e reserva ~52pt
                     // de espaço morto no topo de todas as seções.
