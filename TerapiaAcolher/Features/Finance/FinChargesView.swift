@@ -193,6 +193,9 @@ struct FinChargesView: View {
                     } else {
                         chargeList
                     }
+
+                    // Tela de gestão de valores: identifica o prestador.
+                    GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.bottom, 110)

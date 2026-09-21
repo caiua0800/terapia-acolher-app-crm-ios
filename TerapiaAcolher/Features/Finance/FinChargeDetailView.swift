@@ -95,6 +95,10 @@ struct FinChargeDetailView: View {
                     cabecalho
                     dados
                     if model.emAberto { acoes }
+
+                    // O selo não pode depender de conta aprovada: a tela mostra
+                    // valor e status de cobrança de qualquer jeito.
+                    GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                 }
                 .padding(Theme.screenPadding)
                 .padding(.bottom, 32)
@@ -221,7 +225,6 @@ struct FinChargeDetailView: View {
                     Task { await model.pixDoGateway() }
                 }
                 .accessibilityIdentifier("gwCobrarPix")
-                SeloAsaas(badgeUrl: store.overview?.provider.badgeUrl)
             }
         } else if store.overview != nil {
             // Só o Gateway Acolher cobra. Sem conta aprovada, o caminho é abrir

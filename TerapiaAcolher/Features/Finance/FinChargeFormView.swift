@@ -101,6 +101,10 @@ struct FinChargeFormView: View {
                             Task { await save() }
                         }
                         .padding(.top, 4)
+
+                        // A tela mostra a quebra de tarifas: tem que dizer quem
+                        // presta o serviço financeiro.
+                        GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                     }
                     .padding(Theme.screenPadding)
                 }

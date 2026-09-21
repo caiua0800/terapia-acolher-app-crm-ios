@@ -61,12 +61,31 @@ struct SeloAsaas: View {
 
 struct GwProviderFooter: View {
     let provider: GwProvider
+    @State private var suporteAberto = false
 
+    /// O selo é a porta do atendimento: o playbook pede acesso claro ao suporte
+    /// do provedor em toda tela com operação financeira, e tocar no selo que já
+    /// precisa estar ali resolve sem encher a tela de cartão fixo.
     var body: some View {
-        SeloAsaas(badgeUrl: provider.badgeUrl, height: 26)
+        Button {
+            suporteAberto = true
+        } label: {
+            VStack(spacing: 3) {
+                SeloAsaas(badgeUrl: provider.badgeUrl, height: 26)
+                Text("Suporte \(provider.name)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(Theme.textSecondary)
+            }
             .frame(maxWidth: .infinity)
             .padding(.top, 4)
             .padding(.bottom, 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Serviços financeiros \(provider.name). Toque para ver os canais de atendimento.")
+        .sheet(isPresented: $suporteAberto) {
+            GwSupportSheet(provider: provider)
+        }
     }
 }
 

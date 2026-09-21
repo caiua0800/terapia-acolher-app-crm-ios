@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import UIKit
 
 // MARK: - ViewModel do detalhe
 
@@ -196,6 +197,16 @@ struct AgendaSessionDetailView: View {
             if let session = model.session {
                 AgendaRescheduleSheet(session: session)
             }
+        }
+        .sheet(isPresented: .init(
+            get: { model.showTranscript },
+            set: { model.showTranscript = $0 }
+        )) {
+            AgendaTranscriptSheet(
+                response: model.transcript,
+                isLoading: model.isLoadingTranscript,
+                errorMessage: model.transcriptError
+            )
         }
     }
 
@@ -437,21 +448,17 @@ struct AgendaSessionDetailView: View {
                 if session.salaDaClinica == true {
                     Divider().padding(.vertical, 2)
                     Button {
-                        model.showTranscript.toggle()
-                        if model.showTranscript { Task { await model.loadTranscript() } }
+                        model.showTranscript = true
+                        Task { await model.loadTranscript() }
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "text.quote")
                                 .font(.system(size: 11, weight: .bold))
-                            Text(model.showTranscript ? "OCULTAR TRANSCRIÇÃO" : "VER TRANSCRIÇÃO")
+                            Text("VER TRANSCRIÇÃO")
                                 .font(Theme.body(11, weight: .bold))
                                 .tracking(0.8)
                         }
                         .foregroundStyle(Theme.textSecondary)
-                    }
-
-                    if model.showTranscript {
-                        transcriptBlock
                     }
                 }
             } else {
@@ -467,45 +474,6 @@ struct AgendaSessionDetailView: View {
         .padding(14)
         .background(Color(hex: 0xDDEAF3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    /// Transcrição do Meet: automática, então entra como apoio e não como
-    /// documento. O terapeuta revisa antes de levar pro prontuário.
-    @ViewBuilder
-    private var transcriptBlock: some View {
-        if model.isLoadingTranscript {
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Buscando a transcrição no Google…")
-                    .font(Theme.body(12))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-        } else if let erro = model.transcriptError {
-            Text(erro)
-                .font(Theme.body(12))
-                .foregroundStyle(Theme.danger)
-        } else if let resposta = model.transcript, resposta.disponivel {
-            ForEach(resposta.transcricoes.filter { !$0.descartada }) { t in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("\(t.participantes.joined(separator: " · ")) · \(t.trechos) \(t.trechos == 1 ? "trecho" : "trechos")")
-                        .font(Theme.body(11))
-                        .foregroundStyle(Theme.textSecondary)
-                    ForEach(t.falas) { fala in
-                        (Text("\(fala.falante): ").font(Theme.body(13, weight: .bold))
-                         + Text(fala.texto).font(Theme.body(13)))
-                            .foregroundStyle(Theme.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Text("Transcrição automática do Google. Revise antes de usar no prontuário.")
-                        .font(Theme.body(11))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-            }
-        } else {
-            Text("Ainda não há transcrição. Ela aparece alguns minutos depois que a chamada termina.")
-                .font(Theme.body(12))
-                .foregroundStyle(Theme.textSecondary)
-        }
     }
 
     private func meetURL(_ link: String) -> URL? {
@@ -829,5 +797,234 @@ struct AgendaRescheduleSheet: View {
         } catch {
             errorMessage = "Não foi possível remarcar. Tente de novo."
         }
+    }
+}
+
+// MARK: - Transcrição em folha
+
+/// Uma hora de conversa vira centenas de trechos curtos — o Google corta a fala
+/// a cada pausa. Em bloco corrido isso é ilegível, então a folha trata o texto
+/// como conversa: trechos seguidos da mesma pessoa viram um parágrafo só, cada
+/// pessoa ganha uma cor e a busca filtra por trecho, que é como o terapeuta
+/// procura. A transcrição é automática: entra como apoio, não como documento.
+struct AgendaTranscriptSheet: View {
+    let response: AgendaTranscriptResponse?
+    let isLoading: Bool
+    let errorMessage: String?
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var busca = ""
+    @State private var copiado = false
+
+    private struct Turno: Identifiable {
+        let id: Int
+        let falante: String
+        let inicio: String
+        let texto: String
+    }
+
+    private var transcricao: AgendaTranscript? {
+        guard response?.disponivel == true else { return nil }
+        return response?.transcricoes.first { !$0.descartada }
+    }
+
+    /// Junta trechos seguidos da mesma pessoa.
+    private var turnos: [Turno] {
+        guard let falas = transcricao?.falas else { return [] }
+        var saida: [Turno] = []
+        for fala in falas {
+            let texto = fala.texto.trimmingCharacters(in: .whitespacesAndNewlines)
+            if texto.isEmpty { continue }
+            if let ultimo = saida.last, ultimo.falante == fala.falante {
+                saida[saida.count - 1] = Turno(
+                    id: ultimo.id,
+                    falante: ultimo.falante,
+                    inicio: ultimo.inicio,
+                    texto: ultimo.texto + " " + texto
+                )
+            } else {
+                saida.append(Turno(id: saida.count, falante: fala.falante, inicio: fala.inicio, texto: texto))
+            }
+        }
+        return saida
+    }
+
+    private var filtrados: [Turno] {
+        let termo = Self.semAcento(busca.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !termo.isEmpty else { return turnos }
+        return turnos.filter {
+            Self.semAcento($0.texto).contains(termo) || Self.semAcento($0.falante).contains(termo)
+        }
+    }
+
+    private var pessoas: [String] {
+        var vistas: [String] = []
+        for t in turnos where !vistas.contains(t.falante) { vistas.append(t.falante) }
+        return vistas
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    estado { ProgressView().controlSize(.large) } texto: { "Buscando a transcrição no Google…" }
+                } else if let erro = errorMessage {
+                    estado { Image(systemName: "exclamationmark.triangle").font(.system(size: 26)).foregroundStyle(Theme.danger) } texto: { erro }
+                } else if transcricao == nil {
+                    estado { Image(systemName: "text.quote").font(.system(size: 26)).foregroundStyle(Theme.textSecondary) } texto: {
+                        "Ainda não há transcrição desta sessão. Ela fica pronta alguns minutos depois que a chamada termina."
+                    }
+                } else {
+                    conversa
+                }
+            }
+            .background(Theme.background)
+            .navigationTitle("Transcrição")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Fechar") { dismiss() }
+                        .font(Theme.body(15))
+                }
+                if transcricao != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            UIPasteboard.general.string = turnos
+                                .map { "[\(Self.horario($0.inicio))] \($0.falante): \($0.texto)" }
+                                .joined(separator: "\n\n")
+                            copiado = true
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        } label: {
+                            Image(systemName: copiado ? "checkmark" : "doc.on.doc")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var conversa: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                    TextField("Buscar na conversa…", text: $busca)
+                        .font(Theme.body(15))
+                        .autocorrectionDisabled()
+                    if !busca.isEmpty {
+                        Button { busca = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Text(resumoDaLista)
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .padding(.horizontal, Theme.screenPadding)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+
+            Divider()
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    if filtrados.isEmpty {
+                        Text("Nada encontrado para “\(busca.trimmingCharacters(in: .whitespacesAndNewlines))”.")
+                            .font(Theme.body(13))
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 40)
+                    } else {
+                        ForEach(filtrados) { turno in
+                            HStack(alignment: .top, spacing: 10) {
+                                Text(Self.horario(turno.inicio))
+                                    .font(Theme.body(11))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .frame(width: 40, alignment: .leading)
+                                    .padding(.top, 2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(turno.falante)
+                                        .font(Theme.body(12, weight: .bold))
+                                        .foregroundStyle(cor(turno.falante))
+                                    Text(turno.texto)
+                                        .font(Theme.body(15))
+                                        .foregroundStyle(Theme.textPrimary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+
+                        Text("Transcrição automática do Google. Revise antes de usar no prontuário.")
+                            .font(Theme.body(11))
+                            .foregroundStyle(Theme.textSecondary)
+                            .padding(.top, 8)
+                    }
+                }
+                .padding(.horizontal, Theme.screenPadding)
+                .padding(.vertical, 16)
+            }
+        }
+    }
+
+    private var resumoDaLista: String {
+        if !busca.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "\(filtrados.count) \(filtrados.count == 1 ? "trecho encontrado" : "trechos encontrados")"
+        }
+        let falas = "\(turnos.count) \(turnos.count == 1 ? "fala" : "falas")"
+        return pessoas.isEmpty ? falas : "\(falas) · \(pessoas.joined(separator: " e "))"
+    }
+
+    /// Duas pessoas é o caso normal; da terceira em diante as cores repetem.
+    private func cor(_ falante: String) -> Color {
+        (pessoas.firstIndex(of: falante) ?? 0) % 2 == 0 ? Color(hex: 0x3E637F) : Theme.primary
+    }
+
+    @ViewBuilder
+    private func estado<C: View>(@ViewBuilder icone: () -> C, texto: () -> String) -> some View {
+        VStack(spacing: 12) {
+            icone()
+            Text(texto())
+                .font(Theme.body(14))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private static let entrada: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let entradaSemFracao = ISO8601DateFormatter()
+
+    private static let saida: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "pt_BR")
+        f.timeZone = TimeZone(identifier: "America/Sao_Paulo")
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    private static func horario(_ iso: String) -> String {
+        guard let d = entrada.date(from: iso) ?? entradaSemFracao.date(from: iso) else { return "" }
+        return saida.string(from: d)
+    }
+
+    private static func semAcento(_ s: String) -> String {
+        s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pt_BR"))
     }
 }

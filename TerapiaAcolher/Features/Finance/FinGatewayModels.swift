@@ -205,6 +205,18 @@ struct GwProvider: Decodable {
     let supportEmail: String
     let site: String?
     let badgeUrl: String?
+
+    /// Usado quando a chamada falha: tela financeira não pode ficar sem
+    /// identificar quem presta o serviço só porque a rede caiu. Os dados são
+    /// públicos e fixos do Asaas; o selo homologado continua vindo do servidor.
+    static let asaasPadrao = GwProvider(
+        name: "Asaas",
+        legalName: "ASAAS GESTÃO FINANCEIRA INSTITUIÇÃO DE PAGAMENTOS S.A.",
+        supportPhone: "0800 009 0037",
+        supportEmail: "contato@asaas.com.br",
+        site: "https://asaas.com",
+        badgeUrl: nil
+    )
 }
 
 struct GwTerms: Decodable {

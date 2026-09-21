@@ -19,9 +19,9 @@ struct FinGatewayHomeView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     conteudo
-                    if let overview = store.overview {
-                        GwProviderFooter(provider: overview.provider)
-                    }
+                    // Mesmo com a carga falhando, a tela é financeira: o selo
+                    // usa o provedor conhecido e não some.
+                    GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 12)
@@ -205,6 +205,11 @@ struct FinGatewayHomeView: View {
             }
             .accessibilityIdentifier("gwContinuarCadastro")
             atalhoCobrancas(ativo: false)
+            // Os outros estados já traziam os canais do provedor; o cadastro em
+            // andamento é justamente onde mais aparece dúvida.
+            if let provider = store.overview?.provider {
+                canaisDoProvedor(provider)
+            }
         }
     }
 

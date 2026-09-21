@@ -49,9 +49,9 @@ struct FinGatewayChargePixSheet: View {
                         if simulation, atual.status != .paid {
                             botaoSimular
                         }
-                        if let provider {
-                            GwProviderFooter(provider: provider)
-                        }
+                        // Tela com QR e valor: o selo não some se o provedor
+                        // não tiver chegado.
+                        GwProviderFooter(provider: provider ?? .asaasPadrao)
                     }
                     .padding(Theme.screenPadding)
                 }

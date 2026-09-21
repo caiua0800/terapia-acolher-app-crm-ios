@@ -124,9 +124,7 @@ struct FinGatewayPixKeysView: View {
                     regra
                     lista
                     formulario
-                    if let provider = store.overview?.provider {
-                        GwProviderFooter(provider: provider)
-                    }
+                    GwProviderFooter(provider: store.overview?.provider ?? .asaasPadrao)
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 12)
