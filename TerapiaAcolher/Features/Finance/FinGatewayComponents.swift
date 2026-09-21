@@ -211,6 +211,20 @@ struct GwSupportSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
+                        // A cláusula só aparecia uma vez, no aceite da abertura
+                        // de conta. Quem já tem conta nunca mais conseguia ler.
+                        if let clause = FinGatewayStore.shared.overview?.terms.clause {
+                            DisclosureGroup("Condições do serviço financeiro") {
+                                Text(clause)
+                                    .font(Theme.body(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .padding(.top, 8)
+                            }
+                            .font(Theme.body(13, weight: .semibold))
+                            .tint(Theme.primary)
+                            .padding(.horizontal, 4)
+                        }
+
                         Text("Serviços financeiros prestados por \(provider.legalName).")
                             .font(Theme.body(11))
                             .foregroundStyle(Theme.textSecondary)
