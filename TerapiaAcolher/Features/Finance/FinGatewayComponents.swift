@@ -7,53 +7,23 @@ import UIKit
 // O playbook do Asaas pede o selo nas telas com movimentação de valor — e só
 // isso. Razão social completa e canais de atendimento ficam nos termos, no
 // comprovante e no item "Suporte Asaas"; na tela de saldo eles só tiravam
-// credibilidade da gente (decisão do Caiuã, 2026-09-12). Quando o Asaas
-// liberar o selo homologado (`provider.badgeUrl`), a imagem oficial entra no
-// lugar do desenho — sem release novo.
+// credibilidade da gente (decisão do Caiuã, 2026-09-12).
+//
+// A imagem é o selo homologado (versão reduzida, preta, pra fundo claro),
+// embutida no asset `SeloAsaas` como vetor. O web carrega a mesma arte do CDN
+// do Asaas (`provider.badgeUrl`); aqui não dá, porque `AsyncImage` não
+// desenha SVG. Se o Asaas trocar a arte, atualizar o asset.
 
 struct SeloAsaas: View {
     var badgeUrl: String?
-    var height: CGFloat = 34
+    var height: CGFloat = 44
 
     var body: some View {
-        if let badgeUrl, let url = URL(string: badgeUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case let .success(image):
-                    image.resizable().scaledToFit().frame(height: height)
-                default:
-                    desenhado
-                }
-            }
+        Image("SeloAsaas")
+            .resizable()
+            .scaledToFit()
+            .frame(height: height)
             .accessibilityLabel("Serviços financeiros Asaas")
-        } else {
-            desenhado
-        }
-    }
-
-    private var pequeno: Bool { height < 30 }
-
-    private var desenhado: some View {
-        HStack(spacing: pequeno ? 6 : 8) {
-            Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: pequeno ? 12 : 15, weight: .semibold))
-                .foregroundStyle(Theme.primary)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Serviços financeiros")
-                    .font(Theme.body(pequeno ? 8 : 9, weight: .semibold))
-                    .tracking(0.8)
-                    .foregroundStyle(Theme.textSecondary)
-                Text("Asaas")
-                    .font(Theme.body(pequeno ? 11 : 13, weight: .bold))
-                    .foregroundStyle(Theme.textPrimary)
-            }
-        }
-        .padding(.horizontal, pequeno ? 10 : 12)
-        .padding(.vertical, pequeno ? 5 : 7)
-        .background(Theme.surface, in: Capsule())
-        .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Serviços financeiros Asaas")
     }
 }
 
@@ -71,7 +41,7 @@ struct GwProviderFooter: View {
             suporteAberto = true
         } label: {
             VStack(spacing: 3) {
-                SeloAsaas(badgeUrl: provider.badgeUrl, height: 26)
+                SeloAsaas(badgeUrl: provider.badgeUrl, height: 32)
                 Text("Suporte \(provider.name)")
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(0.6)
@@ -188,7 +158,7 @@ struct GwSupportSheet: View {
                 Theme.background.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 16) {
-                        SeloAsaas(badgeUrl: provider.badgeUrl, height: 40)
+                        SeloAsaas(badgeUrl: provider.badgeUrl, height: 48)
                             .padding(.top, 8)
 
                         Text("Quem cuida do dinheiro é o \(provider.name). A Terapia Acolher é a integradora tecnológica: a conta, o Pix e os saques são operados pelo \(provider.name), instituição de pagamento autorizada pelo Banco Central.")

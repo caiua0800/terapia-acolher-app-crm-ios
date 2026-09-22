@@ -154,11 +154,7 @@ struct FinGatewayHomeView: View {
                 GwFeesCard(fees: fees, provider: store.overview?.provider ?? .asaasPadrao)
             }
 
-            if let badge = store.overview?.provider.badgeUrl {
-                SeloAsaas(badgeUrl: badge)
-            } else {
-                SeloAsaas(badgeUrl: nil)
-            }
+            SeloAsaas(badgeUrl: store.overview?.provider.badgeUrl)
 
             PrimaryButton(title: "Ativar recebimentos", icon: "arrow.right") {
                 showOnboarding = true
