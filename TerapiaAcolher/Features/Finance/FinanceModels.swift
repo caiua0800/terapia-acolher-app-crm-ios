@@ -129,7 +129,7 @@ struct FinChargeBody: Encodable {
     var amount: Double
     var dueDate: String // yyyy-MM-dd
     var referenceMonth: String?
-    /// PIX | CARD. Ausente quando o terapeuta combina por fora.
+    /// PIX | CARD. Cobranças antigas "por fora" vêm sem.
     var intendedBillingType: String?
 }
 
@@ -189,10 +189,6 @@ enum FinanceAPI {
 
     static func createCharge(_ body: FinChargeBody) async throws -> FinCharge {
         try await APIClient.shared.post("finance/charges", body: body)
-    }
-
-    static func payCharge(id: String) async throws -> FinCharge {
-        try await APIClient.shared.patch("finance/charges/\(id)/pay")
     }
 
     static func cancelCharge(id: String) async throws -> FinCharge {

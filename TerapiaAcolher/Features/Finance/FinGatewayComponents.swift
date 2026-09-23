@@ -635,11 +635,6 @@ struct GwComoFuncionaCard: View {
                     "Cai no seu saldo",
                     "Pagamento confirmado vira saldo na hora, já descontados \(Formatters.brl(fees.totalPerCharge)) por cobrança."
                 )
-
-                Text("Recebeu em dinheiro ou transferência? Marque a cobrança como recebida por fora — sem taxa.")
-                    .font(Theme.body(12))
-                    .foregroundStyle(Theme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

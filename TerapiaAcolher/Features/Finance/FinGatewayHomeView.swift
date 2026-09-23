@@ -769,7 +769,7 @@ struct FinGatewayHomeView: View {
     }
 
     /// Cobranças moram aqui: só o Acolher Financeiro cobra. Sem conta aprovada a
-    /// linha continua, porque registrar cobrança recebida por fora é permitido.
+    /// linha continua, pra consultar as cobranças antigas.
     private func atalhoCobrancas(ativo: Bool) -> some View {
         NavigationLink {
             FinChargesEntryView()
@@ -787,7 +787,7 @@ struct FinGatewayHomeView: View {
                             .foregroundStyle(Theme.textPrimary)
                         Text(ativo
                              ? "Cobre seus pacientes por Pix e acompanhe quem pagou."
-                             : "Registre o que você recebe por fora. Pix, só com a conta aprovada.")
+                             : "As cobranças são feitas por Pix e chegam com a conta aprovada.")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(2)

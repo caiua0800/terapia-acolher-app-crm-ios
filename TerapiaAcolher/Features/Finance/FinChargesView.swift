@@ -82,12 +82,6 @@ final class FinChargesViewModel {
         Task { await load() }
     }
 
-    func pay(_ charge: FinCharge) async {
-        await run(chargeId: charge.id) {
-            _ = try await FinanceAPI.payCharge(id: charge.id)
-        }
-    }
-
     func cancel(_ charge: FinCharge) async {
         await run(chargeId: charge.id) {
             _ = try await FinanceAPI.cancelCharge(id: charge.id)
@@ -188,7 +182,9 @@ struct FinChargesView: View {
                         EmptyStateView(
                             icon: "creditcard",
                             title: "Nenhuma cobrança",
-                            message: "Crie uma cobrança para \(model.patient.name) tocando em +."
+                            message: store.isApproved
+                                ? "Crie uma cobrança para \(model.patient.name) tocando em +."
+                                : "Com a conta aprovada, você cria cobranças e manda o Pix ao paciente."
                         )
                     } else {
                         chargeList
@@ -215,12 +211,15 @@ struct FinChargesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                // Sem conta aprovada não há como cobrar (não existe mais
+                // cobrança "por fora"); o cartão da tela leva a abrir a conta.
                 Button {
                     showChargeForm = true
                 } label: {
                     Image(systemName: "plus")
-                        .foregroundStyle(Theme.primary)
+                        .foregroundStyle(store.isApproved ? Theme.primary : Theme.textSecondary.opacity(0.4))
                 }
+                .disabled(!store.isApproved)
             }
         }
         .task {
@@ -294,9 +293,8 @@ struct FinChargesView: View {
 
     // MARK: Sem conta aprovada: só o gateway cobra
 
-    /// Cobrança "por fora" continua liberada; cobrar por Pix não. Em vez de
-    /// esconder o botão e deixar o terapeuta procurando, a tela diz o motivo e
-    /// leva pra abertura da conta.
+    /// Sem conta aprovada não há cobrança (a "por fora" saiu em 2026-09-23).
+    /// Em vez de só apagar o +, a tela diz o motivo e leva pra abrir a conta.
     private var abrirContaCard: some View {
         NavigationLink {
             FinGatewayHomeView()
@@ -309,11 +307,11 @@ struct FinChargesView: View {
                         .frame(width: 34, height: 34)
                         .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Para cobrar por Pix, abra sua conta no Acolher Financeiro")
+                        Text("Para cobrar, abra sua conta no Acolher Financeiro")
                             .font(Theme.body(14, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text("Enquanto isso, você pode registrar cobranças recebidas por fora.")
+                        Text("As cobranças são feitas por Pix pela sua conta. Abrir leva alguns minutos.")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -570,12 +568,6 @@ struct FinChargesView: View {
                             systemImage: "qrcode"
                         )
                     }
-                }
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    Task { await model.pay(charge) }
-                } label: {
-                    Label("Marcar como recebida por fora", systemImage: "checkmark.circle")
                 }
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()

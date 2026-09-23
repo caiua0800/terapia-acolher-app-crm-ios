@@ -17,9 +17,6 @@ struct FinChargeFormView: View {
     /// Só o Acolher Financeiro cobra: taxas e mínimo vêm de lá (do servidor —
     /// a taxa nunca é cravada no app).
     @State private var store = FinGatewayStore.shared
-    /// Cobrança combinada fora do app (dinheiro, transferência direta) não
-    /// passa pelo gateway e não tem taxa — por isso a escolha é explícita.
-    @State private var online = true
     /// Pix do gateway gerado logo após criar. Criar e não ter o que mandar ao
     /// paciente deixava o terapeuta no meio do caminho.
     @State private var pixCriado: GwCharge?
@@ -34,12 +31,15 @@ struct FinChargeFormView: View {
     private var minimo: Double { taxas?.minCharge ?? 5 }
 
     private var abaixoDoMinimo: Bool {
-        guard online, podeCobrarPorPix, let valor else { return false }
+        guard podeCobrarPorPix, let valor else { return false }
         return valor > 0 && valor < minimo
     }
 
+    /// Desde 2026-09-23 não existe cobrança "por fora": sem conta aprovada no
+    /// Acolher Financeiro não dá pra criar cobrança.
     private var isValid: Bool {
-        guard !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
+        guard podeCobrarPorPix, !abaixoDoMinimo,
+              !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
               let amount = FinFormat.parseAmount(amountText), amount > 0
         else { return false }
         return true
@@ -72,7 +72,7 @@ struct FinChargeFormView: View {
 
                         formaDeRecebimento
                         resumoDoLiquido
-                            .animation(.easeOut(duration: 0.2), value: online)
+                            .animation(.easeOut(duration: 0.2), value: valor)
 
                         ThemeCard {
                             DatePicker("Vencimento", selection: $dueDate, displayedComponents: .date)
@@ -98,7 +98,7 @@ struct FinChargeFormView: View {
                         }
 
                         PrimaryButton(
-                            title: online && podeCobrarPorPix ? "Criar e gerar Pix" : "Criar cobrança",
+                            title: "Criar e gerar Pix",
                             isLoading: isSaving,
                             isEnabled: isValid
                         ) {
@@ -120,7 +120,6 @@ struct FinChargeFormView: View {
             // nada do que um número que pode estar errado.
             .task {
                 await store.load(showSpinner: false)
-                if !podeCobrarPorPix { online = false }
             }
             .sheet(item: $pixCriado, onDismiss: {
                 if fecharAoFecharPix { dismiss() }
@@ -196,37 +195,28 @@ struct FinChargeFormView: View {
                 .foregroundStyle(Theme.textSecondary)
                 .padding(.leading, 2)
 
-            ThemeCard(padding: 0) {
-                VStack(spacing: 0) {
-                    // Só o Acolher Financeiro cobra. Sem conta aprovada a opção
-                    // aparece, mas apagada, com o motivo — e leva pra abrir.
-                    opcao(
-                        titulo: "Pix pelo Acolher Financeiro",
-                        subtitulo: podeCobrarPorPix
-                            ? (taxas.map { "Cai no seu saldo na hora · taxa \(Formatters.brl($0.totalPerCharge))" } ?? "Cai no seu saldo na hora")
-                            : "Abra sua conta no Acolher Financeiro para cobrar por Pix",
-                        icone: "qrcode",
-                        marcado: online && podeCobrarPorPix,
-                        habilitado: podeCobrarPorPix
-                    ) {
-                        online = true
+            // Só o Acolher Financeiro cobra. Sem conta aprovada o cartão
+            // aparece apagado, com o motivo — e o link abaixo leva pra abrir.
+            ThemeCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "qrcode")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 32, height: 32)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 9))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pix pelo Acolher Financeiro")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(podeCobrarPorPix
+                             ? (taxas.map { "Cai no seu saldo na hora · taxa \(Formatters.brl($0.totalPerCharge))" } ?? "Cai no seu saldo na hora")
+                             : "Abra sua conta no Acolher Financeiro para cobrar")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
                     }
-                    Divider().overlay(Theme.border)
-
-                    // Recebimento por fora não passa pelo gateway: sem Pix,
-                    // sem taxa. Existe porque muita sessão é paga em dinheiro
-                    // ou por transferência direta, e a cobrança serve só de
-                    // controle.
-                    opcao(
-                        titulo: "Combinar por fora",
-                        subtitulo: "Dinheiro, transferência — sem taxa",
-                        icone: "hand.raised",
-                        marcado: !online || !podeCobrarPorPix,
-                        habilitado: true
-                    ) {
-                        online = false
-                    }
+                    Spacer(minLength: 0)
                 }
+                .opacity(podeCobrarPorPix || store.overview == nil ? 1 : 0.45)
             }
 
             if store.overview != nil, !podeCobrarPorPix {
@@ -249,49 +239,6 @@ struct FinChargeFormView: View {
         }
     }
 
-    private func opcao(
-        titulo: String,
-        subtitulo: String,
-        icone: String,
-        marcado: Bool,
-        habilitado: Bool,
-        acao: @escaping () -> Void
-    ) -> some View {
-        Button {
-            guard habilitado else { return }
-            withAnimation(.easeOut(duration: 0.15)) { acao() }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: icone)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(marcado ? Theme.primary : Theme.textSecondary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        marcado ? Theme.primarySoft : Theme.background,
-                        in: RoundedRectangle(cornerRadius: 9)
-                    )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(titulo)
-                        .font(Theme.body(15, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(subtitulo)
-                        .font(Theme.body(12))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: marcado ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 18))
-                    .foregroundStyle(marcado ? Theme.primary : Theme.border)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
-            .opacity(habilitado ? 1 : 0.45)
-        }
-        .buttonStyle(.pressableSubtle)
-        .disabled(!habilitado)
-    }
-
     // MARK: - Quanto entra na conta
 
     @ViewBuilder
@@ -301,13 +248,13 @@ struct FinChargeFormView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(Theme.warning)
-                    Text("Cobrança por Pix a partir de \(Formatters.brl(minimo)). Abaixo disso, combine por fora.")
+                    Text("Cobrança por Pix a partir de \(Formatters.brl(minimo)).")
                         .font(Theme.body(13))
                         .foregroundStyle(Theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-        } else if online, podeCobrarPorPix, let taxas, let valor, valor > 0 {
+        } else if podeCobrarPorPix, let taxas, let valor, valor > 0 {
             // Taxa da plataforma e tarifa Pix do Asaas, sempre separadas
             // (regra do playbook) — e o líquido é o que ele recebe de fato.
             ThemeCard {
@@ -346,22 +293,17 @@ struct FinChargeFormView: View {
         guard let amount = FinFormat.parseAmount(amountText) else { return }
         isSaving = true
         defer { isSaving = false }
-        let porPix = online && podeCobrarPorPix
         let body = FinChargeBody(
             patientId: patient.id,
             description: descriptionText.trimmingCharacters(in: .whitespaces),
             amount: amount,
             dueDate: FinFormat.isoDay.string(from: dueDate),
             referenceMonth: FinFormat.monthQuery.string(from: referenceMonthDate),
-            intendedBillingType: porPix ? "PIX" : nil
+            intendedBillingType: "PIX"
         )
         do {
             let criada = try await FinanceAPI.createCharge(body)
             onSaved()
-            guard porPix else {
-                dismiss()
-                return
-            }
             // Gera o Pix na sequência. Criar a cobrança e não ter o que mandar
             // ao paciente deixava o terapeuta no meio do caminho: ele tinha que
             // achar a cobrança na lista e só então pedir o Pix.

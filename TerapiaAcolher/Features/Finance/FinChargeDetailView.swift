@@ -5,7 +5,6 @@ import SwiftUI
 @MainActor
 final class FinChargeDetailModel {
     var charge: FinCharge
-    var isWorking = false
     /// Flag separada: com uma só, o spinner acenderia no botão errado.
     var isWorkingPix = false
     var alerta: String?
@@ -49,20 +48,6 @@ final class FinChargeDetailModel {
             present(error.message)
         } catch {
             present("Não foi possível gerar o Pix. Verifique sua conexão.")
-        }
-    }
-
-    func marcarPaga() async {
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            _ = try await FinanceAPI.payCharge(id: charge.id)
-            Haptics.success()
-            await carregar()
-        } catch let error as APIError {
-            present(error.message)
-        } catch {
-            present("Não foi possível marcar como paga.")
         }
     }
 
@@ -233,9 +218,8 @@ struct FinChargeDetailView: View {
                 .accessibilityIdentifier("gwCobrarPix")
             }
         } else if store.overview != nil {
-            // Só o Acolher Financeiro cobra. Sem conta aprovada, o caminho é abrir
-            // a conta — a cobrança continua existindo e pode ser marcada como
-            // paga por fora.
+            // Só o Acolher Financeiro cobra. Sem conta aprovada, o caminho é
+            // abrir a conta (não existe mais "recebida por fora").
             NavigationLink {
                 FinGatewayHomeView()
             } label: {
@@ -280,21 +264,5 @@ struct FinChargeDetailView: View {
             }
             .buttonStyle(.pressable)
         }
-
-        Button {
-            Task {
-                await model.marcarPaga()
-                onChange()
-            }
-        } label: {
-            Label("Marcar como recebida por fora", systemImage: "checkmark.circle")
-                .font(Theme.body(15, weight: .semibold))
-                .foregroundStyle(Theme.success)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(Theme.successSoft, in: RoundedRectangle(cornerRadius: 14))
-        }
-        .buttonStyle(.pressable)
-        .disabled(model.isWorking)
     }
 }
