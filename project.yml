@@ -82,3 +82,6 @@ schemes:
             # galeria do simulador (xcrun simctl addmedia) — rodar sob demanda,
             # comentando esta linha e rodando `xcodegen generate` antes.
             - GatewayFlowUITests
+            # Depende do backend LOCAL (porta 3000) e de um admin respondendo
+            # em paralelo pela API — rodar sob demanda, como o de cima.
+            - SupportFlowUITests

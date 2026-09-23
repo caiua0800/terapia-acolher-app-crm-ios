@@ -73,6 +73,9 @@
                <Test
                   Identifier = "GatewayFlowUITests">
                </Test>
+               <Test
+                  Identifier = "SupportFlowUITests">
+               </Test>
             </SkippedTests>
          </TestableReference>
       </Testables>
