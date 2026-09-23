@@ -17,6 +17,8 @@ struct TranscriptSummary: Decodable, Identifiable, Hashable {
     let trechos: Int
     let criadaEm: Date
     let documentoApagadoDoDrive: Bool
+    /// NONE | PROCESSING | READY | FAILED — opcional pro backend anterior.
+    let resumoStatus: String?
 }
 
 /// Uma sessão do paciente e as transcrições que ela produziu.
@@ -51,5 +53,16 @@ enum TranscriptsAPI {
     /// folha de leitura também é a mesma (`AgendaTranscriptSheet`).
     static func daSessao(_ sessionId: String) async throws -> AgendaTranscriptResponse {
         try await APIClient.shared.get("sessions/\(sessionId)/transcricao")
+    }
+
+    /// Estado do resumo por IA (consultado enquanto ele é gerado).
+    static func resumo(sessionId: String, transcriptId: String) async throws -> TranscriptSummaryState {
+        try await APIClient.shared.get("sessions/\(sessionId)/transcricao/\(transcriptId)/resumo")
+    }
+
+    /// Pede o resumo. Volta na hora (PROCESSING); a geração segue no servidor.
+    /// Depois de pronto, responde 409 — é um resumo por transcrição.
+    static func gerarResumo(sessionId: String, transcriptId: String) async throws -> TranscriptSummaryState {
+        try await APIClient.shared.post("sessions/\(sessionId)/transcricao/\(transcriptId)/resumo")
     }
 }

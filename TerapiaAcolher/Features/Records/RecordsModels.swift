@@ -166,6 +166,8 @@ struct RecEntryCreatePayload: Encodable {
 struct RecAiStatus: Decodable {
     let enabled: Bool
     let model: String
+    /// Resumo de transcrição (Gemini) liga separado do rascunho de prontuário.
+    let summaryEnabled: Bool?
 }
 
 struct RecDraftPayload: Encodable {

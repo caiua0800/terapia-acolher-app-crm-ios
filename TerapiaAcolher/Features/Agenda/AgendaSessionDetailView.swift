@@ -1001,6 +1001,17 @@ struct AgendaTranscriptSheet: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
+                    // Some durante a busca: aí o terapeuta procura um trecho.
+                    if busca.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       let transcricao, let sessionId = response?.sessionId {
+                        TranscriptSummaryCard(
+                            sessionId: sessionId,
+                            transcriptId: transcricao.id,
+                            inicial: transcricao.resumo
+                        )
+                        .id(transcricao.id)
+                    }
+
                     if filtrados.isEmpty {
                         Text("Nada encontrado para “\(busca.trimmingCharacters(in: .whitespacesAndNewlines))”.")
                             .font(Theme.body(13))

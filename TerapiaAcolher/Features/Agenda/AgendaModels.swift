@@ -519,6 +519,31 @@ struct AgendaTranscript: Decodable, Identifiable {
     let trechos: Int
     let descartada: Bool
     let documentoApagadoDoDrive: Bool
+    /// Opcional: backend anterior ao resumo por IA não manda.
+    let resumo: TranscriptSummaryState?
+}
+
+/// Resumo por IA da transcrição — um por transcrição, gerado só a pedido.
+/// (transcript-summary-state.ts → `EstadoDoResumo`)
+struct TranscriptSummaryState: Decodable, Equatable {
+    /// NONE | PROCESSING | READY | FAILED
+    let status: String
+    let conteudo: TranscriptSummaryContent?
+    let geradoEm: Date?
+    let erro: String?
+
+    static let none = TranscriptSummaryState(status: "NONE", conteudo: nil, geradoEm: nil, erro: nil)
+
+    var isReady: Bool { status == "READY" && conteudo != nil }
+    var isProcessing: Bool { status == "PROCESSING" }
+    var isFailed: Bool { status == "FAILED" }
+}
+
+struct TranscriptSummaryContent: Decodable, Equatable {
+    let sentimentos: [String]
+    /// Vazio quando a sessão não falou de evolução.
+    let evolucao: String
+    let resumo: String
 }
 
 /// GET sessions/<id>/transcricao

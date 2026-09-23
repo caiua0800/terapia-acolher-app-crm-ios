@@ -392,7 +392,8 @@ private struct SessionTranscriptCard: View {
     /// chamada curta com 3 falas não vale o toque.
     private var rodape: String {
         let trechos = sessao.principal?.trechos ?? 0
-        let base = trechos == 1 ? "1 fala registrada" : "\(trechos) falas registradas"
+        var base = trechos == 1 ? "1 fala registrada" : "\(trechos) falas registradas"
+        if sessao.principal?.resumoStatus == "READY" { base += " · resumo pronto" }
         guard sessao.transcricoes.count > 1 else { return base }
         return "\(base) · \(sessao.transcricoes.count) gravações nesta sessão"
     }
@@ -417,4 +418,252 @@ enum TranscriptsFormat {
     }
 
     static func hora(_ date: Date) -> String { time.string(from: date) }
+}
+
+// MARK: - Resumo da chamada (IA)
+
+/// Resumo por IA no topo da transcrição, como no CRM web.
+///
+/// Nunca automático: o terapeuta pede, a geração roda no servidor e o cartão
+/// pergunta a cada poucos segundos até ficar pronto. Um resumo por transcrição —
+/// depois de pronto, o botão some de vez. Se falhar, dá pra pedir de novo.
+struct TranscriptSummaryCard: View {
+    let sessionId: String
+    let transcriptId: String
+
+    @State private var estado: TranscriptSummaryState
+    @State private var habilitado = false
+    @State private var gerando = false
+    @State private var erroDoPedido: String? = nil
+
+    init(sessionId: String, transcriptId: String, inicial: TranscriptSummaryState?) {
+        self.sessionId = sessionId
+        self.transcriptId = transcriptId
+        _estado = State(initialValue: inicial ?? .none)
+    }
+
+    var body: some View {
+        Group {
+            // Sem IA configurada, o cartão só aparece se o resumo já existe.
+            if estado.isReady || habilitado {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(RecAi.accent)
+                        Text("Resumo da chamada")
+                            .font(Theme.body(13, weight: .bold))
+                            .foregroundStyle(Theme.textPrimary)
+                    }
+
+                    if let conteudo = estado.conteudo, estado.isReady {
+                        pronto(conteudo)
+                    } else if estado.isProcessing {
+                        HStack(spacing: 10) {
+                            ProgressView().controlSize(.small).tint(RecAi.accent)
+                            Text("Gerando o resumo… pode fechar, ele fica guardado aqui.")
+                                .font(Theme.body(13))
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                    } else {
+                        pedir
+                    }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RecAi.soft.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(RecAi.soft.opacity(0.5), lineWidth: 1))
+            }
+        }
+        .task { await carregarStatus() }
+        .task(id: estado.isProcessing) { await acompanhar() }
+    }
+
+    private var pedir: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("A IA lê a conversa e resume em poucas linhas: os sentimentos, a evolução (se foi falada) e os principais pontos. Só é possível gerar um resumo por transcrição.")
+                .font(Theme.body(13))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let erro = erroDoPedido ?? (estado.isFailed ? estado.erro : nil) {
+                Text(erro)
+                    .font(Theme.body(12.5))
+                    .foregroundStyle(Theme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button {
+                Haptics.tap()
+                Task { await gerar() }
+            } label: {
+                HStack(spacing: 8) {
+                    if gerando {
+                        ProgressView().controlSize(.small).tint(.white)
+                    } else {
+                        Image(systemName: "sparkles").font(.system(size: 13, weight: .semibold))
+                    }
+                    Text(estado.isFailed ? "Tentar de novo" : "Gerar resumo")
+                        .font(Theme.body(14, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Theme.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.pressable)
+            .disabled(gerando)
+        }
+    }
+
+    private func pronto(_ c: TranscriptSummaryContent) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !c.sentimentos.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    rotulo("SENTIMENTOS")
+                    SummaryChips(itens: c.sentimentos)
+                }
+            }
+            if !c.evolucao.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    rotulo("EVOLUÇÃO")
+                    Text(c.evolucao)
+                        .font(Theme.body(14))
+                        .foregroundStyle(Theme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                rotulo("RESUMO")
+                Text(c.resumo)
+                    .font(Theme.body(14))
+                    .foregroundStyle(Theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+            Text(rodape)
+                .font(Theme.body(11))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var rodape: String {
+        var base = "Gerado por IA"
+        if let data = estado.geradoEm {
+            base += " em " + Self.quando.string(from: data)
+        }
+        return base + ". Pode ter erros — confira com a conversa antes de usar no prontuário."
+    }
+
+    private func rotulo(_ texto: String) -> some View {
+        Text(texto)
+            .font(Theme.body(10.5, weight: .semibold))
+            .kerning(1)
+            .foregroundStyle(Theme.textSecondary)
+    }
+
+    @MainActor
+    private func carregarStatus() async {
+        habilitado = (try? await RecordsAPI.aiStatus())?.summaryEnabled ?? false
+    }
+
+    @MainActor
+    private func gerar() async {
+        gerando = true
+        erroDoPedido = nil
+        do {
+            estado = try await TranscriptsAPI.gerarResumo(sessionId: sessionId, transcriptId: transcriptId)
+        } catch let error as APIError where error.statusCode == 409 {
+            // Já existe (gerado em outro aparelho): mostra o que existe.
+            if let atual = try? await TranscriptsAPI.resumo(sessionId: sessionId, transcriptId: transcriptId) {
+                estado = atual
+            }
+        } catch let error as APIError {
+            erroDoPedido = error.message
+        } catch {
+            erroDoPedido = "Não foi possível pedir o resumo. Tente de novo."
+        }
+        gerando = false
+    }
+
+    /// Enquanto gera, pergunta a cada 3 s. A task é cancelada quando o estado
+    /// sai de PROCESSING ou a folha fecha.
+    @MainActor
+    private func acompanhar() async {
+        guard estado.isProcessing else { return }
+        while !Task.isCancelled && estado.isProcessing {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            if let atual = try? await TranscriptsAPI.resumo(sessionId: sessionId, transcriptId: transcriptId) {
+                if atual.isReady { Haptics.success() }
+                estado = atual
+            }
+        }
+    }
+
+    private static let quando: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "pt_BR")
+        f.timeZone = TimeZone(identifier: "America/Sao_Paulo")
+        f.dateFormat = "dd/MM 'às' HH:mm"
+        return f
+    }()
+}
+
+/// Etiquetas que quebram linha conforme a largura.
+private struct SummaryChips: View {
+    let itens: [String]
+
+    var body: some View {
+        SummaryChipsLayout(spacing: 6) {
+            ForEach(itens, id: \.self) { item in
+                Text(item)
+                    .font(Theme.body(12.5, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Theme.surface)
+                    .clipShape(Capsule())
+            }
+        }
+    }
+}
+
+private struct SummaryChipsLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let largura = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, alturaDaLinha: CGFloat = 0, maiorX: CGFloat = 0
+        for sub in subviews {
+            let t = sub.sizeThatFits(.unspecified)
+            if x > 0 && x + t.width > largura {
+                x = 0
+                y += alturaDaLinha + spacing
+                alturaDaLinha = 0
+            }
+            x += t.width + spacing
+            maiorX = max(maiorX, x - spacing)
+            alturaDaLinha = max(alturaDaLinha, t.height)
+        }
+        return CGSize(width: min(maiorX, largura), height: y + alturaDaLinha)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, alturaDaLinha: CGFloat = 0
+        for sub in subviews {
+            let t = sub.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + t.width > bounds.maxX {
+                x = bounds.minX
+                y += alturaDaLinha + spacing
+                alturaDaLinha = 0
+            }
+            sub.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(t))
+            x += t.width + spacing
+            alturaDaLinha = max(alturaDaLinha, t.height)
+        }
+    }
 }
