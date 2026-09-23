@@ -74,6 +74,9 @@
                   Identifier = "LeadsCheckoutUITests">
                </Test>
                <Test
+                  Identifier = "TranscriptPDFUITests">
+               </Test>
+               <Test
                   Identifier = "GatewayFlowUITests">
                </Test>
                <Test

@@ -949,6 +949,15 @@ struct AgendaTranscriptSheet: View {
                     Button("Fechar") { dismiss() }
                         .font(Theme.body(15))
                 }
+                if let transcricao, let sessionId = response?.sessionId {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        TranscriptPDFToolbarButton(
+                            kind: .transcricao,
+                            sessionId: sessionId,
+                            transcriptId: transcricao.id
+                        )
+                    }
+                }
                 if transcricao != nil {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {

@@ -191,6 +191,8 @@ final class PatientTranscriptsViewModel {
     var showTranscricao = false
     /// Qual cartão está esperando resposta — o spinner fica no botão tocado.
     var abrindoSessionId: String? = nil
+    /// Resumo por IA ligado neste ambiente (sem ele, "Gerar resumo" não aparece).
+    var iaLigada = false
 
     init(patient: Patient) { self.patient = patient }
 
@@ -199,7 +201,9 @@ final class PatientTranscriptsViewModel {
         if showSpinner && dados == nil { isLoading = true }
         errorMessage = nil
         do {
+            async let status = try? RecordsAPI.aiStatus()
             dados = try await TranscriptsAPI.doPaciente(patient.id)
+            iaLigada = (await status)?.summaryEnabled ?? false
         } catch is CancellationError {
         } catch let error as APIError {
             errorMessage = error.message
@@ -288,7 +292,8 @@ struct PatientTranscriptsView: View {
                     ForEach(model.dados?.sessoes ?? []) { sessao in
                         SessionTranscriptCard(
                             sessao: sessao,
-                            isLoading: model.abrindoSessionId == sessao.sessionId
+                            isLoading: model.abrindoSessionId == sessao.sessionId,
+                            iaLigada: model.iaLigada
                         ) {
                             Task { await model.abrir(sessao.sessionId) }
                         }
@@ -317,7 +322,11 @@ struct PatientTranscriptsView: View {
 private struct SessionTranscriptCard: View {
     let sessao: SessionWithTranscripts
     let isLoading: Bool
+    let iaLigada: Bool
     let aoAbrir: () -> Void
+
+    /// Estado do resumo vivo neste cartão (muda quando gera sem recarregar a lista).
+    @State private var resumoStatus: String? = nil
 
     var body: some View {
         ThemeCard {
@@ -358,28 +367,50 @@ private struct SessionTranscriptCard: View {
                     .font(Theme.body(12))
                     .foregroundStyle(Theme.textSecondary)
 
-                Button {
-                    Haptics.tap()
-                    aoAbrir()
-                } label: {
-                    HStack(spacing: 8) {
-                        if isLoading {
-                            ProgressView().controlSize(.small).tint(Theme.primary)
-                        } else {
-                            Image(systemName: "text.alignleft")
-                                .font(.system(size: 13, weight: .semibold))
+                // "Ver transcrição" + PDF na mesma linha; o resumo, embaixo (como no web).
+                HStack(spacing: 8) {
+                    Button {
+                        Haptics.tap()
+                        aoAbrir()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isLoading {
+                                ProgressView().controlSize(.small).tint(Theme.primary)
+                            } else {
+                                Image(systemName: "text.alignleft")
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            Text("Ver transcrição")
+                                .font(Theme.body(14, weight: .semibold))
                         }
-                        Text("Ver transcrição")
-                            .font(Theme.body(14, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(Theme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 11))
                     }
-                    .foregroundStyle(Theme.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(Theme.primarySoft)
-                    .clipShape(RoundedRectangle(cornerRadius: 11))
+                    .buttonStyle(.pressable)
+                    .disabled(isLoading)
+
+                    if let principal = sessao.principal {
+                        TranscriptPDFMenu(
+                            sessionId: sessao.sessionId,
+                            transcriptId: principal.id,
+                            resumoPronto: (resumoStatus ?? principal.resumoStatus) == "READY"
+                        )
+                    }
                 }
-                .buttonStyle(.pressable)
-                .disabled(isLoading)
+
+                if let principal = sessao.principal {
+                    TranscriptListSummaryButton(
+                        sessionId: sessao.sessionId,
+                        transcriptId: principal.id,
+                        statusInicial: principal.resumoStatus,
+                        iaLigada: iaLigada
+                    ) { novo in
+                        resumoStatus = novo.status
+                    }
+                }
             }
         }
     }
@@ -393,7 +424,6 @@ private struct SessionTranscriptCard: View {
     private var rodape: String {
         let trechos = sessao.principal?.trechos ?? 0
         var base = trechos == 1 ? "1 fala registrada" : "\(trechos) falas registradas"
-        if sessao.principal?.resumoStatus == "READY" { base += " · resumo pronto" }
         guard sessao.transcricoes.count > 1 else { return base }
         return "\(base) · \(sessao.transcricoes.count) gravações nesta sessão"
     }
@@ -547,6 +577,12 @@ struct TranscriptSummaryCard: View {
                 .font(Theme.body(11))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+            TranscriptPDFButton(
+                kind: .resumo,
+                sessionId: sessionId,
+                transcriptId: transcriptId,
+                title: "Baixar resumo em PDF"
+            )
         }
     }
 

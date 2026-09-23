@@ -80,6 +80,8 @@ schemes:
             - AiFlowUITests
             # Compra de créditos contra o backend LOCAL + leads local + Asaas sandbox.
             - LeadsCheckoutUITests
+            # Resumo e PDF das transcrições contra o backend LOCAL (porta 3010).
+            - TranscriptPDFUITests
             # Depende do backend LOCAL do Gateway (porta 3010) e de fotos na
             # galeria do simulador (xcrun simctl addmedia) — rodar sob demanda,
             # comentando esta linha e rodando `xcodegen generate` antes.

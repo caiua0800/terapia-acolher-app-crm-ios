@@ -94,12 +94,14 @@
 		C7FC031779E0C71A2A0BC680 /* SetChangePasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */; };
 		C895ED0A74D0D8F64D039E08 /* SupportChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98ECBF77D8E97B5128D1217 /* SupportChatView.swift */; };
 		C973BE2E610A9B1175078631 /* GatewayFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */; };
+		CB1DD54902A3A2CE337820B3 /* TranscriptPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC56C24412E3971E5971B892 /* TranscriptPDF.swift */; };
 		CD536EE1F7CA8480B981768B /* SupportHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3AA7ED1CDA52D3C9EE5023 /* SupportHomeView.swift */; };
 		E08AC507D0CDB50989E8CAD2 /* AgendaNewSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427BCD7E8EFA0D3E97D306A3 /* AgendaNewSessionView.swift */; };
 		E190B6603A16A6D8F354C80B /* RecordsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270620B50F3F00CA9EB885C7 /* RecordsModels.swift */; };
 		E3216A2897E6921EB01916E2 /* LeadsCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95223DEAA1F8037947A6B42 /* LeadsCheckoutView.swift */; };
 		E5F190A4DD3FD0D07F4FAC27 /* AiFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFB60343805E0A349238A47 /* AiFlowUITests.swift */; };
 		E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784CFCF124134E8A5792C19D /* SetGoogleView.swift */; };
+		EAD0300C5B8FD645B611E44E /* TranscriptPDFUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F2793F66367C6D80326FF7 /* TranscriptPDFUITests.swift */; };
 		EB18D74F0A89F15CA014FC4A /* SupportRealtime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23276F35823C84FC67B6571A /* SupportRealtime.swift */; };
 		EC439ACAF66782FB280AEB41 /* SupportChatModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2297CF63F0635126636FA42 /* SupportChatModel.swift */; };
 		F1A7201AC6578B0E00A8B427 /* PushOptInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCE7F36CF7A21D2086E3D36 /* PushOptInSheet.swift */; };
@@ -213,11 +215,13 @@
 		BB18CE34C1D0C335D5474293 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		BBCE7F36CF7A21D2086E3D36 /* PushOptInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushOptInSheet.swift; sourceTree = "<group>"; };
 		BC36D6F293E32EC2A6F776AE /* LeadsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsModels.swift; sourceTree = "<group>"; };
+		BC56C24412E3971E5971B892 /* TranscriptPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptPDF.swift; sourceTree = "<group>"; };
 		BDFB60343805E0A349238A47 /* AiFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiFlowUITests.swift; sourceTree = "<group>"; };
 		C012D826105BD8E4A20AC26A /* SubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionView.swift; sourceTree = "<group>"; };
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
 		C2F6A455F161AADA394EF4EB /* PatientImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientImportView.swift; sourceTree = "<group>"; };
 		C57AF509EC3749A6BE1F2B12 /* FinGatewayPixKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayPixKeysView.swift; sourceTree = "<group>"; };
+		C8F2793F66367C6D80326FF7 /* TranscriptPDFUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptPDFUITests.swift; sourceTree = "<group>"; };
 		C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayChargePixSheet.swift; sourceTree = "<group>"; };
 		CD19D30BA20132213C2BA7C8 /* SetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetModels.swift; sourceTree = "<group>"; };
 		CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientFormView.swift; sourceTree = "<group>"; };
@@ -423,6 +427,7 @@
 		B2DE37D0587898EA7317DE29 /* Transcripts */ = {
 			isa = PBXGroup;
 			children = (
+				BC56C24412E3971E5971B892 /* TranscriptPDF.swift */,
 				47EA5AC967C2B9440E160B40 /* TranscriptsModels.swift */,
 				B66F4FA0E3FAB13F93B23730 /* TranscriptsView.swift */,
 			);
@@ -495,6 +500,7 @@
 				44AD4BA3621BF9425EC1CC49 /* LogoutDialogUITests.swift */,
 				B4BAD228FD3C540AF4186B1F /* SmokeUITests.swift */,
 				2F3680532C25056F9574C753 /* SupportFlowUITests.swift */,
+				C8F2793F66367C6D80326FF7 /* TranscriptPDFUITests.swift */,
 			);
 			path = TerapiaAcolherUITests;
 			sourceTree = "<group>";
@@ -764,6 +770,7 @@
 				EB18D74F0A89F15CA014FC4A /* SupportRealtime.swift in Sources */,
 				68F95008DD2D9D159BD00EFC /* TerapiaAcolherApp.swift in Sources */,
 				3CCAF35FA2DC109DFB0F5732 /* Theme.swift in Sources */,
+				CB1DD54902A3A2CE337820B3 /* TranscriptPDF.swift in Sources */,
 				A6E4E2F861D965578F25FEC6 /* TranscriptsModels.swift in Sources */,
 				6F67A438693FE4F8C63FA7A9 /* TranscriptsView.swift in Sources */,
 				A69A560AA3CD0298FEBCC25D /* VitrineModels.swift in Sources */,
@@ -784,6 +791,7 @@
 				C75922ABA43C6D783269C2FC /* LogoutDialogUITests.swift in Sources */,
 				33C660AED734907472507A9D /* SmokeUITests.swift in Sources */,
 				40F5F4FD1C91923B685559E0 /* SupportFlowUITests.swift in Sources */,
+				EAD0300C5B8FD645B611E44E /* TranscriptPDFUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
