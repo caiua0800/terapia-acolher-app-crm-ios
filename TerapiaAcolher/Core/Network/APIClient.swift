@@ -31,9 +31,28 @@ enum AppConfig {
 struct APIError: Error, LocalizedError {
     let statusCode: Int
     let message: String
+    /// Código de negócio (`code`) quando a API manda — o checkout decide por ele.
+    let code: String?
+    /// Corpo bruto do erro, pra ler extras (`attemptsLeft`, `suggestPix`...).
+    let body: Data?
+
+    init(statusCode: Int, message: String, code: String? = nil, body: Data? = nil) {
+        self.statusCode = statusCode
+        self.message = message
+        self.code = code
+        self.body = body
+    }
 
     var errorDescription: String? { message }
     var isUnauthorized: Bool { statusCode == 401 }
+
+    private var extras: [String: Any] {
+        guard let body, let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return [:] }
+        return obj
+    }
+
+    func bool(_ key: String) -> Bool { (extras[key] as? Bool) ?? false }
+    func int(_ key: String) -> Int? { (extras[key] as? NSNumber)?.intValue }
 }
 
 /// Cliente HTTP tipado — async/await, JSON, Bearer automático e
@@ -260,6 +279,9 @@ final class APIClient {
         if let token = accessTokenProvider() {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        // Origem da chamada: o backend grava a venda de créditos como
+        // "Acolher Gestão (iOS)" a partir disto.
+        urlRequest.setValue("ios", forHTTPHeaderField: "X-Acolher-Plataforma")
 
         let data: Data
         let response: URLResponse
@@ -288,7 +310,13 @@ final class APIClient {
         }
 
         guard (200 ..< 300).contains(status) else {
-            throw APIError(statusCode: status, message: Self.extractMessage(from: data, status: status))
+            let code = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["code"] as? String
+            throw APIError(
+                statusCode: status,
+                message: Self.extractMessage(from: data, status: status),
+                code: code,
+                body: data
+            )
         }
         return (data, http ?? HTTPURLResponse())
     }

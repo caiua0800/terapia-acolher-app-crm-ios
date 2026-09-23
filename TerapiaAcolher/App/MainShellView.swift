@@ -60,9 +60,8 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         todas.append((header: "PACIENTES", items: [.pacientes, .prontuarios, .anamneses, .transcricoes]))
         // Acolher Financeiro é seção própria (Caiuã, 2026-09-11); "Fluxo de caixa" é o caixa manual.
         todas.append((header: "GESTÃO", items: [.gateway, .financeiro, .vitrine]))
-        // Leads são reais e ficam sempre; Créditos é loja em demonstração e
-        // some do menu com uma flag.
-        todas.append((header: "LEADS", items: LeadsCreditsDemo.enabled ? [.leads, .creditos] : [.leads]))
+        // Leads e Créditos são reais (a compra é dentro do app desde 2026-09-23).
+        todas.append((header: "LEADS", items: [.leads, .creditos]))
         // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
         // que era terapeuta↔paciente pelo WhatsApp).
         todas.append((header: "CONTA", items: [.suporte, .assinatura, .configuracoes]))

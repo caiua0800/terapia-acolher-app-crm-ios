@@ -296,12 +296,12 @@ struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: Leads (reais; Créditos continua em demonstração)
+    // MARK: Leads e saldo de créditos (reais)
 
     @ViewBuilder
     private var leadsSection: some View {
-        // Ambiente sem a integração e sem a loja de demonstração: nada aqui.
-        if leads.connection?.configured == false, !LeadsCreditsDemo.enabled {
+        // Ambiente sem a integração: nada aqui.
+        if leads.connection?.configured == false {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: 12) {
@@ -363,7 +363,7 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.pressableSubtle)
 
-                if LeadsCreditsDemo.enabled {
+                if leads.isConnected, let saldo = leads.connection?.saldo {
                     NavigationLink {
                         LeadsCreditsView()
                     } label: {
@@ -376,12 +376,12 @@ struct DashboardView: View {
                                     .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
 
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text("2 créditos restantes")
+                                    Text(saldo == 1 ? "1 crédito restante" : "\(saldo) créditos restantes")
                                         .font(Theme.body(15, weight: .semibold))
                                         .foregroundStyle(Theme.textPrimary)
-                                    Text("Saldo baixo — toque pra recarregar")
+                                    Text(saldo < LeadCredits.saldoBaixo ? "Saldo baixo — toque para recarregar" : "Saldo em dia")
                                         .font(Theme.body(12))
-                                        .foregroundStyle(Theme.warning)
+                                        .foregroundStyle(saldo < LeadCredits.saldoBaixo ? Theme.warning : Theme.textSecondary)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.85)
                                 }
