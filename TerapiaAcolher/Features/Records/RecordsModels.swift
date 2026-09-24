@@ -51,6 +51,14 @@ struct RecPatientRef: Identifiable, Hashable {
         groupColor = patient.group?.color
     }
 
+    /// Da lista geral (só id e nome): sem grupo, o avatar usa a cor padrão.
+    init(id: String, name: String) {
+        self.id = id
+        self.name = name
+        groupName = nil
+        groupColor = nil
+    }
+
     init(from detail: PatientDetail) {
         id = detail.id
         name = detail.name

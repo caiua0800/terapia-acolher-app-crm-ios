@@ -31,6 +31,7 @@
 		38C921926CDF68C65473C368 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969DDEC8B91D4D2926F0F47B /* NotificationsView.swift */; };
 		3CCAF35FA2DC109DFB0F5732 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9668296259B004E93A2F0F89 /* Theme.swift */; };
 		3E042D3BEAC4CD50F9C2110C /* SetSignatureCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E70D53F96ED11307D89641 /* SetSignatureCanvasView.swift */; };
+		3E80D4661FED1DF31B18E575 /* GeneralRecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 880263766D8BF1621DB18327 /* GeneralRecordsView.swift */; };
 		40F18649584AB33299A43D18 /* FinChargesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */; };
 		40F5F4FD1C91923B685559E0 /* SupportFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F3680532C25056F9574C753 /* SupportFlowUITests.swift */; };
 		440411A3185FA5EC89C75C0F /* FinGatewayAutoWithdrawView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9261C659523D773C27096526 /* FinGatewayAutoWithdrawView.swift */; };
@@ -42,6 +43,7 @@
 		4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */; };
 		51A9E3E44350B330A1EFD467 /* ProfileStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331E61F8E58E506EB1E9C073 /* ProfileStatus.swift */; };
 		52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */; };
+		52F5F80D731401189B3C86CA /* GeneralTranscriptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC1385C82FEE5BFFEBFDA46 /* GeneralTranscriptsView.swift */; };
 		5FBF0B1AE8BC02807F701972 /* SetOfficeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446E9A5DEC0A9B75EC4C8E1B /* SetOfficeView.swift */; };
 		60E73004478C5541FAE16BD6 /* SetProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */; };
 		631E80EB62E890DFEEA7025E /* LeadsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC36D6F293E32EC2A6F776AE /* LeadsModels.swift */; };
@@ -137,6 +139,7 @@
 		07E1301E46DD6038BD8F44E6 /* LeadsCheckoutModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCheckoutModel.swift; sourceTree = "<group>"; };
 		0864142FB9902FB91FA5C593 /* FinGatewayCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayCameraView.swift; sourceTree = "<group>"; };
 		08BC7C70CD62C98716637F27 /* DashModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashModels.swift; sourceTree = "<group>"; };
+		0EC1385C82FEE5BFFEBFDA46 /* GeneralTranscriptsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTranscriptsView.swift; sourceTree = "<group>"; };
 		103D3C6C1D2865961396D1FE /* SettingsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHomeView.swift; sourceTree = "<group>"; };
 		1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChangePasswordView.swift; sourceTree = "<group>"; };
 		1789733F05F834AF2551531A /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -199,6 +202,7 @@
 		8087D4E36A7EB31D5FC85628 /* FinGatewayLedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayLedgerView.swift; sourceTree = "<group>"; };
 		82DE1635A2E3FE74AB93F382 /* TerapiaAcolherUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TerapiaAcolherUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		83BAFF89B5616319BE165106 /* FinanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceModels.swift; sourceTree = "<group>"; };
+		880263766D8BF1621DB18327 /* GeneralRecordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralRecordsView.swift; sourceTree = "<group>"; };
 		88D6EA9C529ACEB75B4D307B /* FinChargesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinChargesView.swift; sourceTree = "<group>"; };
 		8CA6E6821A5437545E324147 /* PatientMainDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientMainDataView.swift; sourceTree = "<group>"; };
 		9261C659523D773C27096526 /* FinGatewayAutoWithdrawView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayAutoWithdrawView.swift; sourceTree = "<group>"; };
@@ -420,6 +424,7 @@
 		9A4B67482D8BF4498420016D /* Records */ = {
 			isa = PBXGroup;
 			children = (
+				880263766D8BF1621DB18327 /* GeneralRecordsView.swift */,
 				7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */,
 				38A0E4CC76AD29C3A89EE662 /* RecordFormViews.swift */,
 				B9C107DD9807B398A641726F /* RecordsHomeView.swift */,
@@ -444,6 +449,7 @@
 		B2DE37D0587898EA7317DE29 /* Transcripts */ = {
 			isa = PBXGroup;
 			children = (
+				0EC1385C82FEE5BFFEBFDA46 /* GeneralTranscriptsView.swift */,
 				BC56C24412E3971E5971B892 /* TranscriptPDF.swift */,
 				47EA5AC967C2B9440E160B40 /* TranscriptsModels.swift */,
 				B66F4FA0E3FAB13F93B23730 /* TranscriptsView.swift */,
@@ -731,6 +737,8 @@
 				687DBF263267656969102365 /* FinanceHomeView.swift in Sources */,
 				F6BB08DCF8BD12AF887CFD8E /* FinanceModels.swift in Sources */,
 				A624BE0A5B54B0E3A8407E48 /* FinanceShared.swift in Sources */,
+				3E80D4661FED1DF31B18E575 /* GeneralRecordsView.swift in Sources */,
+				52F5F80D731401189B3C86CA /* GeneralTranscriptsView.swift in Sources */,
 				7EA5A2064CFF61D533B69F87 /* Keychain.swift in Sources */,
 				A5318F649346084D0A4F1BC2 /* LeadDetailView.swift in Sources */,
 				370DE6736BBC6F85056AB61B /* LeadsCheckoutModel.swift in Sources */,
