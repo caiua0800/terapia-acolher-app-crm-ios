@@ -9,7 +9,7 @@ enum AppConfig {
     /// os testes de UI usam) ou variável de ambiente `TA_API_BASE_URL`. Sem
     /// nenhum dos dois, produção — o default nunca muda por engano.
     static let apiBaseURL: URL = {
-        let producao = URL(string: "https://acolher-api.ccypher.com.br")!
+        let producao = URL(string: "https://crm-api.terapiaacolher.com.br")!
         let info = ProcessInfo.processInfo
         let argumentos = info.arguments
         if let indice = argumentos.firstIndex(of: "--api-base-url"),
