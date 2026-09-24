@@ -119,8 +119,9 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 greetingCard(payload)
+                overviewSection(payload)
                 leadsSection
-                monthSection(payload.month)
+                monthSection(payload)
                 vitrineSection
                 nextSessionsSection(payload.nextSessions)
             }
@@ -142,7 +143,18 @@ struct DashboardView: View {
     /// primeira tela, é o lugar onde o número tem chance de ser visto.
     @ViewBuilder
     private var vitrineSection: some View {
-        if let status = vitrine.status, status.connected, status.indisponivel != true,
+        if let status = vitrine.status, status.configured, !status.connected {
+            if status.inviteDismissed != true {
+                ConnectInviteCard(
+                    icon: "storefront",
+                    titulo: "Conecte sua Vitrine",
+                    texto: "Veja aqui quantas pessoas visitaram seu perfil e clicaram no seu WhatsApp, mês a mês.",
+                    onDismiss: { await vitrine.dismissInvite() }
+                ) {
+                    VitrineView()
+                }
+            }
+        } else if let status = vitrine.status, status.connected, status.indisponivel != true,
            let mes = status.mes {
             VStack(alignment: .leading, spacing: 12) {
                 Text("SUA VITRINE")
@@ -304,6 +316,19 @@ struct DashboardView: View {
         // Ambiente sem a integração: nada aqui.
         if leads.connection?.configured == false {
             EmptyView()
+        } else if let conexao = leads.connection, !conexao.connected {
+            // Não conectado: convite com "Agora não", que some de vez (gravado
+            // na conta). Conectar continua possível pela tela de leads.
+            if conexao.inviteDismissed != true {
+                ConnectInviteCard(
+                    icon: "tray.full",
+                    titulo: "Conecte seus leads",
+                    texto: "Receba aqui as pessoas que a Terapia Acolher encaminha para você, acompanhe cada conversa e transforme em paciente sem redigitar.",
+                    onDismiss: { await leads.dismissInvite() }
+                ) {
+                    LeadsListView()
+                }
+            }
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 Text("LEADS")
@@ -406,7 +431,12 @@ struct DashboardView: View {
     // minimumScaleFactor e ficava ilegível em receitas altas. É a métrica que o
     // terapeuta mais olha, então ganha largura inteira e a tipografia arredondada.
 
-    private func monthSection(_ month: DashMonth) -> some View {
+    private func monthSection(_ payload: DashPayload) -> some View {
+        let month = payload.month
+        return monthSectionContent(month, payload: payload)
+    }
+
+    private func monthSectionContent(_ month: DashMonth, payload: DashPayload) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 5) {
                 Text("ESTE MÊS")
@@ -421,12 +451,15 @@ struct DashboardView: View {
             }
             .padding(.leading, 2)
 
-            revenueCard(month)
+            revenueCard(month, history: payload.revenueHistory)
             countsStrip(month)
+            if let usage = payload.usage {
+                usageCard(usage)
+            }
         }
     }
 
-    private func revenueCard(_ month: DashMonth) -> some View {
+    private func revenueCard(_ month: DashMonth, history: [DashRevenueMonth]?) -> some View {
         ThemeCard(padding: 18) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -450,6 +483,10 @@ struct DashboardView: View {
                      : "de \(month.attended) sessões atendidas")
                     .font(Theme.body(13))
                     .foregroundStyle(Theme.textSecondary)
+
+                if let history, history.count > 1 {
+                    revenueChart(history)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -551,6 +588,189 @@ struct DashboardView: View {
     private func previousMonthName() -> String {
         let previous = AgendaFormat.calendar.date(byAdding: .month, value: -1, to: .now) ?? .now
         return AgendaFormat.monthName.string(from: previous)
+    }
+
+    // MARK: Receita dos últimos meses
+
+    /// Seis barras, a do mês atual em destaque.
+    private func revenueChart(_ history: [DashRevenueMonth]) -> some View {
+        let maior = max(history.map(\.revenue).max() ?? 1, 1)
+        return VStack(alignment: .leading, spacing: 10) {
+            Divider().padding(.top, 4)
+            Text("ÚLTIMOS 6 MESES")
+                .font(Theme.body(10.5, weight: .semibold))
+                .tracking(0.8)
+                .foregroundStyle(Theme.textSecondary)
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(Array(history.enumerated()), id: \.element.id) { i, h in
+                    let atual = i == history.count - 1
+                    VStack(spacing: 5) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(atual ? Theme.primary : Theme.primarySoft)
+                            .frame(height: h.revenue > 0 ? max(4, 70 * h.revenue / maior) : 2)
+                        Text(UsageFormat.nome(h.month, curto: true))
+                            .font(Theme.body(10, weight: atual ? .semibold : .regular))
+                            .foregroundStyle(atual ? Theme.textPrimary : Theme.textSecondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(UsageFormat.nome(h.month)): \(Formatters.brl(h.revenue))")
+                }
+            }
+            .frame(height: 90, alignment: .bottom)
+        }
+    }
+
+    // MARK: Visão geral
+
+    /// Carteira, semana, dinheiro a entrar e presença — só com backend que manda.
+    @ViewBuilder
+    private func overviewSection(_ payload: DashPayload) -> some View {
+        if payload.patients != nil || payload.week != nil || payload.receivables != nil {
+            let decididas = payload.month.attended + payload.month.missed
+            VStack(alignment: .leading, spacing: 12) {
+                Text("VISÃO GERAL")
+                    .font(Theme.body(11, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.leading, 2)
+
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    if let p = payload.patients {
+                        overviewTile(
+                            icon: "person.2.fill", tint: Theme.primary, soft: Theme.primarySoft,
+                            value: "\(p.active)",
+                            label: p.active == 1 ? "paciente ativo" : "pacientes ativos",
+                            caption: p.newThisMonth > 0
+                                ? "+\(p.newThisMonth) \(p.newThisMonth == 1 ? "novo" : "novos") este mês"
+                                : "nenhum novo este mês",
+                            captionColor: p.newThisMonth > 0 ? Theme.success : Theme.textSecondary
+                        ) { PatientsListView() }
+                    }
+                    if let w = payload.week {
+                        overviewTile(
+                            icon: "calendar", tint: Color(hex: 0x3E637F), soft: Color(hex: 0xDDEAF3),
+                            value: "\(w.sessions)",
+                            label: w.sessions == 1 ? "sessão em 7 dias" : "sessões em 7 dias",
+                            caption: w.sessions == 0 ? "agenda livre" : "já marcadas",
+                            captionColor: Theme.textSecondary
+                        ) { AgendaView() }
+                    }
+                    if let r = payload.receivables {
+                        overviewTile(
+                            icon: "dollarsign", tint: Theme.warning, soft: Theme.warningSoft,
+                            value: Formatters.brl(r.amount),
+                            label: "a receber",
+                            caption: r.overdueCount > 0
+                                ? "\(Formatters.brl(r.overdueAmount)) em atraso"
+                                : r.count > 0
+                                    ? (r.count == 1 ? "1 cobrança em aberto" : "\(r.count) cobranças em aberto")
+                                    : "nada pendente",
+                            captionColor: r.overdueCount > 0 ? Theme.danger : Theme.textSecondary
+                        ) { FinanceHomeView() }
+                    }
+                    overviewTile(
+                        icon: "checkmark.seal.fill", tint: Theme.success, soft: Theme.successSoft,
+                        value: decididas > 0 ? "\(payload.month.attendanceRate)%" : "—",
+                        label: "presença no mês",
+                        caption: decididas > 0
+                            ? "\(payload.month.attended) de \(decididas) sessões"
+                            : "aparece após as primeiras sessões",
+                        captionColor: Theme.textSecondary
+                    ) { AgendaView() }
+                }
+            }
+        }
+    }
+
+    private func overviewTile<Destino: View>(
+        icon: String, tint: Color, soft: Color,
+        value: String, label: String, caption: String, captionColor: Color,
+        @ViewBuilder destination: @escaping () -> Destino
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            ThemeCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14))
+                        .foregroundStyle(tint)
+                        .frame(width: 34, height: 34)
+                        .background(soft, in: RoundedRectangle(cornerRadius: 10))
+                        .padding(.bottom, 6)
+                    Text(value)
+                        .font(Theme.moneyDisplay(22))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(label)
+                        .font(Theme.body(12, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary.opacity(0.8))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text(caption)
+                        .font(Theme.body(10.5))
+                        .foregroundStyle(captionColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .buttonStyle(.pressableSubtle)
+    }
+
+    // MARK: Uso da conta no mês
+
+    private func usageCard(_ usage: DashUsage) -> some View {
+        NavigationLink {
+            UsageView()
+        } label: {
+            ThemeCard(padding: 16) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("USO DA CONTA NO MÊS")
+                            .font(Theme.body(11, weight: .semibold))
+                            .tracking(0.8)
+                            .foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        HStack(spacing: 3) {
+                            Text("Detalhes")
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                        }
+                        .font(Theme.body(12.5, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        usageItem(usage.whatsapp, "WhatsApp a pacientes", UsageResource.whatsapp)
+                        usageItem(usage.transcriptSummaries, "Resumos de transcrição", UsageResource.resumos)
+                        usageItem(usage.recordAi, "IA em prontuários", UsageResource.iaRegistros)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.pressableSubtle)
+    }
+
+    private func usageItem(_ valor: Int, _ rotulo: String, _ r: UsageResource) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Image(systemName: r.icon).font(.system(size: 12)).foregroundStyle(r.cor)
+                Text("\(valor)")
+                    .font(Theme.moneyDisplay(20))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            Text(rotulo)
+                .font(Theme.body(11))
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Próximas sessões
@@ -738,6 +958,81 @@ private struct ProfilePendingSheet: View {
                 .padding(.bottom, 18)
             }
             .padding(.horizontal, Theme.screenPadding)
+        }
+    }
+}
+
+// MARK: - Convite de conexão (leads / Vitrine)
+
+/// "Conectar" leva à tela do recurso; "Agora não" some com o convite do Início
+/// de vez — gravado na conta, vale no web e em outro aparelho.
+private struct ConnectInviteCard<Destino: View>: View {
+    let icon: String
+    let titulo: String
+    let texto: String
+    let onDismiss: () async -> Void
+    @ViewBuilder let destination: () -> Destino
+
+    @State private var dispensando = false
+
+    var body: some View {
+        ThemeCard(padding: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 17))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 44, height: 44)
+                    .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(titulo)
+                        .font(Theme.body(15.5, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(texto)
+                        .font(Theme.body(13))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 8) {
+                        NavigationLink {
+                            destination()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text("Conectar")
+                                Image(systemName: "arrow.right").font(.system(size: 12, weight: .semibold))
+                            }
+                            .font(Theme.body(13.5, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .frame(height: 36)
+                            .background(Theme.primary, in: Capsule())
+                        }
+                        .buttonStyle(.pressable)
+
+                        Button {
+                            Haptics.tap()
+                            dispensando = true
+                            Task {
+                                await onDismiss()
+                                dispensando = false
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                if dispensando {
+                                    ProgressView().controlSize(.mini).tint(Theme.textSecondary)
+                                }
+                                Text("Agora não")
+                            }
+                            .font(Theme.body(13, weight: .medium))
+                            .foregroundStyle(Theme.textSecondary)
+                            .padding(.horizontal, 12)
+                            .frame(height: 36)
+                        }
+                        .buttonStyle(.pressableSubtle)
+                        .disabled(dispensando)
+                    }
+                    .padding(.top, 6)
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
 }

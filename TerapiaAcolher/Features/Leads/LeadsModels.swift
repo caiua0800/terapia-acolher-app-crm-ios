@@ -195,6 +195,9 @@ struct LeadsConnectionStatus: Decodable {
     let saldo: Int?
     let totalRecebidos: Int?
     let ultimoRecebidoEm: Date?
+    /// Disse "Agora não" no convite do Início: não mostrar mais lá.
+    /// `var`: o Início esconde na hora, antes de a API confirmar.
+    var inviteDismissed: Bool?
 }
 
 // MARK: - API
@@ -202,6 +205,12 @@ struct LeadsConnectionStatus: Decodable {
 enum LeadsAPI {
     static func status() async throws -> LeadsConnectionStatus {
         try await APIClient.shared.get("integrations/leads/status")
+    }
+
+    /// "Agora não" no convite do Início — gravado na conta.
+    static func dismissInvite() async throws {
+        struct Ok: Decodable { let inviteDismissed: Bool? }
+        let _: Ok = try await APIClient.shared.post("integrations/leads/invite/dismiss")
     }
 
     static func connectUrl() async throws -> URL? {

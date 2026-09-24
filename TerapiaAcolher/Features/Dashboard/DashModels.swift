@@ -7,6 +7,41 @@ struct DashPayload: Decodable {
     let today: DashToday
     let month: DashMonth
     let nextSessions: [DashNextSession]
+    // Opcionais: o app pode chegar ao terapeuta antes do backend que os manda.
+    let patients: DashPatients?
+    let receivables: DashReceivables?
+    let week: DashWeek?
+    /// Receita dos últimos 6 meses, do mais antigo ao atual ("AAAA-MM").
+    let revenueHistory: [DashRevenueMonth]?
+    let usage: DashUsage?
+}
+
+struct DashPatients: Decodable {
+    let active: Int
+    let newThisMonth: Int
+}
+
+struct DashReceivables: Decodable {
+    let count: Int
+    let amount: Double
+    let overdueCount: Int
+    let overdueAmount: Double
+}
+
+struct DashWeek: Decodable {
+    let sessions: Int
+}
+
+struct DashRevenueMonth: Decodable, Identifiable {
+    let month: String
+    let revenue: Double
+    var id: String { month }
+}
+
+struct DashUsage: Decodable {
+    let whatsapp: Int
+    let transcriptSummaries: Int
+    let recordAi: Int
 }
 
 struct DashToday: Decodable {

@@ -35,6 +35,22 @@ final class VitrineViewModel {
         isLoading = false
     }
 
+    /// "Agora não" no convite do Início: some na hora; se a API falhar, volta.
+    @MainActor
+    func dismissInvite() async {
+        let anterior = status?.inviteDismissed
+        status?.inviteDismissed = true
+        do {
+            try await VitrineAPI.dismissInvite()
+        } catch is CancellationError {
+        } catch {
+            status?.inviteDismissed = anterior
+            // Sem alerta: o do store aparece na tela de leads/Vitrine, não
+            // aqui. O convite voltar já diz que não salvou.
+            Haptics.warning()
+        }
+    }
+
     @MainActor
     func connectURL() async -> URL? {
         isWorking = true

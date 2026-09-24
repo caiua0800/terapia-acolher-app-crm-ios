@@ -10,7 +10,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses, transcricoes
     case gateway, financeiro, vitrine, leads, creditos
-    case suporte, assinatura, configuracoes
+    case suporte, uso, assinatura, configuracoes
 
     var id: String { rawValue }
 
@@ -28,6 +28,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .leads: "Meus leads"
         case .creditos: "Créditos"
         case .suporte: "Suporte"
+        case .uso: "Uso"
         case .assinatura: "Assinatura"
         case .configuracoes: "Configurações"
         }
@@ -47,6 +48,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .leads: "tray.full"
         case .creditos: "sparkles"
         case .suporte: "bubble.left.and.bubble.right"
+        case .uso: "chart.bar"
         case .assinatura: "creditcard"
         case .configuracoes: "gearshape"
         }
@@ -64,7 +66,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         todas.append((header: "LEADS", items: [.leads, .creditos]))
         // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
         // que era terapeuta↔paciente pelo WhatsApp).
-        todas.append((header: "CONTA", items: [.suporte, .assinatura, .configuracoes]))
+        todas.append((header: "CONTA", items: [.suporte, .uso, .assinatura, .configuracoes]))
         return todas
     }
 }
@@ -171,6 +173,7 @@ struct MainShellView: View {
             case "vitrine": selection = .vitrine
             case "configuracoes": selection = .configuracoes
             case "suporte": selection = .suporte
+            case "uso": selection = .uso
             default: break
             }
             deepLink.pendingSection = nil
@@ -237,6 +240,7 @@ struct MainShellView: View {
         case .leads: LeadsListView()
         case .creditos: LeadsCreditsView()
         case .suporte: SupportHomeView()
+        case .uso: UsageView()
         case .assinatura: SubscriptionView()
         case .configuracoes: SettingsHomeView()
         }

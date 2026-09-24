@@ -66,6 +66,24 @@ final class LeadsStore {
         isLoading = false
     }
 
+    // MARK: Convite do Início
+
+    /// "Agora não": some do Início na hora; se a API falhar, volta.
+    @MainActor
+    func dismissInvite() async {
+        let anterior = connection?.inviteDismissed
+        connection?.inviteDismissed = true
+        do {
+            try await LeadsAPI.dismissInvite()
+        } catch is CancellationError {
+        } catch {
+            connection?.inviteDismissed = anterior
+            // Sem alerta: o do store aparece na tela de leads/Vitrine, não
+            // aqui. O convite voltar já diz que não salvou.
+            Haptics.warning()
+        }
+    }
+
     // MARK: Conexão
 
     @MainActor

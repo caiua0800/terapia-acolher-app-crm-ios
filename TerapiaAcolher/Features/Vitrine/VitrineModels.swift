@@ -25,6 +25,9 @@ struct VitrineStatus: Decodable {
     let plano: Plano?
     let mes: Mes?
     let impressoesTotais: Int?
+    /// Disse "Agora não" no convite do Início: não mostrar mais lá.
+    /// `var`: o Início esconde na hora, antes de a API confirmar.
+    var inviteDismissed: Bool?
 
     var planoLegivel: String {
         switch plano?.tipo {
@@ -97,6 +100,12 @@ struct VitrineOptions: Decodable {
 enum VitrineAPI {
     static func status() async throws -> VitrineStatus {
         try await APIClient.shared.get("integrations/vitrine/status")
+    }
+
+    /// "Agora não" no convite do Início — gravado na conta.
+    static func dismissInvite() async throws {
+        struct Ok: Decodable { let inviteDismissed: Bool? }
+        let _: Ok = try await APIClient.shared.post("integrations/vitrine/invite/dismiss")
     }
 
     static func connectUrl() async throws -> URL? {

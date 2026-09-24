@@ -31,6 +31,7 @@ enum SessionScope {
         SettingsHomeViewModel.shared = SettingsHomeViewModel()
         SetGroupsViewModel.shared = SetGroupsViewModel()
         SetTemplatesViewModel.shared = SetTemplatesViewModel()
+        UsageViewModel.shared = UsageViewModel()
 
         // Fotos de paciente e do suporte: só memória, mas do usuário que saiu.
         RemoteImageCache.shared.limparTudo()
