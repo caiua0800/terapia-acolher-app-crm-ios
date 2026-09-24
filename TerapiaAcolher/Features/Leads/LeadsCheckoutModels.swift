@@ -40,6 +40,8 @@ struct LeadCredits: Decodable {
         let destaque: Bool
         let beneficios: [String]
         let selo: String?
+        /// Até quando vale o preço promocional (ISO). Opcional no decode.
+        let promocaoAte: String?
 
         var emPromocao: Bool { preco < precoCheio }
         var precoPorLead: Double? { leads > 0 ? preco / Double(leads) : nil }
@@ -181,6 +183,8 @@ struct LeadsOrder: Decodable, Identifiable, Hashable {
     let surchargeCents: Int
     let couponCode: String?
     let leadsQty: Int
+    /// Reposições incluídas. Opcional: resposta antiga não traz.
+    let replenishmentsQty: Int?
     let items: [Item]
     let pixPayload: String?
     let boletoUrl: String?

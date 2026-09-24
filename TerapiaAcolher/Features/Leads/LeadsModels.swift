@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // Os LEADS são reais: vêm da API do CRM (`integrations/leads`), que os lê do
 // sistema de leads da Terapia Acolher em nome do terapeuta — ver LeadsStore.
@@ -244,5 +245,99 @@ enum LeadsAPI {
     static func disconnect() async throws {
         struct Ok: Decodable { let disconnected: Bool? }
         let _: Ok = try await APIClient.shared.delete("integrations/leads")
+    }
+}
+
+// MARK: - Etapas: cor, dica e ordem do quadro (as mesmas do web)
+
+extension LeadStatus {
+    /// Cor sólida da etapa (ponto da coluna, barra do funil).
+    var tint: Color {
+        switch self {
+        case .novo: Theme.primary
+        case .tentandoContato: Theme.warning
+        case .negociando: Color(hex: 0x3E637F)
+        case .agendado: Theme.success
+        case .naoConverteu: Theme.textSecondary
+        }
+    }
+
+    /// Uma linha que diz o que fazer em cada etapa — a coluna vazia ensina.
+    var hint: String {
+        switch self {
+        case .novo: "Chegaram e ainda ninguém falou com eles."
+        case .tentandoContato: "Você chamou e está esperando resposta."
+        case .negociando: "Conversando sobre horário e valores."
+        case .agendado: "Primeira sessão marcada. Vire paciente."
+        case .naoConverteu: "Não seguiu. Fica no histórico."
+        }
+    }
+}
+
+// MARK: - Mensagens prontas para o WhatsApp do terapeuta
+
+/// Texto de partida para o WhatsApp do próprio terapeuta (wa.me). Ele edita
+/// antes de mandar — é rascunho, não disparo. Nada sai pelo número oficial:
+/// é a rota "copiar/abrir e mandar por onde quiser" (sem módulo de atendimento).
+/// "Terapeuta", nunca "psicóloga": a base não tem recorte de formação.
+struct LeadMessageTemplate: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let text: String
+}
+
+extension Lead {
+    private static func firstName(_ s: String?) -> String? {
+        guard let s, let first = s.trimmingCharacters(in: .whitespaces).split(separator: " ").first else { return nil }
+        return String(first)
+    }
+
+    func messageTemplates(therapistName: String) -> [LeadMessageTemplate] {
+        let nome = Self.firstName(name) ?? "tudo bem"
+        let apresentacao = Self.firstName(therapistName).map { "Aqui é \($0), terapeuta da Terapia Acolher." }
+            ?? "Aqui é da Terapia Acolher."
+        let sobre: String = switch therapyFor {
+        case .infantil:
+            Self.firstName(childName).map { "sobre o atendimento de \($0)" } ?? "sobre o atendimento da criança"
+        case .casal: "sobre a terapia de casal"
+        case .outraPessoa:
+            Self.firstName(relativeName).map { "sobre o atendimento de \($0)" } ?? "sobre o atendimento"
+        case .normal: "sobre a terapia"
+        }
+        let turno: String = switch shift {
+        case .manha: " pela manhã"
+        case .tarde: " à tarde"
+        case .noite: " à noite"
+        case .qualquer: ""
+        }
+        return [
+            .init(id: "primeiro", title: "Primeiro contato",
+                  text: "Olá, \(nome)! \(apresentacao) Recebi seu contato \(sobre) e fico feliz com a sua procura. Podemos conversar um pouco sobre o que você está buscando?"),
+            .init(id: "retomar", title: "Retomar contato",
+                  text: "Oi, \(nome), tudo bem? \(apresentacao) Tentei falar com você \(sobre) e queria saber se ainda tem interesse. Se preferir, me diga o melhor horário para conversarmos."),
+            .init(id: "horario", title: "Propor horário",
+                  text: "Olá, \(nome)! Tenho horários disponíveis\(turno) nesta semana. Qual dia fica melhor para a nossa primeira sessão?"),
+        ]
+    }
+
+    /// O modelo que faz sentido na etapa em que o lead está.
+    static func suggestedTemplateId(for status: LeadStatus) -> String {
+        switch status {
+        case .tentandoContato: "retomar"
+        case .negociando: "horario"
+        default: "primeiro"
+        }
+    }
+
+    /// Busca sem acento por nome, motivo ou telefone ("Caiuã" acha "caiua").
+    func matches(search: String) -> Bool {
+        let termo = search.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .init(identifier: "pt_BR"))
+            .trimmingCharacters(in: .whitespaces)
+        guard !termo.isEmpty else { return true }
+        let digitos = termo.filter(\.isNumber)
+        if digitos.count >= 3, whatsapp.contains(digitos) { return true }
+        return "\(name) \(reason)"
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .init(identifier: "pt_BR"))
+            .contains(termo)
     }
 }

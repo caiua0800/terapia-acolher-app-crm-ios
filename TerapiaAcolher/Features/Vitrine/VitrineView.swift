@@ -1,5 +1,6 @@
 import Observation
 import SwiftUI
+import UIKit
 
 @Observable
 final class VitrineViewModel {
@@ -14,6 +15,10 @@ final class VitrineViewModel {
     static var shared = VitrineViewModel()
 
     var status: VitrineStatus?
+    /// Perfil publicado na Vitrine — o que o paciente vê.
+    var profile: VitrineProfile?
+    /// Foto do perfil no CRM: usada quando a Vitrine ainda não tem foto.
+    var crmAvatarURL: URL?
     var isLoading = true
     var errorMessage: String?
     var isWorking = false
@@ -25,7 +30,15 @@ final class VitrineViewModel {
         isLoading = status == nil
         errorMessage = nil
         do {
-            status = try await VitrineAPI.status()
+            let novo = try await VitrineAPI.status()
+            status = novo
+            if novo.connected, novo.indisponivel != true {
+                // Complementos: falhar neles não derruba a tela.
+                async let perfil = try? VitrineAPI.profile()
+                async let avatar: SetImageURL? = try? APIClient.shared.get("settings/avatar")
+                profile = await perfil ?? profile
+                crmAvatarURL = await avatar?.url.flatMap(URL.init(string:)) ?? crmAvatarURL
+            }
         } catch is CancellationError {
         } catch let error as APIError {
             errorMessage = error.message
@@ -95,6 +108,7 @@ final class VitrineViewModel {
 struct VitrineView: View {
     @State private var model = VitrineViewModel.shared
     @State private var showDisconnect = false
+    @State private var linkCopiado = false
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
@@ -211,70 +225,42 @@ struct VitrineView: View {
     @ViewBuilder
     private func conectado(_ status: VitrineStatus) -> some View {
         if status.indisponivel == true {
-            ThemeCard {
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(Theme.warning)
-                    Text("Não conseguimos falar com a Vitrine agora. Seu perfil continua no ar.")
-                        .font(Theme.body(13))
-                        .foregroundStyle(Theme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Theme.warning)
+                Text("Não conseguimos falar com a Vitrine agora. Seu perfil continua no ar — os números voltam assim que ela responder.")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            botaoEditar(cheio: true)
         } else {
-            metricas(status)
-            planoCard(status)
-        }
-
-        NavigationLink {
-            VitrineProfileView()
-        } label: {
-            ThemeCard(padding: 15) {
-                HStack(spacing: 12) {
-                    Image(systemName: "person.text.rectangle")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Theme.primary)
-                        .frame(width: 34, height: 34)
-                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Editar meu perfil")
-                            .font(Theme.body(15, weight: .semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("Foto, bio, especialidades e valor")
-                            .font(Theme.body(12))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Theme.textSecondary.opacity(0.5))
+            cabecalho(status)
+            numeros(status)
+            if let p = model.profile {
+                completude(p)
+                sobreVoce(p)
+                comoAtende(p)
+                if let link = linkPublico(status) { seuLink(link, nome: p.name ?? "") }
+            } else {
+                ThemeCard {
+                    Text("Não foi possível carregar os detalhes do seu perfil agora.")
+                        .font(Theme.body(13.5))
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
-        .buttonStyle(.pressableSubtle)
 
-        if let slug = status.slug,
-           let url = URL(string: "https://vitrine.terapiaacolher.com.br/terapeuta/\(slug)") {
-            Button {
-                Haptics.tap()
-                openURL(url)
-            } label: {
-                Label("Ver meu perfil público", systemImage: "safari")
-                    .font(Theme.body(14, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Theme.primarySoft, in: Capsule())
-            }
-            .buttonStyle(.pressable)
-        }
-
-        Button(role: .destructive) {
+        Button {
             showDisconnect = true
         } label: {
-            Text("Desconectar")
-                .font(Theme.body(14, weight: .semibold))
-                .foregroundStyle(Theme.danger)
+            Text("Desconectar a Vitrine deste app")
+                .font(Theme.body(13, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
         }
@@ -282,77 +268,410 @@ struct VitrineView: View {
         .padding(.top, 4)
     }
 
-    private func metricas(_ status: VitrineStatus) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("ESTE MÊS")
-                .font(Theme.body(11, weight: .semibold))
-                .tracking(1.2)
-                .foregroundStyle(Theme.textSecondary)
-                .padding(.leading, 2)
-
-            HStack(spacing: 10) {
-                metricaTile(
-                    valor: "\(status.mes?.visualizacoes ?? 0)",
-                    titulo: "Viram seu perfil",
-                    cor: Theme.textPrimary
-                )
-                metricaTile(
-                    valor: "\(status.mes?.cliquesWhatsapp ?? 0)",
-                    titulo: "Chamaram no WhatsApp",
-                    cor: Theme.success
-                )
-            }
-
-            if let total = status.impressoesTotais, total > 0 {
-                Text("\(total) aparições na busca desde o começo")
-                    .font(Theme.body(12))
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.leading, 2)
-            }
-        }
+    private func linkPublico(_ status: VitrineStatus) -> URL? {
+        guard let slug = model.profile?.slug ?? status.slug else { return nil }
+        return URL(string: "https://vitrine.terapiaacolher.com.br/terapeuta/\(slug)")
     }
 
-    private func metricaTile(valor: String, titulo: String, cor: Color) -> some View {
-        ThemeCard(padding: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(valor)
-                    .font(Theme.moneyDisplay(28))
-                    .monospacedDigit()
-                    .foregroundStyle(cor)
-                Text(titulo)
-                    .font(Theme.body(12, weight: .medium))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
+    // MARK: Cabeçalho do perfil
 
-    private func planoCard(_ status: VitrineStatus) -> some View {
-        ThemeCard(padding: 16) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("SEU PLANO")
-                        .font(Theme.body(10, weight: .semibold))
-                        .tracking(1.2)
-                        .foregroundStyle(Theme.textSecondary)
-                    Text(status.planoLegivel)
-                        .font(Theme.body(17, weight: .semibold))
+    private func cabecalho(_ status: VitrineStatus) -> some View {
+        let p = model.profile
+        let foto = p?.photoUrl.flatMap(URL.init(string:)) ?? model.crmAvatarURL
+        let nome = (p?.name?.isEmpty == false ? p?.name : nil) ?? SessionStore.shared.user?.name ?? ""
+        let local = [p?.city, p?.state].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " / ")
+        let subtitulo = [p?.crp.map { "CRP \($0)" }, local.isEmpty ? nil : local].compactMap { $0 }.joined(separator: " · ")
+        return VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                LinearGradient(
+                    colors: [Color(hex: 0xCFE3D3), Color(hex: 0xE7F0EA), Color(hex: 0xE2D9F3)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 104)
+                HStack(spacing: 6) {
+                    HStack(spacing: 5) {
+                        Circle().fill(status.perfilAtivo == true ? Theme.success : Theme.warning).frame(width: 7, height: 7)
+                        Text(status.perfilAtivo == true ? "NO AR" : "OCULTO")
+                    }
+                    .font(Theme.body(10.5, weight: .bold))
+                    .foregroundStyle(status.perfilAtivo == true ? Theme.success : Theme.warning)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(.white, in: Capsule())
+                    Text(status.plano?.tipo == "FREE" ? "Plano gratuito" : "Plano \(status.planoLegivel)")
+                        .font(Theme.body(10.5, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(.white.opacity(0.85), in: Capsule())
+                }
+                .padding(12)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                RemoteAvatar(url: foto, name: nome.isEmpty ? "?" : nome, size: 100)
+                    .padding(5)
+                    .background(Theme.surface, in: Circle())
+                    .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
+                    .padding(.top, -56)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(nome.isEmpty ? "Seu perfil" : nome)
+                        .font(Theme.serifTitle(25))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(subtitulo.isEmpty ? "Complete seus dados profissionais na edição do perfil" : subtitulo)
+                        .font(Theme.body(13))
+                        .foregroundStyle(Theme.textSecondary)
                     if let expira = status.plano?.expiraEm {
                         Text("Renova em \(PatientFormat.fullDate.string(from: expira))")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
                 }
-                Spacer()
-                if status.perfilAtivo == true {
-                    StatusBadge(label: "NO AR", color: Theme.success, background: Theme.successSoft)
-                } else {
-                    StatusBadge(label: "OCULTO", color: Theme.warning, background: Theme.warningSoft)
+
+                FlowLayout(spacing: 6) {
+                    if let preco = p?.consultationPrice, preco > 0 {
+                        pilula("Consulta \(Formatters.brl(preco))", destaque: true)
+                    }
+                    ForEach(p?.modalities ?? [], id: \.self) { pilula(legivel($0)) }
+                    if let zap = p?.whatsapp, !zap.isEmpty {
+                        pilula(PatientMask.whatsapp(zap), icone: "phone.fill")
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    if let link = linkPublico(status) {
+                        Button {
+                            Haptics.tap()
+                            openURL(link)
+                        } label: {
+                            Label("Ver como o paciente vê", systemImage: "eye")
+                                .font(Theme.body(14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Theme.primary, in: Capsule())
+                        }
+                        .buttonStyle(.pressable)
+                    }
+                    botaoEditar(cheio: linkPublico(status) == nil)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Theme.border, lineWidth: 1))
+    }
+
+    private func botaoEditar(cheio: Bool) -> some View {
+        NavigationLink {
+            VitrineProfileView()
+        } label: {
+            Label("Editar perfil", systemImage: "pencil")
+                .font(Theme.body(14, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+                .frame(maxWidth: cheio ? .infinity : nil)
+                .padding(.horizontal, cheio ? 0 : 16)
+                .padding(.vertical, 12)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+        }
+        .buttonStyle(.pressable)
+    }
+
+    private func pilula(_ texto: String, destaque: Bool = false, icone: String? = nil) -> some View {
+        HStack(spacing: 4) {
+            if let icone { Image(systemName: icone).font(.system(size: 10)).foregroundStyle(Color(hex: 0x1F9E4F)) }
+            Text(texto)
+        }
+        .font(Theme.body(12.5, weight: destaque ? .semibold : .regular))
+        .foregroundStyle(destaque ? Theme.primary : Theme.textPrimary)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(destaque ? Theme.primarySoft : Color(hex: 0xF1EDE4), in: Capsule())
+    }
+
+    // MARK: Números do mês
+
+    private func numeros(_ status: VitrineStatus) -> some View {
+        let vis = status.mes?.visualizacoes ?? 0
+        let cli = status.mes?.cliquesWhatsapp ?? 0
+        let taxa = vis > 0 ? Int((Double(cli) / Double(vis) * 100).rounded()) : nil
+        let mes = Date().formatted(.dateTime.month(.wide).locale(Locale(identifier: "pt_BR")))
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("RETORNO EM \(mes.uppercased())")
+                .font(Theme.body(11, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(Theme.textSecondary)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                numero("eye", Color(hex: 0x3E637F), "\(vis)", "Viram seu perfil", nil)
+                numero("phone.fill", Color(hex: 0x1F9E4F), "\(cli)", "Chamaram no WhatsApp", nil)
+                numero("checkmark", Theme.primary, taxa.map { "\($0)%" } ?? "—", "Viram e chamaram",
+                       taxa != nil ? "de quem viu, chamou" : "aparece com as primeiras visitas")
+                numero("sparkle.magnifyingglass", Color(hex: 0x7E5FC0), "\(status.impressoesTotais ?? 0)", "Aparições na busca", "desde o começo")
+            }
+        }
+    }
+
+    private func numero(_ icone: String, _ cor: Color, _ valor: String, _ rotulo: String, _ legenda: String?) -> some View {
+        ThemeCard(padding: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: icone)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(cor)
+                    .frame(width: 32, height: 32)
+                    .background(cor.opacity(0.13), in: RoundedRectangle(cornerRadius: 9))
+                Text(valor)
+                    .font(Theme.moneyDisplay(26))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.top, 6)
+                Text(rotulo)
+                    .font(Theme.body(12, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if let legenda {
+                    Text(legenda)
+                        .font(Theme.body(10.5))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    // MARK: Conteúdo do perfil
+
+    private func bloco<C: View>(_ titulo: String, @ViewBuilder _ conteudo: @escaping () -> C) -> some View {
+        ThemeCard(padding: 18) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(titulo)
+                        .font(Theme.serifTitle(18))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    NavigationLink {
+                        VitrineProfileView()
+                    } label: {
+                        Text("Editar")
+                            .font(Theme.body(12.5, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                    }
+                }
+                conteudo()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func sobreVoce(_ p: VitrineProfile) -> some View {
+        bloco("Sobre você") {
+            if let bio = p.bio?.trimmingCharacters(in: .whitespacesAndNewlines), !bio.isEmpty {
+                Text(bio)
+                    .font(Theme.body(14.5))
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Você ainda não escreveu sua apresentação. É a primeira coisa que o paciente lê.")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+    }
+
+    private func comoAtende(_ p: VitrineProfile) -> some View {
+        let abordagens = (p.approaches ?? []) + (p.approachOther.map { [$0] } ?? [])
+        let idiomas = (p.languages ?? "").split(whereSeparator: { $0 == "," || $0 == ";" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return bloco("Como você atende") {
+            VStack(alignment: .leading, spacing: 16) {
+                etiquetas("Especialidades", p.specialties, destaque: true)
+                etiquetas("Abordagens", abordagens)
+                etiquetas("Público atendido", p.targetAudience)
+                etiquetas("Turnos", p.shifts)
+                etiquetas("Modalidade", p.modalities)
+                etiquetas("Idiomas", idiomas)
+            }
+        }
+    }
+
+    private func etiquetas(_ titulo: String, _ itens: [String]?, destaque: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(titulo.uppercased())
+                .font(Theme.body(10.5, weight: .semibold))
+                .tracking(0.8)
+                .foregroundStyle(Theme.textSecondary)
+            if let itens, !itens.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(itens, id: \.self) { i in
+                        Text(legivel(i))
+                            .font(Theme.body(12.5, weight: destaque ? .medium : .regular))
+                            .foregroundStyle(destaque ? Theme.primary : Theme.textPrimary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(destaque ? Theme.primarySoft : Theme.background, in: Capsule())
+                            .overlay(Capsule().stroke(destaque ? .clear : Theme.border, lineWidth: 1))
+                    }
+                }
+            } else {
+                Text("Não informado")
+                    .font(Theme.body(13))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+    }
+
+    // MARK: Completude
+
+    private func itensDoPerfil(_ p: VitrineProfile) -> [(String, Bool)] {
+        [
+            ("Foto", p.photoUrl?.isEmpty == false),
+            ("Apresentação (Sobre você)", (p.bio?.trimmingCharacters(in: .whitespacesAndNewlines).count ?? 0) >= 80),
+            ("Especialidades", !(p.specialties ?? []).isEmpty),
+            ("Abordagem", !(p.approaches ?? []).isEmpty || (p.approachOther?.isEmpty == false)),
+            ("Público atendido", !(p.targetAudience ?? []).isEmpty),
+            ("Modalidade", !(p.modalities ?? []).isEmpty),
+            ("Turnos", !(p.shifts ?? []).isEmpty),
+            ("Cidade e estado", p.city?.isEmpty == false && p.state?.isEmpty == false),
+            ("WhatsApp", p.whatsapp?.isEmpty == false),
+            ("Valor da consulta", (p.consultationPrice ?? 0) > 0),
+        ]
+    }
+
+    private func completude(_ p: VitrineProfile) -> some View {
+        let itens = itensDoPerfil(p)
+        let pct = Int((Double(itens.filter(\.1).count) / Double(itens.count) * 100).rounded())
+        let cor = pct == 100 ? Theme.success : pct >= 70 ? Theme.primary : Theme.warning
+        return ThemeCard(padding: 18) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle().stroke(Theme.border, lineWidth: 7)
+                        Circle()
+                            .trim(from: 0, to: CGFloat(pct) / 100)
+                            .stroke(cor, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeOut(duration: 0.6), value: pct)
+                        Text("\(pct)%")
+                            .font(Theme.body(15, weight: .bold))
+                            .monospacedDigit()
+                            .foregroundStyle(Theme.textPrimary)
+                    }
+                    .frame(width: 70, height: 70)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(pct == 100 ? "Perfil completo" : "Complete seu perfil")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(pct == 100
+                             ? "Tudo preenchido. Você aparece do melhor jeito na busca."
+                             : "Perfis completos passam mais confiança e aparecem melhor na busca.")
+                            .font(Theme.body(12.5))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(itens, id: \.0) { item in
+                        HStack(spacing: 9) {
+                            ZStack {
+                                if item.1 {
+                                    Circle().fill(Theme.success)
+                                    Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
+                                } else {
+                                    Circle().stroke(Theme.border, lineWidth: 2)
+                                }
+                            }
+                            .frame(width: 18, height: 18)
+                            Text(item.0)
+                                .font(Theme.body(13))
+                                .foregroundStyle(item.1 ? Theme.textSecondary : Theme.textPrimary)
+                                .strikethrough(item.1, color: Theme.border)
+                        }
+                    }
+                }
+                if pct < 100 {
+                    NavigationLink {
+                        VitrineProfileView()
+                    } label: {
+                        Label("Completar agora", systemImage: "arrow.right")
+                            .font(Theme.body(14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Theme.primary, in: Capsule())
+                    }
+                    .buttonStyle(.pressable)
                 }
             }
         }
+    }
+
+    // MARK: Seu link
+
+    private func seuLink(_ link: URL, nome: String) -> some View {
+        let primeiro = nome.split(separator: " ").first.map(String.init)
+        let convite = "Olá! Conheça meu trabalho\(primeiro.map { ", \($0)" } ?? "") na Terapia Acolher: \(link.absoluteString)"
+        return VStack(alignment: .leading, spacing: 8) {
+            Label("SEU LINK", systemImage: "link")
+                .font(Theme.body(11, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(.white.opacity(0.6))
+            Text(link.absoluteString.replacingOccurrences(of: "https://", with: ""))
+                .font(Theme.body(13.5, weight: .medium))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Coloque na bio do Instagram, no cartão de visita ou mande para quem pedir indicação.")
+                .font(Theme.body(12))
+                .foregroundStyle(.white.opacity(0.55))
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button {
+                    UIPasteboard.general.string = link.absoluteString
+                    Haptics.success()
+                    linkCopiado = true
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.6))
+                        linkCopiado = false
+                    }
+                } label: {
+                    Label(linkCopiado ? "Copiado" : "Copiar link", systemImage: linkCopiado ? "checkmark" : "doc.on.doc")
+                        .font(Theme.body(14, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(.white, in: Capsule())
+                }
+                .buttonStyle(.pressable)
+                ShareLink(item: convite) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.white.opacity(0.12), in: Circle())
+                }
+                .accessibilityLabel("Compartilhar meu link")
+            }
+            .padding(.top, 6)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.ink, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+    }
+
+    /// Opção da Vitrine como texto de gente: códigos conhecidos traduzidos, o resto com inicial maiúscula.
+    private func legivel(_ valor: String) -> String {
+        let rotulos = [
+            "manha": "Manhã", "tarde": "Tarde", "noite": "Noite", "online": "Online",
+            "presencial": "Presencial", "hibrido": "Híbrido", "feminino": "Feminino", "masculino": "Masculino",
+        ]
+        let v = valor.trimmingCharacters(in: .whitespaces)
+        return rotulos[v.lowercased()] ?? (v.prefix(1).uppercased() + v.dropFirst())
     }
 }

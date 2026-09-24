@@ -41,7 +41,12 @@ final class LeadsStore {
         return Int((Double(convertedCount) / Double(decided.count) * 100).rounded())
     }
 
+    func count(_ status: LeadStatus) -> Int { leads.filter { $0.status == status }.count }
+    var inConversationCount: Int { count(.tentandoContato) + count(.negociando) }
+    var becamePatientCount: Int { leads.filter { $0.convertedPatientId != nil }.count }
+
     func lead(id: String) -> Lead? { leads.first { $0.id == id } }
+
 
     // MARK: Carga
 
