@@ -25,7 +25,8 @@ final class AgendaViewModel {
     /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
     /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
     /// só atualiza por baixo.
-    static let shared = AgendaViewModel()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = AgendaViewModel()
 
     /// Primeira janela curta: a tela abre rápido com os próximos dias.
     static let firstWindowDays = 30

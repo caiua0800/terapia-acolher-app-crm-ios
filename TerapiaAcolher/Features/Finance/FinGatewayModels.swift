@@ -786,7 +786,8 @@ enum FinGatewayAPI {
 @MainActor
 @Observable
 final class FinGatewayStore {
-    static let shared = FinGatewayStore()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = FinGatewayStore()
 
     var overview: GwOverview?
     var isLoading = false

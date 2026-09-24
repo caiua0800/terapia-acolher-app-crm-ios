@@ -9,7 +9,8 @@ import SwiftUI
 final class TranscriptsPatientsViewModel {
     /// Instância única pelo mesmo motivo da lista de pacientes: voltar para cá
     /// não pode dar spinner de novo.
-    static let shared = TranscriptsPatientsViewModel()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = TranscriptsPatientsViewModel()
 
     var patients: [Patient] = []
     var searchText = ""

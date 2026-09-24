@@ -4,7 +4,8 @@ import SwiftUI
 
 @Observable
 final class SubscriptionViewModel {
-    static let shared = SubscriptionViewModel()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = SubscriptionViewModel()
 
     var dados: MySubscription? = nil
     var isLoading = false

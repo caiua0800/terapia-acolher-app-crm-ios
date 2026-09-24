@@ -11,7 +11,8 @@ import Observation
 /// tela não dá spinner de novo, só atualiza por baixo.
 @Observable
 final class LeadsStore {
-    static let shared = LeadsStore()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = LeadsStore()
 
     private(set) var leads: [Lead] = []
     /// `nil` até a primeira consulta responder.

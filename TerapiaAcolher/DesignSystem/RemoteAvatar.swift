@@ -62,6 +62,14 @@ final class RemoteImageCache {
         return imagem
     }
 
+    /// Logout: fotos de paciente não ficam para o próximo terapeuta do aparelho.
+    func limparTudo() {
+        imagens.removeAll()
+        ordem.removeAll()
+        emVoo.values.forEach { $0.cancel() }
+        emVoo.removeAll()
+    }
+
     /// Chamada ao trocar ou remover a foto: sem isto a versão velha continuaria
     /// aparecendo, já que a chave (o caminho) não muda quando o arquivo muda.
     func invalidar(_ url: URL?) {

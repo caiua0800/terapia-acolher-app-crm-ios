@@ -40,6 +40,7 @@ final class SupImageCache {
 
     func image(for id: String) -> UIImage? { cache.object(forKey: id as NSString) }
     func store(_ image: UIImage, for id: String) { cache.setObject(image, forKey: id as NSString) }
+    func limparTudo() { cache.removeAllObjects() }
 }
 
 // MARK: - Foto

@@ -11,7 +11,8 @@ final class RecordsHomeViewModel {
     /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
     /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
     /// só atualiza por baixo.
-    static let shared = RecordsHomeViewModel()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = RecordsHomeViewModel()
 
     var patients: [Patient] = []
     var searchText = ""

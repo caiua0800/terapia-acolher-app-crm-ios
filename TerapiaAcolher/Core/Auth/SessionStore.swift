@@ -162,5 +162,7 @@ final class SessionStore {
         // Sem isto, o próximo terapeuta a logar neste aparelho veria as
         // pendências de perfil do anterior.
         ProfileStatusStore.shared.limpar()
+        // E os pacientes, a agenda e o financeiro dele (ver SessionScope).
+        SessionScope.reset()
     }
 }

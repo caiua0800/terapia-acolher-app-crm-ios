@@ -12,7 +12,8 @@ final class FinHomeViewModel {
     /// requisição de novo. Era o que mais fazia o app parecer lento, mesmo com
     /// a API respondendo rápido. Agora a tela volta com o conteúdo já pintado e
     /// só atualiza por baixo.
-    static let shared = FinHomeViewModel()
+    /// `var`: o logout troca por uma instância nova (ver SessionScope).
+    static var shared = FinHomeViewModel()
 
     enum Tab: Hashable { case registros, balanco }
     enum Filter: CaseIterable, Hashable {
