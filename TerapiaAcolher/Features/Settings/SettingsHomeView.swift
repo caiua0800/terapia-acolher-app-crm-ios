@@ -19,6 +19,7 @@ struct SettingsHomeView: View {
                 VStack(spacing: 20) {
                     profileCard
                     consultorioSection
+                    comunicacaoSection
                     templatesSection
                     integracoesSection
                     contaSection
@@ -156,6 +157,26 @@ struct SettingsHomeView: View {
         .buttonStyle(.pressableSubtle)
     }
 
+    private var comunicacaoSection: some View {
+        VStack(spacing: 8) {
+            SetSectionHeader(title: "Comunicação")
+            ThemeCard(padding: 0) {
+                NavigationLink {
+                    SetMessagesView()
+                } label: {
+                    SetRow(
+                        icon: "message.fill",
+                        iconColor: Color(hex: 0x1F9E4F),
+                        title: "Mensagens aos pacientes",
+                        subtitle: "Lembretes e cobranças por WhatsApp",
+                        trailing: viewModel.messagesEnabled.map { $0 ? "Ligadas" : "Desligadas" }
+                    )
+                }
+            }
+        }
+        .buttonStyle(.pressableSubtle)
+    }
+
     private var integracoesSection: some View {
         VStack(spacing: 8) {
             SetSectionHeader(title: "Integrações")
@@ -259,6 +280,8 @@ final class SettingsHomeViewModel {
     var groupCount: Int?
     var templateCounts: [SetTemplateType: Int] = [:]
     var googleConnected: Bool?
+    /// Mensagens aos pacientes ligadas (Configurações → Comunicação).
+    var messagesEnabled: Bool?
     /// Foto do terapeuta. Esta tela desenhava só as iniciais e nunca buscava o
     /// avatar — quem enviava a foto em "Meu perfil" a via lá e não aqui.
     var avatarURL: URL?
@@ -278,6 +301,9 @@ final class SettingsHomeViewModel {
                 // Conta modelos disponíveis (sistema + próprios), como no design
                 templateCounts[type] = templates.count
             }
+        }
+        if let mensagens = try? await MensagensAPI.carregar() {
+            messagesEnabled = mensagens.enabled
         }
         if let status: SetGoogleStatus = try? await APIClient.shared.get("integrations/google/status") {
             googleConnected = status.connected

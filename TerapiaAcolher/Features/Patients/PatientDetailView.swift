@@ -110,6 +110,40 @@ final class PatientDetailViewModel {
         return redimensionada.jpegData(compressionQuality: 0.8)
     }
 
+    // MARK: Mensagens de WhatsApp
+
+    /// Chaves da conta (Configurações → Mensagens aos pacientes). Sem resposta,
+    /// vale o padrão (tudo ligado).
+    var mensagensDaConta: MensagensWhatsapp?
+    /// Valor escolhido na hora (otimista); some quando a ficha recarrega.
+    var chavesLocais: [String: Bool] = [:]
+    var chaveSalvando: String?
+    var chaveErro: String?
+    var showChaveErro = false
+
+    @MainActor
+    func loadMensagensDaConta() async {
+        if let m = try? await MensagensAPI.carregar() { mensagensDaConta = m }
+    }
+
+    @MainActor
+    func mudarChave(_ campo: String, para valor: Bool) async {
+        guard chaveSalvando == nil else { return }
+        Haptics.tap()
+        chavesLocais[campo] = valor
+        chaveSalvando = campo
+        struct Ok: Decodable { let id: String }
+        do {
+            let _: Ok = try await APIClient.shared.patch("patients/\(patientId)", body: [campo: valor])
+        } catch {
+            chavesLocais[campo] = !valor
+            chaveErro = (error as? APIError)?.message ?? "Não foi possível salvar. Verifique sua conexão."
+            showChaveErro = true
+            Haptics.warning()
+        }
+        chaveSalvando = nil
+    }
+
     @MainActor
     func delete() async -> Bool {
         isDeleting = true
@@ -221,6 +255,7 @@ struct PatientDetailView: View {
                     statsCard(detail)
                     scheduleButton(detail)
                     sectionsCard(detail)
+                    PatientMessagesCard(detail: detail, model: model)
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 16)
@@ -598,5 +633,107 @@ struct PatientDeleteModal: View {
             .padding(.horizontal, 32)
         }
         .transition(.opacity)
+    }
+}
+
+// MARK: - Mensagens de WhatsApp do paciente
+
+/// WhatsApp deste paciente. As chaves da conta mandam: o que está desligado em
+/// Configurações aparece desligado e travado; o resto pode ser desligado só
+/// para ele. Mesmas regras do web (mensagens-do-paciente.tsx).
+struct PatientMessagesCard: View {
+    let detail: PatientDetail
+    @Bindable var model: PatientDetailViewModel
+
+    private struct Tipo {
+        let campo: String
+        let daConta: MensagensWhatsapp.Tipo
+        let titulo: String
+        let texto: String
+    }
+
+    private static let tipos: [Tipo] = [
+        Tipo(campo: "sessionReminder24h", daConta: .reminder24h, titulo: "Lembrete 24 horas antes", texto: "Vale também para o lembrete por e-mail."),
+        Tipo(campo: "videoReminder1h", daConta: .reminder1h, titulo: "Aviso 1 hora antes da videochamada", texto: "Só em sessão online. Vale também para o e-mail."),
+        Tipo(campo: "whatsappChargeReminder", daConta: .chargeReminder, titulo: "Aviso de cobrança", texto: "No dia do vencimento."),
+        Tipo(campo: "whatsappChargeRetry", daConta: .chargeRetry, titulo: "Reaviso de cobrança", texto: "3 dias depois do vencimento, se ainda aberta."),
+    ]
+
+    private func valorDaFicha(_ campo: String) -> Bool {
+        if let local = model.chavesLocais[campo] { return local }
+        switch campo {
+        case "whatsappEnabled": return detail.whatsappEnabled ?? true
+        case "sessionReminder24h": return detail.sessionReminder24h
+        case "videoReminder1h": return detail.videoReminder1h
+        case "whatsappChargeReminder": return detail.whatsappChargeReminder ?? true
+        case "whatsappChargeRetry": return detail.whatsappChargeRetry ?? true
+        default: return true
+        }
+    }
+
+    var body: some View {
+        let conta = model.mensagensDaConta ?? .padrao
+        let geralDaConta = conta.enabled
+        let geralDoPaciente = valorDaFicha("whatsappEnabled")
+        let ativoGeral = geralDaConta && geralDoPaciente
+        let nome = detail.name.split(separator: " ").first.map(String.init) ?? detail.name
+
+        ThemeCard(padding: 0) {
+            VStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(ativoGeral ? Color.white : Theme.textSecondary)
+                        .frame(width: 40, height: 40)
+                        .background(ativoGeral ? Color(hex: 0x25D366) : Color(hex: 0xF1EDE4))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mensagens de WhatsApp")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(
+                            !geralDaConta ? "Desligadas para todos em Configurações."
+                            : (detail.whatsapp ?? "").isEmpty ? "\(nome) não tem WhatsApp cadastrado."
+                            : geralDoPaciente ? "\(nome) recebe confirmação, lembretes e cobranças ligados abaixo."
+                            : "Desligadas só para \(nome)."
+                        )
+                        .font(Theme.body(12.5))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    ChaveComSpinner(
+                        ligado: ativoGeral,
+                        travado: !geralDaConta || model.chaveSalvando != nil,
+                        salvando: model.chaveSalvando == "whatsappEnabled",
+                        rotulo: "Mensagens de WhatsApp para \(nome)"
+                    ) { novo in
+                        Task { await model.mudarChave("whatsappEnabled", para: novo) }
+                    }
+                }
+                .padding(Theme.cardPadding)
+
+                ForEach(Self.tipos, id: \.campo) { tipo in
+                    let daConta = geralDaConta && conta[tipo.daConta]
+                    Divider().overlay(Theme.border)
+                    LinhaDeChave(
+                        titulo: tipo.titulo,
+                        texto: geralDaConta && !daConta ? "Desligado em Configurações para todos." : tipo.texto,
+                        ligado: ativoGeral && daConta && valorDaFicha(tipo.campo),
+                        travado: !ativoGeral || !daConta || model.chaveSalvando != nil,
+                        salvando: model.chaveSalvando == tipo.campo
+                    ) { novo in
+                        Task { await model.mudarChave(tipo.campo, para: novo) }
+                    }
+                    .opacity(ativoGeral ? 1 : 0.55)
+                }
+            }
+        }
+        .task { await model.loadMensagensDaConta() }
+        .alert("Ops", isPresented: $model.showChaveErro) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.chaveErro ?? "Algo deu errado.")
+        }
     }
 }

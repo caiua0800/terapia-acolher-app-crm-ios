@@ -98,6 +98,7 @@
 		C973BE2E610A9B1175078631 /* GatewayFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */; };
 		CB1DD54902A3A2CE337820B3 /* TranscriptPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC56C24412E3971E5971B892 /* TranscriptPDF.swift */; };
 		CD536EE1F7CA8480B981768B /* SupportHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3AA7ED1CDA52D3C9EE5023 /* SupportHomeView.swift */; };
+		D6D012451B9FB8AFF87D6F12 /* SetMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE59154F265E091D9B1BF76 /* SetMessagesView.swift */; };
 		E08AC507D0CDB50989E8CAD2 /* AgendaNewSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427BCD7E8EFA0D3E97D306A3 /* AgendaNewSessionView.swift */; };
 		E190B6603A16A6D8F354C80B /* RecordsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270620B50F3F00CA9EB885C7 /* RecordsModels.swift */; };
 		E3216A2897E6921EB01916E2 /* LeadsCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95223DEAA1F8037947A6B42 /* LeadsCheckoutView.swift */; };
@@ -139,6 +140,7 @@
 		103D3C6C1D2865961396D1FE /* SettingsHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHomeView.swift; sourceTree = "<group>"; };
 		1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChangePasswordView.swift; sourceTree = "<group>"; };
 		1789733F05F834AF2551531A /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		1AE59154F265E091D9B1BF76 /* SetMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetMessagesView.swift; sourceTree = "<group>"; };
 		1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDeleteAccountView.swift; sourceTree = "<group>"; };
 		1D61DB26EF0328C8A2A6DDE7 /* FinTransactionFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinTransactionFormView.swift; sourceTree = "<group>"; };
 		1E13313F1B76B704FD227550 /* FinanceHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceHomeView.swift; sourceTree = "<group>"; };
@@ -272,6 +274,7 @@
 				1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */,
 				784CFCF124134E8A5792C19D /* SetGoogleView.swift */,
 				5BDB3BC791649306E74EE255 /* SetGroupsView.swift */,
+				1AE59154F265E091D9B1BF76 /* SetMessagesView.swift */,
 				CD19D30BA20132213C2BA7C8 /* SetModels.swift */,
 				446E9A5DEC0A9B75EC4C8E1B /* SetOfficeView.swift */,
 				7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */,
@@ -765,6 +768,7 @@
 				86D5C6F834CC87360ABE2AD4 /* SetDeleteAccountView.swift in Sources */,
 				E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */,
 				4E19B3EE4AB9D9F96AB7AF10 /* SetGroupsView.swift in Sources */,
+				D6D012451B9FB8AFF87D6F12 /* SetMessagesView.swift in Sources */,
 				7B24099169F89E4F8D0683D6 /* SetModels.swift in Sources */,
 				5FBF0B1AE8BC02807F701972 /* SetOfficeView.swift in Sources */,
 				60E73004478C5541FAE16BD6 /* SetProfileView.swift in Sources */,

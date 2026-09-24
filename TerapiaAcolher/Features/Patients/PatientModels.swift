@@ -73,6 +73,11 @@ struct PatientDetail: Codable, Identifiable, Hashable {
     let monthlyBillingReminder: Bool
     let sessionReminder24h: Bool
     let videoReminder1h: Bool
+    /// WhatsApp só para este paciente. Opcionais: backend antigo não manda
+    /// (ausente = ligado, que é o padrão).
+    let whatsappEnabled: Bool?
+    let whatsappChargeReminder: Bool?
+    let whatsappChargeRetry: Bool?
     let registrationActive: Bool
     let notes: String?
     let createdAt: Date
