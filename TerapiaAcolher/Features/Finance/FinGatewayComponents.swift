@@ -660,3 +660,53 @@ struct GwComoFuncionaCard: View {
         }
     }
 }
+
+
+// MARK: - Em desenvolvimento (Caiuã, 2026-09-27)
+//
+// Menu desabilitado e tela com aviso. O backend também recusa as rotas do
+// terapeuta enquanto ACOLHER_FINANCEIRO_LIBERADO não for true. Para liberar:
+// esta constante em false + a variável no .env da VPS.
+
+enum AcolherFinanceiro {
+    static let emDesenvolvimento = true
+}
+
+struct FinGatewayEmDesenvolvimentoView: View {
+    var body: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 14))
+                    Text("EM DESENVOLVIMENTO")
+                        .font(Theme.body(11, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(Theme.textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Theme.border.opacity(0.6), in: Capsule())
+                    Text("Acolher Financeiro chega em breve")
+                        .font(Theme.serifTitle(24))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Estamos terminando a conta digital para você receber dos pacientes por Pix direto no app. Ela ainda não está disponível — avisaremos assim que liberar.")
+                        .font(Theme.body(15))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(Theme.cardPadding + 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                .overlay(RoundedRectangle(cornerRadius: Theme.cornerRadius).stroke(Theme.border))
+                .padding(.horizontal, Theme.screenPadding)
+                .padding(.top, 12)
+            }
+        }
+        .setToolbarTitle("Acolher Financeiro")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}

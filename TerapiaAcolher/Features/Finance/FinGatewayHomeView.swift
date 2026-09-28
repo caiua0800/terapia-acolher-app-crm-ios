@@ -17,6 +17,15 @@ struct FinGatewayHomeView: View {
     @State private var chaves: [GwPixKey] = []
 
     var body: some View {
+        // Toda entrada (menu, Ajustes, cobranças, notificação) cai aqui.
+        if AcolherFinanceiro.emDesenvolvimento {
+            FinGatewayEmDesenvolvimentoView()
+        } else {
+            conteudoDaConta
+        }
+    }
+
+    private var conteudoDaConta: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
             ScrollView {

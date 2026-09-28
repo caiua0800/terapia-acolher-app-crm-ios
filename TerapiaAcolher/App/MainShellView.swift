@@ -304,7 +304,36 @@ struct SideMenuView: View {
         .background(Theme.ink.ignoresSafeArea())
     }
 
+    @ViewBuilder
     private func menuRow(_ item: MenuDestination) -> some View {
+        if item == .gateway && AcolherFinanceiro.emDesenvolvimento {
+            // Em desenvolvimento: aparece, mas não abre.
+            HStack(spacing: 12) {
+                Image(systemName: item.icon)
+                    .font(.system(size: 16))
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.title)
+                        .font(Theme.body(15))
+                    Text("EM DESENVOLVIMENTO")
+                        .font(Theme.body(10, weight: .semibold))
+                        .tracking(0.8)
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+                Spacer()
+            }
+            .foregroundStyle(Color.white.opacity(0.4))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Em desenvolvimento, ainda não disponível")
+        } else {
+            menuRowAtivo(item)
+        }
+    }
+
+    private func menuRowAtivo(_ item: MenuDestination) -> some View {
         Button {
             selection = item
             withAnimation(.easeIn(duration: 0.18)) { isOpen = false }
