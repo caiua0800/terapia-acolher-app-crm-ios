@@ -746,8 +746,8 @@ struct DashboardView: View {
                     }
                     HStack(alignment: .top, spacing: 8) {
                         usageItem(usage.whatsapp, "WhatsApp a pacientes", UsageResource.whatsapp)
-                        usageItem(usage.transcriptSummaries, "Resumos de transcrição", UsageResource.resumos)
-                        usageItem(usage.recordAi, "IA em prontuários", UsageResource.iaRegistros)
+                        usageItem(usage.transcriptSummaries, "Resumos do Zelo", UsageResource.resumos)
+                        usageItem(usage.recordAi, "Zelo em prontuários", UsageResource.iaRegistros)
                     }
                 }
             }

@@ -233,15 +233,15 @@ struct TranscriptListSummaryButton: View {
     var body: some View {
         Group {
             if pronto {
-                botao(titulo: "Ver resumo", icone: "sparkles", carregando: abrindo) {
+                botao(titulo: "Ver resumo do Zelo", icone: "sparkles", carregando: abrindo) {
                     Task { await abrir() }
                 }
             } else if estado.isProcessing {
-                botao(titulo: "Gerando resumo", icone: "sparkles", carregando: true) {}
+                botao(titulo: "Zelo resumindo…", icone: "sparkles", carregando: true) {}
                     .disabled(true)
             } else if iaLigada {
                 botao(
-                    titulo: estado.isFailed ? "Tentar resumo de novo" : "Gerar resumo",
+                    titulo: estado.isFailed ? "Tentar resumo de novo" : "Resumir com o Zelo",
                     icone: "sparkles",
                     carregando: gerando
                 ) {
@@ -367,7 +367,7 @@ struct TranscriptSummarySheet: View {
                 .padding(.vertical, 16)
             }
             .background(Theme.background)
-            .navigationTitle("Resumo da chamada")
+            .navigationTitle("Resumo do Zelo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

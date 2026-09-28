@@ -174,7 +174,7 @@ struct GeneralTranscriptsView: View {
                 title: model.filtros.temFiltro ? "Nada com esses filtros" : "Nenhuma transcrição ainda",
                 message: model.filtros.temFiltro
                     ? "Tente outro nome ou outro período."
-                    : "As transcrições aparecem aqui alguns minutos depois de cada videochamada pelo link da Terapia Acolher."
+                    : "O Zelo transcreve cada videochamada feita pelo link da Terapia Acolher. As transcrições aparecem aqui alguns minutos depois."
             )
             .padding(.top, 30)
         } else {

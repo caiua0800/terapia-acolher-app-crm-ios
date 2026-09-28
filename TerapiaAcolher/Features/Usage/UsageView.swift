@@ -69,8 +69,8 @@ enum UsageResource: CaseIterable, Identifiable {
     var titulo: String {
         switch self {
         case .whatsapp: "Mensagens de WhatsApp"
-        case .resumos: "Resumos de transcrição"
-        case .iaRegistros: "IA no prontuário e anamnese"
+        case .resumos: "Resumos do Zelo"
+        case .iaRegistros: "Zelo no prontuário e na anamnese"
         }
     }
 
@@ -85,8 +85,8 @@ enum UsageResource: CaseIterable, Identifiable {
     var explica: String {
         switch self {
         case .whatsapp: "Lembretes, confirmações e cobranças entregues aos seus pacientes."
-        case .resumos: "Resumos das sessões online feitos pela IA."
-        case .iaRegistros: "Vezes em que a IA organizou seu rascunho nos campos do modelo."
+        case .resumos: "Resumos das sessões online feitos pelo Zelo, a IA da Terapia Acolher."
+        case .iaRegistros: "Vezes em que o Zelo organizou seu rascunho nos campos do modelo."
         }
     }
 
@@ -365,7 +365,7 @@ struct UsageView: View {
                 }
 
                 VStack(spacing: 0) {
-                    tableRow("Mês", "WhatsApp", "Resumos", "IA", header: true)
+                    tableRow("Mês", "WhatsApp", "Resumos", "Zelo", header: true)
                     ForEach(Array(meses.reversed().enumerated()), id: \.element.id) { i, m in
                         Divider()
                         tableRow(

@@ -485,3 +485,39 @@ private extension Color {
         return Color(hue: h, saturation: min(s + 0.15, 1), brightness: max(b - 0.35, 0), opacity: a)
     }
 }
+
+// MARK: - Zelo (a IA da Terapia Acolher)
+
+/// Selo do Zelo: tudo que a IA faz (organizar rascunho, transcrever, resumir)
+/// leva este rosto, para o terapeuta reconhecer de relance o que veio dela.
+struct ZeloAvatar: View {
+    var size: CGFloat = 36
+
+    var body: some View {
+        Image(systemName: "sparkles")
+            .font(.system(size: size * 0.44, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(
+                RadialGradient(
+                    colors: [Color(hex: 0xA897D1), Color(hex: 0x7C6BA5), Color(hex: 0x5E4F87)],
+                    center: UnitPoint(x: 0.3, y: 0.2),
+                    startRadius: 0,
+                    endRadius: size
+                )
+            )
+            .clipShape(Circle())
+            .shadow(color: Color(hex: 0x5E4F87).opacity(0.35), radius: 5, y: 3)
+            .accessibilityHidden(true)
+    }
+}
+
+enum Zelo {
+    static let nome = "Zelo"
+    static let cor = Color(hex: 0x7C6BA5)
+
+    /// "Zelo" em itálico serifado, para compor frases com `Text + Text`.
+    static func nomeEstilizado(_ size: CGFloat) -> Text {
+        Text("Zelo").font(.system(size: size, weight: .semibold, design: .serif).italic()).foregroundColor(cor)
+    }
+}

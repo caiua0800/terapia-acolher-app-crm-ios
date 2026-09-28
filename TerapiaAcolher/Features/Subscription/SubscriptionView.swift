@@ -188,7 +188,7 @@ private struct UsoCard: View {
 
                 UsoLinha(rotulo: "Pacientes ativos", item: uso.pacientes)
                 UsoLinha(rotulo: "Mensagens de WhatsApp", item: uso.whatsapp)
-                UsoLinha(rotulo: "Rascunhos de IA", item: uso.ia)
+                UsoLinha(rotulo: "Rascunhos do Zelo", item: uso.ia)
             }
         }
     }

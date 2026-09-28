@@ -128,7 +128,7 @@ struct SubscriptionEntitlements: Decodable, Hashable {
         var itens: [(String, String)] = [
             ("Pacientes ativos", Self.quantidade(patients)),
             ("Mensagens de WhatsApp por ciclo", Self.quantidade(whatsappPerCycle)),
-            ("Rascunhos de IA por ciclo", Self.quantidade(aiDraftsPerCycle)),
+            ("Rascunhos do Zelo por ciclo", Self.quantidade(aiDraftsPerCycle)),
         ]
         if billingAutomation { itens.append(("Automação de cobrança", "Incluída")) }
         if onlineCharges { itens.append(("Cobrança online", "Incluída")) }

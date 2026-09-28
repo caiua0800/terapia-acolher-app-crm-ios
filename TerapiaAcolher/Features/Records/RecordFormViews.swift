@@ -674,27 +674,32 @@ struct RecEntryFormView: View {
             Haptics.tap()
             model.isComposerOpen = true
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(RecAi.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Escrever solto e organizar")
+            HStack(spacing: 12) {
+                ZeloAvatar(size: 40)
+                VStack(alignment: .leading, spacing: 3) {
+                    (Text("Escreva solto. O ") + Zelo.nomeEstilizado(15.5) + Text(" organiza."))
                         .font(Theme.body(15, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Digite como preferir — a IA distribui nos campos.")
+                    Text("Anote do seu jeito. O Zelo distribui cada coisa no campo certo e você revisa antes de salvar.")
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(RecAi.accent)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RecAi.soft.opacity(0.14))
+            .background(
+                LinearGradient(
+                    colors: [RecAi.soft.opacity(0.22), Theme.surface],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.cornerRadius)
@@ -707,11 +712,10 @@ struct RecEntryFormView: View {
     private var aiComposer: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 13, weight: .semibold))
-                Text("Rascunho da sessão")
-                    .font(Theme.body(13, weight: .bold))
-                    .tracking(0.3)
+                ZeloAvatar(size: 24)
+                (Text("Seu rascunho para o ") + Zelo.nomeEstilizado(13.5))
+                    .font(Theme.body(13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Button {
                     Haptics.tap()
@@ -738,7 +742,7 @@ struct RecEntryFormView: View {
             HStack(spacing: 10) {
                 Text(
                     model.canRunDraft
-                        ? "Nada é salvo sem você revisar."
+                        ? "O Zelo só preenche. Nada é salvo sem você revisar."
                         : "Escreva um pouco mais para começar."
                 )
                 .font(Theme.body(11))
@@ -757,7 +761,7 @@ struct RecEntryFormView: View {
                             Image(systemName: "wand.and.stars")
                                 .font(.system(size: 13, weight: .semibold))
                         }
-                        Text(model.isDrafting ? "Organizando…" : "Organizar")
+                        Text(model.isDrafting ? "Zelo organizando…" : "Organizar com o Zelo")
                             .font(Theme.body(14, weight: .semibold))
                     }
                     .foregroundStyle(.white)
@@ -784,11 +788,9 @@ struct RecEntryFormView: View {
     private var aiReviewBanner: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(RecAi.accent)
+                ZeloAvatar(size: 30)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(filledSummary)
+                    (Text("O ") + Zelo.nomeEstilizado(14) + Text(" \(filledSummary)"))
                         .font(Theme.body(14, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                     Text("Confira cada campo marcado antes de salvar — o registro é seu.")
@@ -850,7 +852,7 @@ struct RecEntryFormView: View {
 
     private var filledSummary: String {
         let count = model.aiFilledIds.count
-        let fields = count == 1 ? "1 campo preenchido" : "\(count) campos preenchidos"
+        let fields = count == 1 ? "preencheu 1 campo" : "preencheu \(count) campos"
         if model.aiBlankCount > 0 {
             let blank = model.aiBlankCount == 1
                 ? "1 ficou em branco"
@@ -977,10 +979,10 @@ struct RecQuestionCard<Content: View>: View {
                     }
                     Spacer(minLength: 8)
                     if isAiFilled {
-                        RecAiTag(text: "Revise", icon: "sparkles", tint: RecAi.accent)
+                        RecAiTag(text: "Zelo · revise", icon: "sparkles", tint: RecAi.accent)
                     } else if isAiExcluded {
                         RecAiTag(
-                            text: "Você preenche",
+                            text: "Só você preenche",
                             icon: "hand.raised",
                             tint: Theme.textSecondary
                         )

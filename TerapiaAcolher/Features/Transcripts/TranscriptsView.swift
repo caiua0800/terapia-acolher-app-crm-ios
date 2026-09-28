@@ -92,7 +92,7 @@ struct TranscriptsView: View {
                 icon: "text.bubble",
                 title: model.searchText.isEmpty ? "Nenhum paciente" : "Nada encontrado",
                 message: model.searchText.isEmpty
-                    ? "As transcrições ficam guardadas por paciente — elas aparecem aqui depois das sessões online."
+                    ? "O Zelo transcreve as sessões online. As transcrições ficam guardadas por paciente e aparecem aqui depois de cada sessão."
                     : "Nenhum paciente com esse nome."
             )
             .padding(.horizontal, Theme.screenPadding)
@@ -478,12 +478,10 @@ struct TranscriptSummaryCard: View {
             // Sem IA configurada, o cartão só aparece se o resumo já existe.
             if estado.isReady || habilitado {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(RecAi.accent)
-                        Text("Resumo da chamada")
-                            .font(Theme.body(13, weight: .bold))
+                    HStack(spacing: 8) {
+                        ZeloAvatar(size: 24)
+                        (Text("Resumo do ") + Zelo.nomeEstilizado(13.5))
+                            .font(Theme.body(13, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
                     }
 
@@ -492,7 +490,7 @@ struct TranscriptSummaryCard: View {
                     } else if estado.isProcessing {
                         HStack(spacing: 10) {
                             ProgressView().controlSize(.small).tint(RecAi.accent)
-                            Text("Gerando o resumo… pode fechar, ele fica guardado aqui.")
+                            Text("O Zelo está resumindo a conversa… pode fechar, o resumo fica guardado aqui.")
                                 .font(Theme.body(13))
                                 .foregroundStyle(Theme.textPrimary)
                         }
@@ -513,7 +511,7 @@ struct TranscriptSummaryCard: View {
 
     private var pedir: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("A IA lê a conversa e resume em poucas linhas: os sentimentos, a evolução (se foi falada) e os principais pontos. Só é possível gerar um resumo por transcrição.")
+            Text("O Zelo lê a conversa e resume em poucas linhas: os sentimentos, a evolução (se foi falada) e os principais pontos. Dá para pedir um resumo por transcrição.")
                 .font(Theme.body(13))
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -535,7 +533,7 @@ struct TranscriptSummaryCard: View {
                     } else {
                         Image(systemName: "sparkles").font(.system(size: 13, weight: .semibold))
                     }
-                    Text(estado.isFailed ? "Tentar de novo" : "Gerar resumo")
+                    Text(estado.isFailed ? "Tentar de novo" : "Resumir com o Zelo")
                         .font(Theme.body(14, weight: .semibold))
                 }
                 .foregroundStyle(.white)
@@ -588,9 +586,9 @@ struct TranscriptSummaryCard: View {
     }
 
     private var rodape: String {
-        var base = "Gerado por IA"
+        var base = "Resumido pelo Zelo, a IA da Terapia Acolher"
         if let data = estado.geradoEm {
-            base += " em " + Self.quando.string(from: data)
+            base += ", em " + Self.quando.string(from: data)
         }
         return base + ". Pode ter erros — confira com a conversa antes de usar no prontuário."
     }
