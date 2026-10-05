@@ -352,7 +352,11 @@ enum GwImage {
     /// gasta a franquia de dados do terapeuta.
     static let ladoMaximo: CGFloat = 1024
 
-    static func downscaledJPEG(_ image: UIImage) -> Data? {
+    /// Documento que vai para a análise do Asaas: lado maior, porque ele
+    /// recusa foto em que não dá pra ler o número do documento.
+    static let ladoMaximoProvedor: CGFloat = 2048
+
+    static func downscaledJPEG(_ image: UIImage, ladoMaximo: CGFloat = ladoMaximo) -> Data? {
         let maior = max(image.size.width, image.size.height)
         let escala = maior > ladoMaximo ? ladoMaximo / maior : 1
         let alvo = CGSize(

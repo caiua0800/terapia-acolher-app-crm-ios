@@ -10,6 +10,9 @@ final class FinGatewayOnboardingModel {
     let fees: GwFees
     let provider: GwProvider
     let terms: GwTerms
+    /// Provedor simulado no servidor. Só serve de palpite enquanto a conta
+    /// não existe; depois quem decide é `account.dispensaDocumentos`.
+    let simulation: Bool
     var account: GwAccount?
 
     var stepIndex = 0
@@ -63,6 +66,7 @@ final class FinGatewayOnboardingModel {
         fees = overview.fees
         provider = overview.provider
         terms = overview.terms
+        simulation = overview.simulation
         account = overview.account
         if let account = overview.account {
             personType = account.personType
@@ -93,6 +97,24 @@ final class FinGatewayOnboardingModel {
         }
         aceitouTermos = account.termsAcceptedAt != nil
     }
+
+    // MARK: Etapas visíveis
+
+    /// Asaas real: identidade e selfie são colhidas pela página dele depois do
+    /// envio, então a etapa de documentos sai do assistente.
+    var dispensaDocumentos: Bool { account?.dispensaDocumentos ?? !simulation }
+
+    /// Índices (do array `steps`) que o terapeuta percorre.
+    var etapas: [Int] { Self.etapas(dispensaDocumentos: dispensaDocumentos) }
+
+    static func etapas(dispensaDocumentos: Bool) -> [Int] {
+        dispensaDocumentos ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]
+    }
+
+    var posicaoVisivel: Int { etapas.firstIndex(of: stepIndex) ?? etapas.filter { $0 < stepIndex }.count }
+
+    var proximaEtapa: Int { etapas.first { $0 > stepIndex } ?? 4 }
+    var etapaAnterior: Int { etapas.last { $0 < stepIndex } ?? 0 }
 
     // MARK: Regras de habilitação
 
@@ -136,10 +158,13 @@ final class FinGatewayOnboardingModel {
             && state.trimmingCharacters(in: .whitespaces).count == 2
     }
 
-    var documentosPendentes: [GwDocumentType] { account?.missingDocuments ?? [] }
+    var documentosPendentes: [GwDocumentType] {
+        dispensaDocumentos ? [] : (account?.missingDocuments ?? [])
+    }
 
     var documentosPedidos: [GwDocumentType] {
-        account?.requiredDocuments ?? [.identityFront, .identityBack, .selfie]
+        if dispensaDocumentos { return [] }
+        return account?.requiredDocuments ?? [.identityFront, .identityBack, .selfie]
     }
 
     var aceiteRegistrado: Bool { account?.termsAcceptedAt != nil }
@@ -336,7 +361,7 @@ final class FinGatewayOnboardingModel {
     }
 }
 
-// MARK: - Assistente em 5 etapas (padrão do wizard de paciente)
+// MARK: - Assistente em etapas (padrão do wizard de paciente)
 
 struct FinGatewayOnboardingView: View {
     @State private var model: FinGatewayOnboardingModel
@@ -383,7 +408,7 @@ struct FinGatewayOnboardingView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         if model.stepIndex > 0 {
-                            withAnimation { model.stepIndex -= 1 }
+                            withAnimation { model.stepIndex = model.etapaAnterior }
                         } else {
                             dismiss()
                         }
@@ -482,7 +507,9 @@ struct FinGatewayOnboardingView: View {
             .alert("Conta enviada para análise", isPresented: $enviadaComSucesso) {
                 Button("Fechar") { dismiss() }
             } message: {
-                Text("Assim que a análise terminar você recebe um aviso aqui no app.")
+                Text(model.dispensaDocumentos
+                     ? "Agora envie seus documentos: a lista do que o \(model.provider.name) pede aparece na tela da conta."
+                     : "Assim que a análise terminar você recebe um aviso aqui no app.")
             }
         }
     }
@@ -492,14 +519,14 @@ struct FinGatewayOnboardingView: View {
     private var progressHeader: some View {
         HStack {
             HStack(spacing: 6) {
-                ForEach(Array(FinGatewayOnboardingModel.steps.enumerated()), id: \.offset) { index, _ in
+                ForEach(model.etapas, id: \.self) { etapa in
                     Circle()
-                        .fill(index <= model.stepIndex ? Theme.primary : Theme.border)
+                        .fill(etapa <= model.stepIndex ? Theme.primary : Theme.border)
                         .frame(width: 8, height: 8)
                 }
             }
             Spacer()
-            Text("\(model.stepIndex + 1) de 5 · \(FinGatewayOnboardingModel.steps[model.stepIndex])")
+            Text("\(model.posicaoVisivel + 1) de \(model.etapas.count) · \(FinGatewayOnboardingModel.steps[model.stepIndex])")
                 .font(Theme.body(12, weight: .semibold))
                 .foregroundStyle(Theme.textSecondary)
         }
@@ -861,12 +888,18 @@ struct FinGatewayOnboardingView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     conferenciaLinha("Dados pessoais", ok: model.cpfCnpjJaGravado || model.podeAvancarDados)
                     conferenciaLinha("Endereço", ok: model.podeAvancarEndereco)
-                    conferenciaLinha(
-                        "Documentos (\(model.documentosPedidos.count - model.documentosPendentes.count) de \(model.documentosPedidos.count))",
-                        ok: model.documentosPendentes.isEmpty
-                    )
+                    if !model.dispensaDocumentos {
+                        conferenciaLinha(
+                            "Documentos (\(model.documentosPedidos.count - model.documentosPendentes.count) de \(model.documentosPedidos.count))",
+                            ok: model.documentosPendentes.isEmpty
+                        )
+                    }
                     conferenciaLinha("Aceite das condições", ok: model.aceiteRegistrado)
                 }
+            }
+
+            if model.dispensaDocumentos {
+                proximoPassoAsaas
             }
 
             if !model.documentosPendentes.isEmpty {
@@ -876,6 +909,25 @@ struct FinGatewayOnboardingView: View {
                 )
             }
         }
+    }
+
+    /// Avisa antes do envio o que vem depois: sem isso a pessoa acha que
+    /// acabou e não volta para mandar os documentos.
+    private var proximoPassoAsaas: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "person.text.rectangle")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 22)
+            Text("Depois do envio, o \(model.provider.name) pede seu documento e uma selfie com prova de vida. Você faz isso aqui pelo app, na página segura dele — a lista aparece na tela da conta.")
+                .font(Theme.body(12))
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.primarySoft.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func conferenciaLinha(_ titulo: String, ok: Bool) -> some View {
@@ -903,7 +955,7 @@ struct FinGatewayOnboardingView: View {
                 ) {
                     Task {
                         if await model.avancar() {
-                            withAnimation { model.stepIndex += 1 }
+                            withAnimation { model.stepIndex = model.proximaEtapa }
                         }
                     }
                 }

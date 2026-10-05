@@ -302,15 +302,106 @@ struct GwAccount: Decodable {
     let stats: GwStats
     /// Preferências da conta (saque automático). Opcional pra tolerar API antiga.
     let settings: GwSettings?
+    /// Quem opera a conta: "SIMULATED" ou "ASAAS". Tudo abaixo é opcional —
+    /// backend anterior ao BaaS real não manda e a tela não pode cair por isso.
+    let provider: String?
+    let providerStatus: GwProviderStatus?
+    /// O que o Asaas ainda pede (já sem os aprovados).
+    let providerDocuments: [GwProviderDocument]?
 
     var autoWithdraw: GwAutoWithdraw { settings?.autoWithdraw ?? .desligado }
+
+    var isAsaas: Bool { provider == "ASAAS" }
+
+    /// No Asaas real a identidade (documento + selfie com prova de vida) é
+    /// colhida pela página segura dele DEPOIS do envio — o assistente pula a
+    /// etapa de documentos e a captura nossa.
+    var dispensaDocumentos: Bool { isAsaas || requiredDocuments.isEmpty }
+
+    var pendenciasDoProvedor: [GwProviderDocument] { providerDocuments ?? [] }
 
     func document(_ type: GwDocumentType) -> GwDocument? {
         documents.first { $0.type == type }
     }
 
-    /// Etapa (0-based) em que o assistente deve reabrir.
-    var wizardStartIndex: Int { max(0, min(4, step - 1)) }
+    /// Etapa (0-based) em que o assistente deve reabrir. Sem a etapa de
+    /// documentos, quem parou nela continua direto nos termos.
+    var wizardStartIndex: Int {
+        let indice = max(0, min(4, step - 1))
+        return dispensaDocumentos && indice == 3 ? 4 : indice
+    }
+}
+
+/// Situação do cadastro do lado do Asaas, por área.
+struct GwProviderStatus: Decodable {
+    let general: String?
+    let documentation: String?
+    let commercialInfo: String?
+    let bankAccountInfo: String?
+}
+
+/// Um grupo de documento que o Asaas ainda pede.
+///
+/// Com `onboardingUrl` o envio é na página segura dele (identidade e selfie
+/// com prova de vida); com `uploadInApp` o arquivo sobe pelo nosso backend.
+struct GwProviderDocument: Decodable, Identifiable, Hashable {
+    enum Situacao {
+        case naoEnviado, emAnalise, recusado
+
+        var rotulo: String {
+            switch self {
+            case .naoEnviado: "PENDENTE"
+            case .emAnalise: "EM ANÁLISE"
+            case .recusado: "RECUSADO"
+            }
+        }
+    }
+
+    let id: String
+    let type: String?
+    let status: String
+    let title: String?
+    let description: String?
+    let onboardingUrl: String?
+    /// String de propósito: formato de data do provedor não pode derrubar a tela.
+    let onboardingUrlExpiresAt: String?
+    let uploadInApp: Bool?
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
+    var situacao: Situacao {
+        switch status {
+        case "PENDING": .emAnalise
+        case "REJECTED": .recusado
+        default: .naoEnviado
+        }
+    }
+
+    var titulo: String {
+        if let title, !title.isEmpty { return title }
+        return "Documento solicitado"
+    }
+
+    var linkDeEnvio: URL? {
+        guard let onboardingUrl, !onboardingUrl.isEmpty else { return nil }
+        return URL(string: onboardingUrl)
+    }
+
+    /// Envio pela página do Asaas — o que ainda não está em análise.
+    var enviaPeloLink: Bool { linkDeEnvio != nil && situacao != .emAnalise }
+
+    var enviaPeloApp: Bool { linkDeEnvio == nil && (uploadInApp ?? false) }
+
+    /// O link do Asaas expira; vencido, recarregamos a conta antes de abrir.
+    var linkExpirado: Bool {
+        guard let texto = onboardingUrlExpiresAt else { return false }
+        let fracionado = ISO8601DateFormatter()
+        fracionado.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let data = fracionado.date(from: texto) ?? ISO8601DateFormatter().date(from: texto)
+        else { return false }
+        return data <= Date()
+    }
 }
 
 /// Saque automático: todo dia às 18h, se o saldo bater o mínimo escolhido.
@@ -695,6 +786,23 @@ enum FinGatewayAPI {
         try await APIClient.shared.post("gateway/account/reopen")
     }
 
+    /// Envia ao Asaas um documento que ele aceita pela API (grupo sem link).
+    static func uploadProviderDocument(
+        groupId: String,
+        data: Data,
+        fileName: String,
+        mimeType: String
+    ) async throws -> GwAccount {
+        // `appendingPathComponent` do APIClient já codifica o caminho.
+        try await APIClient.shared.upload(
+            "gateway/account/provider-documents/\(groupId)",
+            fileData: data,
+            fileName: fileName,
+            mimeType: mimeType,
+            fieldName: "file"
+        )
+    }
+
     static func ledger(
         page: Int,
         pageSize: Int = 30,
@@ -808,7 +916,9 @@ final class FinGatewayStore {
     var isApproved: Bool { account?.status == .approved }
     var balance: Double { account?.balance ?? 0 }
 
-    func load(showSpinner: Bool = true) async {
+    /// `silencioso`: usado pela consulta periódica da análise — uma falha de
+    /// rede no meio do caminho não pode abrir alerta na cara do terapeuta.
+    func load(showSpinner: Bool = true, silencioso: Bool = false) async {
         if showSpinner, overview == nil { isLoading = true }
         defer { isLoading = false }
         do {
@@ -817,6 +927,7 @@ final class FinGatewayStore {
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
+            guard !silencioso else { return }
             errorMessage = (error as? APIError)?.message
                 ?? "Não foi possível carregar o Acolher Financeiro."
         }

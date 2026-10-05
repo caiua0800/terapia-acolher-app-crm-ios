@@ -28,6 +28,21 @@ struct FinGatewayHomeView: View {
             }
         }
         .task { await recarregar() }
+        // Em análise a aprovação chega sem o terapeuta fazer nada: consulta a
+        // conta a cada 15 s enquanto ele estiver nesta tela. O `.task` morre
+        // sozinho quando a tela sai ou o status muda.
+        .task(id: store.account?.status) {
+            guard store.account?.status == .underReview else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(15))
+                guard !Task.isCancelled else { return }
+                await store.load(showSpinner: false, silencioso: true)
+                if store.account?.status != .underReview {
+                    await recarregar()
+                    return
+                }
+            }
+        }
     }
 
     private var conteudoDaConta: some View {
@@ -158,7 +173,7 @@ struct FinGatewayHomeView: View {
                     vantagem("qrcode", "Pix na hora", "Gere o código da cobrança e mande pro paciente por onde quiser.")
                     vantagem("arrow.down.circle", "Saldo no app", "O que o paciente paga entra aqui, com extrato de cada movimento.")
                     vantagem("arrow.up.circle", "Saque pra sua chave Pix", "Peça o saque pelo app; o valor vai para a chave que você cadastrar.")
-                    vantagem("checkmark.seal", "Sem sair daqui", "A abertura é feita nesta tela, em cinco etapas.")
+                    vantagem("checkmark.seal", "Sem sair daqui", "A abertura é feita nesta tela, em poucas etapas.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -219,9 +234,13 @@ struct FinGatewayHomeView: View {
                 icon: "doc.badge.ellipsis",
                 iconColor: Theme.warning,
                 title: "Cadastro em andamento",
-                message: "Você parou na etapa \(min(conta.step, 5)) de 5 (\(FinGatewayOnboardingModel.steps[conta.wizardStartIndex])). Continue de onde parou."
+                message: {
+                    let etapas = FinGatewayOnboardingModel.etapas(dispensaDocumentos: conta.dispensaDocumentos)
+                    let posicao = (etapas.firstIndex(of: conta.wizardStartIndex) ?? 0) + 1
+                    return "Você parou na etapa \(posicao) de \(etapas.count) (\(FinGatewayOnboardingModel.steps[conta.wizardStartIndex])). Continue de onde parou."
+                }()
             )
-            if !conta.missingDocuments.isEmpty {
+            if !conta.dispensaDocumentos, !conta.missingDocuments.isEmpty {
                 ThemeCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("AINDA FALTA ENVIAR")
@@ -253,7 +272,19 @@ struct FinGatewayHomeView: View {
     // MARK: UNDER_REVIEW
 
     private func emAnalise(_ conta: GwAccount) -> some View {
-        VStack(spacing: 16) {
+        let faltaEnviar = conta.isAsaas
+            && conta.pendenciasDoProvedor.contains { $0.enviaPeloLink || $0.enviaPeloApp }
+        return VStack(spacing: 16) {
+            if faltaEnviar {
+                // Sem os documentos o Asaas não analisa nada: o "em análise"
+                // genérico aqui faria a pessoa esperar à toa.
+                GwStateCard(
+                    icon: "person.text.rectangle",
+                    iconColor: Theme.warning,
+                    title: "Falta enviar seus documentos",
+                    message: "Para concluir a abertura, o \(store.overview?.provider.name ?? "Asaas") precisa conferir sua identidade. Envie o que está pedido na lista abaixo."
+                )
+            } else {
             GwStateCard(
                 icon: "clock.badge.checkmark",
                 iconColor: Theme.primary,
@@ -265,6 +296,14 @@ struct FinGatewayHomeView: View {
                     return "Enviada em \(GwFormat.dayTime.string(from: enviada)). \(prazo)"
                 }()
             )
+            }
+            if conta.isAsaas {
+                GwProviderDocumentsCard(
+                    account: conta,
+                    providerName: store.overview?.provider.name ?? "Asaas",
+                    onReload: { await recarregar() }
+                )
+            }
             dadosEnviados(conta)
             documentosEnviados(conta)
             atalhoCobrancas(ativo: false)
@@ -274,7 +313,10 @@ struct FinGatewayHomeView: View {
         }
     }
 
+    /// No Asaas real não há documento nosso — sem nada a listar, o card some.
+    @ViewBuilder
     private func documentosEnviados(_ conta: GwAccount) -> some View {
+        if !conta.documents.isEmpty {
         ThemeCard {
             VStack(alignment: .leading, spacing: 12) {
                 Text("DOCUMENTOS ENVIADOS")
@@ -303,6 +345,7 @@ struct FinGatewayHomeView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
         }
     }
 

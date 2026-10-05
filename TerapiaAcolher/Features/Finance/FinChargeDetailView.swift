@@ -235,7 +235,7 @@ struct FinChargeDetailView: View {
                                 .font(Theme.body(14, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
                                 .fixedSize(horizontal: false, vertical: true)
-                            Text("Leva cinco etapas, tudo dentro do app.")
+                            Text("Leva poucas etapas, tudo dentro do app.")
                                 .font(Theme.body(12))
                                 .foregroundStyle(Theme.textSecondary)
                         }

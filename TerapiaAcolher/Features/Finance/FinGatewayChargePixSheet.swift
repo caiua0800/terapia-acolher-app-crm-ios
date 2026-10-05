@@ -41,7 +41,7 @@ struct FinGatewayChargePixSheet: View {
                         if atual.status == .paid {
                             pago
                         } else {
-                            GwQRCodeView(payload: atual.pixCopyPaste)
+                            GwQRCodeView(payload: codigoPix)
                             validade
                             copiaECola
                         }
@@ -74,6 +74,12 @@ struct FinGatewayChargePixSheet: View {
             }
         }
         .presentationDetents([.large])
+    }
+
+    /// BR Code sem espaço/quebra nas pontas: colado com "\n" no fim, o app
+    /// do banco do paciente recusa o código.
+    private var codigoPix: String {
+        atual.pixCopyPaste.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: Blocos
@@ -144,13 +150,13 @@ struct FinGatewayChargePixSheet: View {
                     .font(Theme.body(10, weight: .semibold))
                     .tracking(1.2)
                     .foregroundStyle(Theme.textSecondary)
-                Text(atual.pixCopyPaste)
+                Text(codigoPix)
                     .font(Theme.money(11))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(3)
                     .truncationMode(.middle)
                 HStack(spacing: 10) {
-                    GwCopyButton(title: "Copiar código", value: atual.pixCopyPaste, icon: "qrcode")
+                    GwCopyButton(title: "Copiar código", value: codigoPix, icon: "qrcode")
                     // Manda a MENSAGEM pronta, não o código cru: colado no
                     // WhatsApp sozinho, o código parece spam e o paciente não
                     // sabe o que fazer com ele.
@@ -181,7 +187,7 @@ struct FinGatewayChargePixSheet: View {
         return """
         Oi\(primeiroNome)! Segue o Pix de \(Formatters.brl(atual.amount))\(descricao):
 
-        \(atual.pixCopyPaste)
+        \(codigoPix)
 
         É só copiar esse código e pagar pelo Pix. Qualquer dúvida é só me chamar.
         """

@@ -486,14 +486,20 @@ extension StatusBadge {
 enum GwQRCode {
     /// `pixQrCodeImage` vem nulo do servidor de propósito: o app desenha.
     static func image(from payload: String, size: CGFloat) -> UIImage? {
+        // BR Code real do Asaas passa de 200 caracteres e às vezes chega com
+        // quebra de linha no fim — que entraria no QR e invalidaria o CRC.
+        let codigo = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !codigo.isEmpty else { return nil }
         let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(payload.utf8)
+        filter.message = Data(codigo.utf8)
         // "M" tolera sujeira de tela sem inflar o QR a ponto de virar borrão.
         filter.correctionLevel = "M"
         guard let output = filter.outputImage else { return nil }
         // Renderiza em 3x o tamanho de exibição: o QR precisa ser nítido na
         // tela do paciente que vai escanear, e ampliar depois borra os módulos.
-        let escala = max(1, size * 3 / output.extent.width)
+        // Escala inteira: com fração, os módulos saem com larguras desiguais e
+        // leitor de banco erra em QR denso (BR Code longo vira versão 10+).
+        let escala = max(1, (size * 3 / output.extent.width).rounded(.up))
         let ampliado = output.transformed(by: CGAffineTransform(scaleX: escala, y: escala))
         let context = CIContext()
         guard let cg = context.createCGImage(ampliado, from: ampliado.extent) else { return nil }
