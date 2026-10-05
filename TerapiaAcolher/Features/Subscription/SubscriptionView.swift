@@ -31,8 +31,9 @@ final class SubscriptionViewModel {
 
 /// Mostra o estado do plano; **não vende**. Contratação, troca de plano e
 /// preço ficam no CRM web de propósito (ver `SubscriptionModels.swift`), então
-/// aqui não há botão de assinar nem valor em reais — quem quiser mudar fala com
-/// a equipe.
+/// aqui não há botão de assinar nem valor em reais. O único caminho é
+/// "Gerenciar conta": a API manda um link de acesso para o e-mail do terapeuta
+/// (App Store 3.1.3 — ver `ManageAccountButton`).
 struct SubscriptionView: View {
     @State private var model = SubscriptionViewModel.shared
 
@@ -61,11 +62,19 @@ struct SubscriptionView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     PlanoAtualCard(dados: dados)
+                    if !dados.active && !dados.preVenda {
+                        ManageAccountButton(style: .primary)
+                    }
                     UsoCard(uso: dados.uso)
                     if !dados.recursos.destaques.isEmpty {
                         RecursosCard(recursos: dados.recursos)
                     }
-                    rodape(dados)
+                    // Ativo também pode querer trocar de plano: mesmo caminho
+                    // do e-mail, só que discreto, depois do conteúdo.
+                    if dados.active || dados.preVenda {
+                        ManageAccountButton(style: .secondary)
+                    }
+                    rodape
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 12)
@@ -75,12 +84,10 @@ struct SubscriptionView: View {
         }
     }
 
-    private func rodape(_ dados: MySubscription) -> some View {
-        // Sem botão de compra e sem link de pagamento: a contratação acontece
-        // fora do app. Dizer com quem falar é o que resta — e é o suficiente.
-        Text(dados.active
-             ? "Para mudar de plano ou tirar dúvidas, fale com a equipe da Terapia Acolher."
-             : "Para ativar seu acesso, fale com a equipe da Terapia Acolher.")
+    private var rodape: some View {
+        // Sem botão de compra e sem link de pagamento: o link chega por e-mail
+        // e a gestão acontece fora do app.
+        Text(ManageAccountCopy.footer)
             .font(Theme.body(12.5))
             .foregroundStyle(Theme.textSecondary)
             .multilineTextAlignment(.center)
@@ -119,6 +126,12 @@ private struct PlanoAtualCard: View {
                         )
                     } else if dados.cortesia {
                         StatusBadge(label: "CORTESIA", color: Theme.success, background: Theme.successSoft)
+                    } else if dados.preVenda {
+                        StatusBadge(
+                            label: SubscriptionStatus.presale.label.uppercased(),
+                            color: Theme.warning,
+                            background: Theme.warningSoft
+                        )
                     } else if !dados.active {
                         StatusBadge(label: "INATIVA", color: Theme.danger, background: Theme.dangerSoft)
                     }
@@ -126,7 +139,7 @@ private struct PlanoAtualCard: View {
 
                 Text(explicacao)
                     .font(Theme.body(14))
-                    .foregroundStyle(dados.testeUrgente || !dados.active ? Theme.danger : Theme.textSecondary)
+                    .foregroundStyle((dados.testeUrgente || !dados.active) && !dados.preVenda ? Theme.danger : Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let mudanca = dados.mudancaAgendada, let plano = mudanca.plano {
@@ -157,6 +170,9 @@ private struct PlanoAtualCard: View {
         if dados.cortesia {
             return "Seu acesso é cortesia da Terapia Acolher — nada é cobrado."
         }
+        if dados.preVenda {
+            return "Sua assinatura da pré-venda está garantida. Avisaremos por e-mail quando o acesso for liberado."
+        }
         if !dados.active {
             return "Sua assinatura não está ativa. Seus dados continuam salvos."
         }
@@ -186,11 +202,29 @@ private struct UsoCard: View {
                     .kerning(1.2)
                     .foregroundStyle(Theme.textSecondary)
 
-                UsoLinha(rotulo: "Pacientes ativos", item: uso.pacientes)
-                UsoLinha(rotulo: "Mensagens de WhatsApp", item: uso.whatsapp)
-                UsoLinha(rotulo: "Rascunhos do Zelo", item: uso.ia)
+                ForEach(linhas, id: \.rotulo) { linha in
+                    UsoLinha(rotulo: linha.rotulo, item: linha.item)
+                }
             }
         }
+    }
+
+    /// Mesma lista do CRM web: com as cotas separadas do Zelo quando o backend
+    /// manda; sem elas, a soma antiga. Recurso fora do plano e sem uso some —
+    /// "0 de 0" não diz nada.
+    private var linhas: [(rotulo: String, item: SubscriptionUsageItem)] {
+        var itens: [(String, SubscriptionUsageItem)] = [
+            ("Pacientes ativos", uso.pacientes),
+            ("Mensagens de WhatsApp", uso.whatsapp),
+        ]
+        if let prontuarios = uso.iaProntuarios {
+            itens.append(("Prontuários com o Zelo", prontuarios))
+            itens.append(("Anamneses com o Zelo", uso.iaAnamneses ?? uso.ia))
+            itens.append(("Resumos do Zelo", uso.resumos ?? uso.ia))
+        } else {
+            itens.append(("Rascunhos do Zelo", uso.ia))
+        }
+        return itens.filter { !($0.1.foraDoPlano && $0.1.usado == 0) }
     }
 }
 
@@ -210,7 +244,7 @@ private struct UsoLinha: View {
                     .foregroundStyle(item.apertado ? Theme.warning : Theme.textSecondary)
             }
 
-            if !item.ilimitado {
+            if !item.ilimitado && !item.foraDoPlano {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule()
@@ -228,7 +262,9 @@ private struct UsoLinha: View {
     }
 
     private var valor: String {
-        item.ilimitado ? "\(item.usado) · sem limite" : "\(item.usado) de \(item.teto)"
+        if item.ilimitado { return "\(item.usado) · sem limite" }
+        if item.foraDoPlano { return "\(item.usado) · fora do plano" }
+        return "\(item.usado) de \(item.teto)"
     }
 }
 

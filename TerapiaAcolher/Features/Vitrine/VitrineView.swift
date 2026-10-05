@@ -24,6 +24,14 @@ final class VitrineViewModel {
     var isWorking = false
     var alerta: String?
     var showAlerta = false
+    /// A Vitrine revogou o acesso (409 `VITRINE_REVOGADA`): o backend já
+    /// desfez o vínculo e a tela volta a oferecer "Conectar", explicando por quê.
+    var revogada = false
+
+    /// Fora do plano: a integração não faz parte do plano do terapeuta.
+    var notInPlan: Bool { status?.planIncludes == false }
+
+    static let codigoRevogada = "VITRINE_REVOGADA"
 
     @MainActor
     func load() async {
@@ -32,11 +40,17 @@ final class VitrineViewModel {
         do {
             let novo = try await VitrineAPI.status()
             status = novo
+            if novo.connected { revogada = false }
             if novo.connected, novo.indisponivel != true {
                 // Complementos: falhar neles não derruba a tela.
-                async let perfil = try? VitrineAPI.profile()
                 async let avatar: SetImageURL? = try? APIClient.shared.get("settings/avatar")
-                profile = await perfil ?? profile
+                do {
+                    profile = try await VitrineAPI.profile()
+                } catch let error as APIError where error.code == Self.codigoRevogada {
+                    // O status ainda dizia "conectado", mas a Vitrine já
+                    // revogou: o backend desfez o vínculo nesta chamada.
+                    await handleRevoked()
+                } catch {}
                 crmAvatarURL = await avatar?.url.flatMap(URL.init(string:)) ?? crmAvatarURL
             }
         } catch is CancellationError {
@@ -46,6 +60,15 @@ final class VitrineViewModel {
             errorMessage = "Não foi possível carregar sua Vitrine."
         }
         isLoading = false
+    }
+
+    /// Conexão revogada do lado da Vitrine: some com o perfil e recarrega o
+    /// status (que agora vem desconectado), para a tela oferecer "Conectar".
+    @MainActor
+    func handleRevoked() async {
+        revogada = true
+        profile = nil
+        if let novo = try? await VitrineAPI.status() { status = novo }
     }
 
     /// "Agora não" no convite do Início: some na hora; se a API falhar, volta.
@@ -156,6 +179,12 @@ struct VitrineView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if !status.configured {
                         indisponivelCard
+                    } else if model.notInPlan {
+                        NotInPlanView(
+                            icon: "storefront",
+                            title: "Vitrine fora do seu plano",
+                            message: "A integração com a Vitrine não faz parte do seu plano atual. Seu perfil continua no ar normalmente na Vitrine — só não aparece aqui no app."
+                        )
                     } else if status.connected {
                         conectado(status)
                     } else {
@@ -186,7 +215,9 @@ struct VitrineView: View {
                     .foregroundStyle(Theme.textPrimary)
                     .multilineTextAlignment(.center)
 
-                Text("Conecte seu perfil para acompanhar quantas pessoas viram você e quantas chamaram no WhatsApp.")
+                Text(model.revogada
+                     ? "A conexão com a sua Vitrine foi desfeita. Conecte de novo para voltar a ver seu perfil e seus números por aqui."
+                     : "Conecte seu perfil para acompanhar quantas pessoas viram você e quantas chamaram no WhatsApp.")
                     .font(Theme.body(14))
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)

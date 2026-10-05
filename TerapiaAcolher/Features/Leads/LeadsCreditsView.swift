@@ -62,6 +62,16 @@ struct LeadsCreditsView: View {
                 title: "Créditos indisponíveis",
                 text: "A integração com o sistema de leads não está ligada neste ambiente."
             )
+        } else if leads.notInPlan {
+            ScrollView {
+                NotInPlanView(
+                    icon: "sparkles",
+                    title: "Créditos fora do seu plano",
+                    message: "Ver o saldo de créditos pelo app depende da integração com o sistema de leads, que não faz parte do seu plano atual."
+                )
+                .padding(.horizontal, Theme.screenPadding)
+                .padding(.top, 12)
+            }
         } else if leads.connection != nil, !leads.isConnected {
             VStack(spacing: 18) {
                 message(

@@ -334,6 +334,12 @@ struct GwOverview: Decodable {
     let fees: GwFees
     let provider: GwProvider
     let terms: GwTerms
+    /// `false` = o plano não inclui o Acolher Financeiro (quem já tem conta
+    /// continua vendo saldo, extrato e sacando).
+    let planIncludes: Bool?
+    /// `true` = recurso em desenvolvimento para esta conta: sem conta e rotas
+    /// fechadas no backend (ACOLHER_FINANCEIRO_LIBERADO / _LIBERADO_PARA).
+    let emDesenvolvimento: Bool?
     let account: GwAccount?
 }
 
@@ -794,6 +800,10 @@ final class FinGatewayStore {
     var errorMessage: String?
 
     var account: GwAccount? { overview?.account }
+    /// Sem resposta ainda conta como em desenvolvimento — é o estado de quase
+    /// todo mundo até o lançamento (mesma regra do CRM web).
+    var emDesenvolvimento: Bool { AcolherFinanceiro.emDesenvolvimento(overview) }
+    var planIncludes: Bool { overview?.planIncludes != false }
     var simulation: Bool { overview?.simulation ?? false }
     var isApproved: Bool { account?.status == .approved }
     var balance: Double { account?.balance ?? 0 }
@@ -820,6 +830,8 @@ final class FinGatewayStore {
             fees: current.fees,
             provider: current.provider,
             terms: current.terms,
+            planIncludes: current.planIncludes,
+            emDesenvolvimento: current.emDesenvolvimento,
             account: account
         )
     }

@@ -664,12 +664,17 @@ struct GwComoFuncionaCard: View {
 
 // MARK: - Em desenvolvimento (Caiuã, 2026-09-27)
 //
-// Menu desabilitado e tela com aviso. O backend também recusa as rotas do
-// terapeuta enquanto ACOLHER_FINANCEIRO_LIBERADO não for true. Para liberar:
-// esta constante em false + a variável no .env da VPS.
+// Menu desabilitado e tela com aviso. Quem decide é o backend
+// (`emDesenvolvimento` em `GET gateway/account`), com
+// ACOLHER_FINANCEIRO_LIBERADO (todos) e ACOLHER_FINANCEIRO_LIBERADO_PARA (só
+// as contas listadas). As rotas do terapeuta também são fechadas lá.
 
 enum AcolherFinanceiro {
-    static let emDesenvolvimento = true
+    /// Sem resposta (carregando, ou backend anterior ao campo) conta como em
+    /// desenvolvimento: liberar por engano abriria telas que o backend recusa.
+    static func emDesenvolvimento(_ overview: GwOverview?) -> Bool {
+        overview?.emDesenvolvimento != false
+    }
 }
 
 struct FinGatewayEmDesenvolvimentoView: View {

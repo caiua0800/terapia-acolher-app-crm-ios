@@ -266,6 +266,14 @@ final class RecEntryFormViewModel {
     var aiBlankCount = 0
     /// Id do rascunho aceito; vai junto no salvamento pra métrica de aceitação.
     var aiDraftId: String? = nil
+    /// Cota do Zelo para este tipo de registro (`subscription/me`). O plano diz
+    /// ANTES se o Zelo está liberado: ninguém escreve um rascunho inteiro para
+    /// só no fim ouvir "seu plano não inclui".
+    var zeloUsage: SubscriptionUsageItem? = nil
+    /// Cota só vale com o bloqueio por assinatura ligado no backend.
+    var zeloEnforcing = false
+    var zeloNotInPlan: Bool { zeloEnforcing && zeloUsage?.foraDoPlano == true }
+    var zeloExhausted: Bool { zeloEnforcing && zeloUsage?.esgotado == true }
     /// Estado anterior ao "organizar", pra desfazer sem perder o que era manual.
     private var undoSnapshot: (text: [String: String], multi: [String: Set<String>])? = nil
 
@@ -338,8 +346,21 @@ final class RecEntryFormViewModel {
     /// recurso simplesmente não aparece — não é erro que interesse ao terapeuta.
     @MainActor
     func loadAiStatus() async {
-        guard !isBlank, !aiEnabled else { return }
-        aiEnabled = ((try? await RecordsAPI.aiStatus())?.enabled ?? false)
+        guard !isBlank else { return }
+        async let cota: Void = loadZeloQuota()
+        if !aiEnabled {
+            aiEnabled = ((try? await RecordsAPI.aiStatus())?.enabled ?? false)
+        }
+        await cota
+    }
+
+    /// Lê a cota do Zelo no plano. Silencioso como o status: sem resposta, o
+    /// recurso aparece e o backend decide na hora de organizar.
+    @MainActor
+    func loadZeloQuota() async {
+        guard let dados = try? await SubscriptionAPI.mine() else { return }
+        zeloEnforcing = dados.enforcing
+        zeloUsage = dados.uso.zelo(kind)
     }
 
     /// Manda o rascunho pro backend e distribui a resposta nos campos.
@@ -364,6 +385,8 @@ final class RecEntryFormViewModel {
             // requisição cancelada (fechou a tela) — silencioso
         } catch let error as APIError {
             aiError = error.message
+            // Cota mudou no meio do caminho: o bloco passa a mostrar o motivo.
+            await loadZeloQuota()
         } catch {
             aiError = "Não foi possível organizar o rascunho. Tente de novo."
         }
@@ -642,7 +665,9 @@ struct RecEntryFormView: View {
     @ViewBuilder
     private var aiSection: some View {
         VStack(spacing: 10) {
-            if model.aiFilledIds.isEmpty {
+            if model.aiFilledIds.isEmpty && (model.zeloNotInPlan || model.zeloExhausted) {
+                aiUnavailableCard
+            } else if model.aiFilledIds.isEmpty {
                 if model.isComposerOpen {
                     aiComposer
                 } else {
@@ -665,7 +690,58 @@ struct RecEntryFormView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: model.isComposerOpen)
+        .animation(.easeOut(duration: 0.25), value: model.zeloNotInPlan || model.zeloExhausted)
         .animation(.easeOut(duration: 0.25), value: model.aiFilledIds.isEmpty)
+    }
+
+    /// Zelo fora do plano ou cota do ciclo usada: avisa ANTES de o terapeuta
+    /// escrever o rascunho. Sem nomear plano nem preço — só o link por e-mail.
+    private var aiUnavailableCard: some View {
+        let oQue = model.kind == .record ? "prontuários" : "anamneses"
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                ZeloAvatar(size: 40)
+                    .opacity(0.6)
+                    .saturation(0.65)
+                VStack(alignment: .leading, spacing: 3) {
+                    Group {
+                        if model.zeloNotInPlan {
+                            Text("Escreva solto. O ") + Zelo.nomeEstilizado(15.5) + Text(" organiza.")
+                        } else {
+                            Text("Você usou os \(model.zeloUsage?.teto ?? 0) \(oQue) com o ")
+                                + Zelo.nomeEstilizado(15.5) + Text(" deste ciclo.")
+                        }
+                    }
+                    .font(Theme.body(15, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    Text(model.zeloNotInPlan
+                         ? "Não incluído no seu plano atual. Você pode continuar preenchendo os campos à mão."
+                         : "A cota renova no próximo ciclo. Enquanto isso, preencha os campos à mão.")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            ManageAccountButton(style: .compact, tint: RecAi.accent)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [RecAi.soft.opacity(0.22), Theme.surface],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                .stroke(RecAi.soft.opacity(0.45), lineWidth: 1)
+        )
     }
 
     /// Estado fechado: convite discreto, não rouba a cena do formulário.

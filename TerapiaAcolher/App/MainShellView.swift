@@ -252,6 +252,8 @@ struct MainShellView: View {
 struct SideMenuView: View {
     @Binding var selection: MenuDestination
     @Binding var isOpen: Bool
+    /// O backend diz se o Acolher Financeiro está liberado para esta conta.
+    @State private var gateway = FinGatewayStore.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -300,13 +302,15 @@ struct SideMenuView: View {
         }
         .frame(width: 290)
         .frame(maxHeight: .infinity)
+        // Falha silenciosa: sem resposta o item segue como em desenvolvimento.
+        .task { if gateway.overview == nil { await gateway.load(showSpinner: false) } }
         // fundo estende até as bordas; conteúdo respeita a safe area (não colide com o relógio)
         .background(Theme.ink.ignoresSafeArea())
     }
 
     @ViewBuilder
     private func menuRow(_ item: MenuDestination) -> some View {
-        if item == .gateway && AcolherFinanceiro.emDesenvolvimento {
+        if item == .gateway && gateway.emDesenvolvimento {
             // Em desenvolvimento: aparece, mas não abre.
             HStack(spacing: 12) {
                 Image(systemName: item.icon)

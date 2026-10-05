@@ -21,6 +21,8 @@ final class AuthLoginModel {
     var errorMessage: String?
     /// 403 de e-mail pendente → oferece reenvio da confirmação.
     var canResendVerification = false
+    /// 403 `SUBSCRIPTION_INACTIVE` → oferece "Gerenciar conta" (link por e-mail).
+    var subscriptionInactive = false
     var infoMessage: String?
 
     var canSubmit: Bool {
@@ -32,6 +34,7 @@ final class AuthLoginModel {
         errorMessage = nil
         infoMessage = nil
         canResendVerification = false
+        subscriptionInactive = false
         isLoading = true
         defer { isLoading = false }
         do {
@@ -43,6 +46,9 @@ final class AuthLoginModel {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
+            if error.statusCode == 403, error.code == "SUBSCRIPTION_INACTIVE" {
+                subscriptionInactive = true
+            }
             if error.statusCode == 403, error.message.localizedCaseInsensitiveContains("confirme seu e-mail") {
                 canResendVerification = true
             }
@@ -139,6 +145,14 @@ struct LoginFlowView: View {
                                 }
                                 .buttonStyle(.pressable)
                                 .disabled(model.isResending)
+                            }
+                            if model.subscriptionInactive {
+                                // Só o link por e-mail: nada de preço ou
+                                // compra dentro do app (App Store 3.1.3).
+                                ManageAccountButton(
+                                    destination: .email(model.email),
+                                    style: .secondary
+                                )
                             }
 
                             PrimaryButton(

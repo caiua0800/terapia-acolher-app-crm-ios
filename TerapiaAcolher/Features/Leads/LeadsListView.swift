@@ -134,6 +134,16 @@ struct LeadsListView: View {
             ErrorRetryView(message: erro) { Task { await store.load() } }
         } else if let conexao = store.connection, !conexao.configured {
             indisponivelCard
+        } else if store.notInPlan {
+            ScrollView {
+                NotInPlanView(
+                    icon: "tray.full",
+                    title: "Leads fora do seu plano",
+                    message: "A integração com o sistema de leads não faz parte do seu plano atual. Você continua recebendo e atendendo seus contatos pelo portal da Terapia Acolher."
+                )
+                .padding(.horizontal, Theme.screenPadding)
+                .padding(.top, 12)
+            }
         } else if !store.isConnected {
             convite
         } else {

@@ -143,7 +143,10 @@ struct DashboardView: View {
     /// primeira tela, é o lugar onde o número tem chance de ser visto.
     @ViewBuilder
     private var vitrineSection: some View {
-        if let status = vitrine.status, status.configured, !status.connected {
+        if vitrine.status?.planIncludes == false {
+            // Fora do plano: nada no Início; a tela da Vitrine explica.
+            EmptyView()
+        } else if let status = vitrine.status, status.configured, !status.connected {
             if status.inviteDismissed != true {
                 ConnectInviteCard(
                     icon: "storefront",
@@ -313,8 +316,9 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var leadsSection: some View {
-        // Ambiente sem a integração: nada aqui.
-        if leads.connection?.configured == false {
+        // Ambiente sem a integração (ou fora do plano): nada aqui. O menu
+        // continua levando à tela, que explica.
+        if leads.connection?.configured == false || leads.notInPlan {
             EmptyView()
         } else if let conexao = leads.connection, !conexao.connected {
             // Não conectado: convite com "Agora não", que some de vez (gravado

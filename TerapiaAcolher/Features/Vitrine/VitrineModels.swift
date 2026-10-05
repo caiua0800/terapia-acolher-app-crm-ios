@@ -16,6 +16,11 @@ struct VitrineStatus: Decodable {
 
     let configured: Bool
     let connected: Bool
+    /// `false` = o plano não inclui a integração com a Vitrine. O perfil
+    /// continua no ar lá; só não aparece no app.
+    let planIncludes: Bool?
+    /// `false` = números do perfil fora do plano (o backend já tira `mes`).
+    let metricsIncluded: Bool?
     /// A Vitrine pode estar fora do ar sem que o vínculo tenha caído — nesse
     /// caso vem conectado, mas sem os números.
     let indisponivel: Bool?

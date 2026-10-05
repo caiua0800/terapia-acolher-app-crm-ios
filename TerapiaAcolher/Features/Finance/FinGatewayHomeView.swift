@@ -18,11 +18,16 @@ struct FinGatewayHomeView: View {
 
     var body: some View {
         // Toda entrada (menu, Ajustes, cobranças, notificação) cai aqui.
-        if AcolherFinanceiro.emDesenvolvimento {
-            FinGatewayEmDesenvolvimentoView()
-        } else {
-            conteudoDaConta
+        // Enquanto a primeira resposta não chega, a tela da conta mostra o
+        // esqueleto; depois o backend decide se está liberado para esta conta.
+        Group {
+            if store.overview != nil && store.emDesenvolvimento {
+                FinGatewayEmDesenvolvimentoView()
+            } else {
+                conteudoDaConta
+            }
         }
+        .task { await recarregar() }
     }
 
     private var conteudoDaConta: some View {
@@ -43,7 +48,6 @@ struct FinGatewayHomeView: View {
         }
         .setToolbarTitle("Acolher Financeiro")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await recarregar() }
         .sheet(isPresented: $showOnboarding, onDismiss: {
             Task { await recarregar() }
         }) {
@@ -165,10 +169,25 @@ struct FinGatewayHomeView: View {
 
             SeloAsaas(badgeUrl: store.overview?.provider.badgeUrl)
 
-            PrimaryButton(title: "Ativar recebimentos", icon: "arrow.right") {
-                showOnboarding = true
+            if store.planIncludes {
+                PrimaryButton(title: "Ativar recebimentos", icon: "arrow.right") {
+                    showOnboarding = true
+                }
+                .accessibilityIdentifier("gwAtivar")
+            } else {
+                // Fora do plano: em vez de abrir a conta, o caminho do e-mail.
+                ThemeCard {
+                    VStack(spacing: 12) {
+                        Text("O Acolher Financeiro não faz parte do seu plano atual.")
+                            .font(Theme.body(14))
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                        ManageAccountButton(style: .secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
-            .accessibilityIdentifier("gwAtivar")
 
             atalhoCobrancas(ativo: false)
         }

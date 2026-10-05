@@ -13,6 +13,8 @@ enum SubscriptionStatus: String, Decodable {
     case active = "ACTIVE"
     case expired = "EXPIRED"
     case canceled = "CANCELED"
+    /// Comprou na pré-venda; o acesso começa quando o admin iniciar.
+    case presale = "PRESALE"
     case none = "NONE"
 
     /// Desconhecido vira `none` em vez de estourar o decode: status novo no
@@ -21,6 +23,17 @@ enum SubscriptionStatus: String, Decodable {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = SubscriptionStatus(rawValue: raw) ?? .none
     }
+
+    var label: String {
+        switch self {
+        case .trialing: "Em teste"
+        case .active: "Ativa"
+        case .expired: "Expirada"
+        case .canceled: "Cancelada"
+        case .presale: "Pré-venda"
+        case .none: "Sem assinatura"
+        }
+    }
 }
 
 enum SubscriptionPeriodicity: String, Decodable {
@@ -28,15 +41,6 @@ enum SubscriptionPeriodicity: String, Decodable {
     case quarterly = "QUARTERLY"
     case semiannual = "SEMIANNUAL"
     case annual = "ANNUAL"
-
-    var label: String {
-        switch self {
-        case .monthly: "por mês"
-        case .quarterly: "por trimestre"
-        case .semiannual: "por semestre"
-        case .annual: "por ano"
-        }
-    }
 
     /// "Renova todo mês" lê melhor que "periodicidade: MONTHLY".
     var renovacao: String {
@@ -74,6 +78,12 @@ struct SubscriptionUsageItem: Decodable, Hashable {
     }
 
     var apertado: Bool { !ilimitado && fracao >= 0.8 }
+
+    /// Teto zero: o plano não inclui o recurso.
+    var foraDoPlano: Bool { teto == 0 }
+
+    /// Cota com teto e já toda usada no ciclo.
+    var esgotado: Bool { teto > 0 && usado >= teto }
 }
 
 enum UsageLimits {
@@ -82,8 +92,22 @@ enum UsageLimits {
 
 struct SubscriptionUsage: Decodable, Hashable {
     let whatsapp: SubscriptionUsageItem
+    /// Soma de prontuário + anamnese — o que backends anteriores mandam.
     let ia: SubscriptionUsageItem
     let pacientes: SubscriptionUsageItem
+    /// Cotas separadas do Zelo (desde 2026-09-27). Opcionais: backend antigo
+    /// não manda, e aí vale a soma em `ia`.
+    let iaProntuarios: SubscriptionUsageItem?
+    let iaAnamneses: SubscriptionUsageItem?
+    let resumos: SubscriptionUsageItem?
+
+    /// Cota do Zelo para o tipo de registro, com o legado como reserva.
+    func zelo(_ kind: RecordsKind) -> SubscriptionUsageItem {
+        switch kind {
+        case .record: iaProntuarios ?? ia
+        case .anamnesis: iaAnamneses ?? ia
+        }
+    }
 }
 
 /// Capacidades do plano — espelho de `common/entitlements/capabilities.ts`.
@@ -93,14 +117,24 @@ struct SubscriptionEntitlements: Decodable, Hashable {
     var patients: Int = 0
     var whatsappPerCycle: Int = 0
     var aiDraftsPerCycle: Int = 0
+    var aiRecordsPerCycle: Int = 0
+    var aiAnamnesesPerCycle: Int = 0
+    var aiSummariesPerCycle: Int = 0
     var billingAutomation: Bool = false
     var onlineCharges: Bool = false
     var bulkImport: Bool = false
+    var transcription: Bool = false
+    var acolherFinanceiro: Bool = false
+    var vitrine: Bool = false
+    var vitrineMetrics: Bool = false
+    var leads: Bool = false
     var platformFeeDiscountPercent: Int = 0
 
     private enum CodingKeys: String, CodingKey {
         case patients, whatsappPerCycle, aiDraftsPerCycle
-        case billingAutomation, onlineCharges, bulkImport
+        case aiRecordsPerCycle, aiAnamnesesPerCycle, aiSummariesPerCycle
+        case billingAutomation, onlineCharges, bulkImport, transcription
+        case acolherFinanceiro, vitrine, vitrineMetrics, leads
         case platformFeeDiscountPercent
     }
 
@@ -113,9 +147,18 @@ struct SubscriptionEntitlements: Decodable, Hashable {
         patients = try c.decodeIfPresent(Int.self, forKey: .patients) ?? 0
         whatsappPerCycle = try c.decodeIfPresent(Int.self, forKey: .whatsappPerCycle) ?? 0
         aiDraftsPerCycle = try c.decodeIfPresent(Int.self, forKey: .aiDraftsPerCycle) ?? 0
+        // Backend anterior à separação só manda a cota somada.
+        aiRecordsPerCycle = try c.decodeIfPresent(Int.self, forKey: .aiRecordsPerCycle) ?? aiDraftsPerCycle
+        aiAnamnesesPerCycle = try c.decodeIfPresent(Int.self, forKey: .aiAnamnesesPerCycle) ?? aiDraftsPerCycle
+        aiSummariesPerCycle = try c.decodeIfPresent(Int.self, forKey: .aiSummariesPerCycle) ?? 0
         billingAutomation = try c.decodeIfPresent(Bool.self, forKey: .billingAutomation) ?? false
         onlineCharges = try c.decodeIfPresent(Bool.self, forKey: .onlineCharges) ?? false
         bulkImport = try c.decodeIfPresent(Bool.self, forKey: .bulkImport) ?? false
+        transcription = try c.decodeIfPresent(Bool.self, forKey: .transcription) ?? false
+        acolherFinanceiro = try c.decodeIfPresent(Bool.self, forKey: .acolherFinanceiro) ?? false
+        vitrine = try c.decodeIfPresent(Bool.self, forKey: .vitrine) ?? false
+        vitrineMetrics = try c.decodeIfPresent(Bool.self, forKey: .vitrineMetrics) ?? false
+        leads = try c.decodeIfPresent(Bool.self, forKey: .leads) ?? false
         // O backend limita o percentual com Math.min/max, então ele pode vir
         // fracionário (50.5) — decodificar direto em Int falharia.
         let desconto = try c.decodeIfPresent(Double.self, forKey: .platformFeeDiscountPercent) ?? 0
@@ -128,11 +171,25 @@ struct SubscriptionEntitlements: Decodable, Hashable {
         var itens: [(String, String)] = [
             ("Pacientes ativos", Self.quantidade(patients)),
             ("Mensagens de WhatsApp por ciclo", Self.quantidade(whatsappPerCycle)),
-            ("Rascunhos do Zelo por ciclo", Self.quantidade(aiDraftsPerCycle)),
         ]
+        // Cota zero é "não incluído": some da lista em vez de mostrar "0".
+        if aiRecordsPerCycle != 0 {
+            itens.append(("Prontuários com o Zelo por ciclo", Self.quantidade(aiRecordsPerCycle)))
+        }
+        if aiAnamnesesPerCycle != 0 {
+            itens.append(("Anamneses com o Zelo por ciclo", Self.quantidade(aiAnamnesesPerCycle)))
+        }
+        if aiSummariesPerCycle != 0 {
+            itens.append(("Resumos do Zelo por ciclo", Self.quantidade(aiSummariesPerCycle)))
+        }
+        if transcription { itens.append(("Transcrição das sessões online", "Incluída")) }
         if billingAutomation { itens.append(("Automação de cobrança", "Incluída")) }
         if onlineCharges { itens.append(("Cobrança online", "Incluída")) }
+        if acolherFinanceiro { itens.append(("Acolher Financeiro", "Incluído")) }
         if bulkImport { itens.append(("Importar pacientes de planilha", "Incluída")) }
+        if vitrine { itens.append(("Vitrine no app", "Incluída")) }
+        if vitrineMetrics { itens.append(("Números da Vitrine", "Incluídos")) }
+        if leads { itens.append(("Leads e créditos no app", "Incluídos")) }
         if platformFeeDiscountPercent > 0 {
             itens.append(("Desconto na taxa da plataforma", "\(platformFeeDiscountPercent)%"))
         }
@@ -158,6 +215,7 @@ struct MySubscription: Decodable {
     let recursos: SubscriptionEntitlements
 
     var emTeste: Bool { status == .trialing }
+    var preVenda: Bool { status == .presale }
 
     /// A data que importa agora: no teste é o fim do teste, assinando é a
     /// renovação.
@@ -180,6 +238,7 @@ struct MySubscription: Decodable {
     var tituloDoPlano: String {
         if cortesia { return "Cortesia" }
         if emTeste { return "Teste grátis" }
+        if preVenda { return plano?.nome ?? SubscriptionStatus.presale.label }
         return plano?.nome ?? "Sem plano"
     }
 }

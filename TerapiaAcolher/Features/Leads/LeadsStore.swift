@@ -24,6 +24,8 @@ final class LeadsStore {
     var showAlerta = false
 
     var isConnected: Bool { connection?.connected == true }
+    /// O plano não inclui a integração (o backend nem consulta o sistema de leads).
+    var notInPlan: Bool { connection?.planIncludes == false }
 
     // MARK: Consultas
 

@@ -186,6 +186,9 @@ struct Lead: Identifiable, Hashable, Decodable {
 struct LeadsConnectionStatus: Decodable {
     let configured: Bool
     let connected: Bool
+    /// `false` = o plano do terapeuta não inclui a integração. O vínculo fica
+    /// guardado no backend; a tela mostra "Não incluído no seu plano".
+    let planIncludes: Bool?
     /// Sistema de leads fora do ar: o vínculo continua, só os dados somem.
     let indisponivel: Bool?
     /// O token foi revogado lá; o vínculo aqui já foi desfeito.

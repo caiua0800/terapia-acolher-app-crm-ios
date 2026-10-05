@@ -43,6 +43,9 @@ final class VitrineProfileViewModel {
         } catch is CancellationError {
         } catch let error as APIError {
             errorMessage = error.message
+            if error.code == VitrineViewModel.codigoRevogada {
+                await VitrineViewModel.shared.handleRevoked()
+            }
         } catch {
             errorMessage = "Não foi possível carregar seu perfil da Vitrine."
         }
@@ -106,6 +109,9 @@ final class VitrineProfileViewModel {
             // A validação de verdade é a da Vitrine — ela é dona do dado.
             // Mostramos a mensagem dela, não uma genérica nossa.
             present(error.message)
+            if error.code == VitrineViewModel.codigoRevogada {
+                await VitrineViewModel.shared.handleRevoked()
+            }
         } catch {
             present("Não foi possível salvar. Verifique sua conexão.")
         }
