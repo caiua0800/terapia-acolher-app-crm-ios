@@ -66,7 +66,8 @@ struct SubscriptionView: View {
                         ManageAccountButton(style: .primary)
                     }
                     UsoCard(uso: dados.uso)
-                    if !dados.recursos.destaques.isEmpty {
+                    // Inativa: o plano não vale agora — listar "incluído" confunde.
+                    if dados.active, !dados.recursos.destaques.isEmpty {
                         RecursosCard(recursos: dados.recursos)
                     }
                     // Ativo também pode querer trocar de plano: mesmo caminho

@@ -13,7 +13,12 @@ struct SubscriptionBanner: View {
     @State private var model = SubscriptionViewModel.shared
 
     var body: some View {
-        Group {
+        // VStack (e não Group): sem dados ainda, um Group vazio não "aparece" e
+        // o .task abaixo nunca rodava — a faixa só surgia depois de alguém
+        // abrir a tela Assinatura.
+        VStack(spacing: 0) {
+            // Âncora de altura zero: garante que a view exista (e o .task rode).
+            Color.clear.frame(height: 0)
             if let dados = model.dados, deveAparecer(dados) {
                 if inativa(dados) {
                     inativaFaixa
