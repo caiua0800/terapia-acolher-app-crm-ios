@@ -108,10 +108,8 @@ struct FinCardChargeSheet: View {
                     if q.fees.platform > 0 {
                         GwValueRow(label: "Taxa Terapia Acolher", value: "− \(Formatters.brl(q.fees.platform))")
                     }
-                    GwValueRow(label: "Tarifa do cartão \(provedor)", value: "− \(Formatters.brl(q.fees.provider))")
-                    if let antecipacao = q.fees.anticipation, antecipacao > 0 {
-                        GwValueRow(label: "Antecipação \(provedor)", value: "− \(Formatters.brl(antecipacao))")
-                    }
+                    // Antecipação embutida na tarifa do Asaas (2026-10-06).
+                    GwValueRow(label: "Tarifa do cartão \(provedor)", value: "− \(Formatters.brl(q.fees.provider + (q.fees.anticipation ?? 0)))")
                     Divider().overlay(Theme.border)
                     GwValueRow(
                         label: "Você recebe",

@@ -835,54 +835,87 @@ struct FinGatewayHomeView: View {
     /// Resumo da conta (2026-10-06, igual ao web): três caixas — recebido,
     /// recebido líquido (já sem as taxas) e sacado. O detalhe das taxas fica no
     /// cartão "O que é descontado de cada cobrança"; repetir aqui pesava.
+    /// Resumo da conta (2026-10-06, igual ao web): recebido e líquido no mesmo
+    /// cartão — o bruto discreto em cima, o líquido embaixo, grande e em verde.
+    /// O Sacado mostra quanto do líquido já foi para as contas para saque.
     private func metricas(_ conta: GwAccount) -> some View {
         let s = conta.stats
-        let liquido = s.receivedTotal - s.platformFeesTotal - s.providerFeesTotal
+        let taxas = s.platformFeesTotal + s.providerFeesTotal
+        let liquido = s.receivedTotal - taxas
+        let fracao = liquido > 0 ? min(1, max(0, s.withdrawnTotal / liquido)) : 0
         return VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                caixaDoResumo("RECEBIDO", s.receivedTotal, cor: Theme.ink)
-                caixaDoResumo("RECEBIDO LÍQUIDO", liquido, cor: Theme.success, forte: true)
-            }
-            caixaDoResumo(
-                "SACADO",
-                s.withdrawnTotal,
-                cor: Theme.ink,
-                nota: "Transferido para as suas contas para saque."
-            )
-        }
-    }
-
-    private func caixaDoResumo(
-        _ rotulo: String,
-        _ valor: Double,
-        cor: Color,
-        forte: Bool = false,
-        nota: String? = nil
-    ) -> some View {
-        ThemeCard {
-            VStack(alignment: .leading, spacing: 6) {
-                rotuloDoResumo(rotulo)
-                Text(Formatters.brl(valor))
-                    .font(Theme.body(20, weight: forte ? .bold : .semibold))
-                    .foregroundStyle(cor)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                if let nota {
-                    Text(nota)
+            VStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    rotuloDoResumo("RECEBIDO")
+                    Spacer()
+                    Text(Formatters.brl(s.receivedTotal))
+                        .font(Theme.body(15, weight: .semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                        .monospacedDigit()
+                }
+                .padding(.horizontal, Theme.cardPadding)
+                .padding(.top, 14)
+                .padding(.bottom, 12)
+                Line()
+                    .stroke(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .frame(height: 1)
+                    .padding(.horizontal, Theme.cardPadding)
+                VStack(alignment: .leading, spacing: 6) {
+                    rotuloDoResumo("RECEBIDO LÍQUIDO", cor: Theme.success)
+                    Text(Formatters.brl(liquido))
+                        .font(Theme.body(30, weight: .bold))
+                        .foregroundStyle(Theme.success)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(taxas > 0 ? "Já sem as taxas de \(Formatters.brl(taxas))." : "Já sem as taxas de cada cobrança.")
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Theme.cardPadding)
+                .background(Theme.successSoft.opacity(0.45))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: Theme.cornerRadius).stroke(Theme.border, lineWidth: 1))
+
+            ThemeCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        rotuloDoResumo("SACADO")
+                        Spacer()
+                        Text(Formatters.brl(s.withdrawnTotal))
+                            .font(Theme.body(20, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
+                            .monospacedDigit()
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Theme.border)
+                            Capsule().fill(Theme.primary).frame(width: geo.size.width * fracao)
+                        }
+                    }
+                    .frame(height: 6)
+                    .accessibilityElement()
+                    .accessibilityLabel("Parte do recebido líquido já sacada")
+                    .accessibilityValue("\(Int((fracao * 100).rounded())) por cento")
+                    Text(liquido > 0
+                         ? "\(Int((fracao * 100).rounded()))% do líquido já foi para as suas contas para saque."
+                         : "Transferido para as suas contas para saque.")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
-    private func rotuloDoResumo(_ texto: String) -> some View {
+    private func rotuloDoResumo(_ texto: String, cor: Color = Theme.textSecondary) -> some View {
         Text(texto)
             .font(Theme.body(10, weight: .semibold))
             .tracking(1.1)
-            .foregroundStyle(Theme.textSecondary)
+            .foregroundStyle(cor)
     }
 
 
@@ -1139,5 +1172,15 @@ struct GwWithdrawalRow: View {
                     .foregroundStyle(Theme.textSecondary)
             }
         }
+    }
+}
+
+/// Linha horizontal para traço pontilhado (separador do resumo da conta).
+private struct Line: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return p
     }
 }

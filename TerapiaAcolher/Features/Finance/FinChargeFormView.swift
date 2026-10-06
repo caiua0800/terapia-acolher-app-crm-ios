@@ -269,7 +269,7 @@ struct FinChargeFormView: View {
             opcao(
                 icone: "creditcard",
                 titulo: "Cartão de crédito",
-                subtitulo: "À vista, pago pelo link seguro do \(store.overview?.provider.name ?? GwProvider.asaasPadrao.name)",
+                subtitulo: "À vista, pelo link seguro do \(store.overview?.provider.name ?? GwProvider.asaasPadrao.name). Você recebe em até 2 dias úteis.",
                 selecionada: noCartao
             ) { noCartao = true }
             if noCartao {
@@ -389,10 +389,8 @@ struct FinChargeFormView: View {
                 if q.fees.platform > 0 {
                     linha("Taxa Terapia Acolher", "− \(Formatters.brl(q.fees.platform))", destaque: false)
                 }
-                linha("Tarifa do cartão \(provedor)", "− \(Formatters.brl(q.fees.provider))", destaque: false)
-                if let antecipacao = q.fees.anticipation, antecipacao > 0 {
-                    linha("Antecipação \(provedor)", "− \(Formatters.brl(antecipacao))", destaque: false)
-                }
+                // Antecipação embutida na tarifa do Asaas (2026-10-06).
+                linha("Tarifa do cartão \(provedor)", "− \(Formatters.brl(q.fees.provider + (q.fees.anticipation ?? 0)))", destaque: false)
                 Divider().overlay(Theme.border)
                 linha("Você recebe", Formatters.brl(q.netAmount), destaque: true)
                 Text("Estimativa. O valor exato aparece ao gerar o link. No cartão, contestações do pagamento podem ser debitadas da sua conta.")

@@ -244,6 +244,29 @@ struct GwCardFees: Decodable {
     let anticipationDays: Double?
     let settlementDays: Int?
 
+    /// Tarifa efetiva do Asaas com a antecipação embutida (2026-10-06):
+    /// % do cartão + antecipação sobre o que sobra da tarifa, por dia.
+    /// Ex.: 1,99% + 1,25% × 34/30 × 0,9801 = 3,38%.
+    var percentualEfetivoDoProvedor: Double {
+        let mensal = anticipationMonthlyPercent ?? 0
+        let dias = anticipationDays ?? 34
+        let efetivo = providerPercent + mensal * dias / 30 * (1 - providerPercent / 100)
+        return (efetivo * 100).rounded() / 100
+    }
+
+    /// "3,38% + R$ 0,49": a tarifa do Asaas já com a antecipação.
+    var descricaoDoProvedor: String {
+        GwCardFees.descricao(percentual: percentualEfetivoDoProvedor, fixo: providerFixed) ?? Formatters.brl(0)
+    }
+
+    /// Taxa total por cobrança (Terapia Acolher + Asaas efetivo), só as partes que existem.
+    var descricaoDoTotal: String? {
+        GwCardFees.descricao(
+            percentual: (platformPercent ?? 0) + percentualEfetivoDoProvedor,
+            fixo: (platformFixed ?? 0) + providerFixed
+        )
+    }
+
     /// Prévia LOCAL para o formulário de nova cobrança (a cobrança ainda não
     /// existe, então não há `quote` no servidor). O valor exato vem do servidor
     /// ao gerar o link. É o porte EXATO de backend/src/modules/gateway/
@@ -575,6 +598,8 @@ struct GwLedgerDetail: Decodable, Identifiable {
         let amount: Double?
         let platformFee: Double?
         let providerFee: Double?
+        /// Cartão: antecipação do Asaas (separada no servidor, somada na tela).
+        let anticipationFee: Double?
         let netAmount: Double?
         let paidAt: Date?
     }

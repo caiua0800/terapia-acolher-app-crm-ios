@@ -260,20 +260,22 @@ struct GwFeesCard: View {
                     .font(Theme.body(10, weight: .semibold))
                     .tracking(1.1)
                     .foregroundStyle(Theme.textSecondary)
+                // Total em destaque e a composição embaixo, menor (2026-10-06).
+                if fees.cartaoDisponivel {
+                    Text("PIX")
+                        .font(Theme.body(10, weight: .semibold))
+                        .tracking(1.1)
+                        .foregroundStyle(Theme.textSecondary)
+                }
                 GwValueRow(
-                    label: "Taxa de plataforma Terapia Acolher",
-                    value: Formatters.brl(fees.platformFixed)
-                )
-                GwValueRow(
-                    label: "Tarifa Pix \(provider.name)",
-                    value: Formatters.brl(fees.providerPixFixed)
-                )
-                Divider().overlay(Theme.border)
-                GwValueRow(
-                    label: fees.cartaoDisponivel ? "Total por Pix" : "Total por cobrança",
+                    label: "Total por cobrança",
                     value: Formatters.brl(fees.totalPerCharge),
                     destaque: true
                 )
+                GwComposicao(linhas: [
+                    ("Terapia Acolher", Formatters.brl(fees.platformFixed)),
+                    (provider.name, Formatters.brl(fees.providerPixFixed)),
+                ])
                 if let card = fees.card, card.available {
                     taxasDoCartao(card)
                 }
@@ -300,20 +302,23 @@ extension GwFeesCard {
             .tracking(1.1)
             .foregroundStyle(Theme.textSecondary)
             .padding(.top, 6)
-        if let ta = GwCardFees.descricao(percentual: card.platformPercent, fixo: card.platformFixed) {
-            GwValueRow(label: "Taxa de plataforma Terapia Acolher", value: ta)
-        }
+        // Taxa total em destaque e, embaixo, o que a compõe (2026-10-06,
+        // pedido do Caiuã): a antecipação não aparece separada — ela já está
+        // dentro da tarifa efetiva do Asaas.
         GwValueRow(
-            label: "Tarifa do cartão \(provider.name)",
-            value: GwCardFees.descricao(percentual: card.providerPercent, fixo: card.providerFixed) ?? Formatters.brl(0)
+            label: "Total por cobrança",
+            value: card.descricaoDoTotal ?? Formatters.brl(0),
+            destaque: true
         )
-        if let antecipacao = card.anticipationMonthlyPercent, antecipacao > 0 {
-            GwValueRow(
-                label: "Antecipação automática \(provider.name)",
-                value: GwCardFees.descricao(percentual: antecipacao, fixo: nil) ?? ""
-            )
-        }
-        Text("O valor do cartão é antecipado sozinho e cai no seu saldo. Você pode repassar as taxas ao paciente ao cobrar.")
+        GwComposicao(linhas: {
+            var linhas: [(String, String)] = []
+            if let ta = GwCardFees.descricao(percentual: card.platformPercent, fixo: card.platformFixed) {
+                linhas.append(("Terapia Acolher", ta))
+            }
+            linhas.append((provider.name, "\(card.descricaoDoProvedor) · com antecipação"))
+            return linhas
+        }())
+        Text("Você recebe em até 2 dias úteis (antecipação automática). Dá para repassar as taxas ao paciente ao cobrar.")
             .font(Theme.body(12))
             .foregroundStyle(Theme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -764,5 +769,29 @@ struct FinGatewayEmDesenvolvimentoView: View {
         }
         .setToolbarTitle("Acolher Financeiro")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Composição de uma taxa: linhas menores e opacas, com um filete à esquerda,
+/// embaixo do total (2026-10-06).
+struct GwComposicao: View {
+    let linhas: [(String, String)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(linhas.enumerated()), id: \.offset) { _, l in
+                HStack(alignment: .firstTextBaseline) {
+                    Text(l.0)
+                    Spacer(minLength: 8)
+                    Text(l.1).monospacedDigit()
+                }
+            }
+        }
+        .font(Theme.body(12))
+        .foregroundStyle(Theme.textSecondary)
+        .padding(.leading, 10)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(Theme.border).frame(width: 2)
+        }
     }
 }

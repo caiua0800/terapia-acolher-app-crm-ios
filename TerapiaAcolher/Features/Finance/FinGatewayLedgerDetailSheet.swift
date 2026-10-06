@@ -145,7 +145,8 @@ struct FinGatewayLedgerDetailSheet: View {
                     if let taxa = c.platformFee, taxa > 0 {
                         GwValueRow(label: "Taxa de plataforma", value: "− \(Formatters.brl(taxa))")
                     }
-                    if let tarifa = c.providerFee, tarifa > 0 {
+                    // Antecipação embutida na tarifa do cartão (2026-10-06).
+                    if let tarifa = c.providerFee.map({ $0 + (c.anticipationFee ?? 0) }), tarifa > 0 {
                         GwValueRow(
                             label: d.noCartao ? "Tarifa do cartão \(provider.name)" : "Tarifa Pix \(provider.name)",
                             value: "− \(Formatters.brl(tarifa))"
