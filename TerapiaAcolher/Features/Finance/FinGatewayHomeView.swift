@@ -556,6 +556,9 @@ struct FinGatewayHomeView: View {
             saquesRecentes
             chavesCard
             atalhoSaqueAutomatico(conta)
+            if store.overview?.fees.cartaoDisponivel == true {
+                GwRepasseDoCartaoCard(ligado: conta.cardFeesPassThrough ?? false)
+            }
             if let fees = store.overview?.fees {
                 GwFeesCard(fees: fees, provider: store.overview?.provider ?? .asaasPadrao)
             }
@@ -1031,6 +1034,76 @@ struct FinGatewayHomeView: View {
             return "\(auto.scheduleLabel), quando o saldo passar de \(Formatters.brl(minimo))."
         }
         return "\(auto.scheduleLabel), com qualquer saldo disponível."
+    }
+}
+
+// MARK: - Preferência: repassar as taxas do cartão ao paciente (2026-10-06)
+
+/// Padrão da conta para as cobranças no cartão (cada cobrança ainda pode
+/// mudar na hora de gerar). Desligado = o terapeuta paga as taxas.
+struct GwRepasseDoCartaoCard: View {
+    let ligado: Bool
+
+    @State private var valor: Bool
+    @State private var salvando = false
+    @State private var erro: String?
+
+    init(ligado: Bool) {
+        self.ligado = ligado
+        _valor = State(initialValue: ligado)
+    }
+
+    var body: some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    Toggle(isOn: Binding(
+                        get: { valor },
+                        set: { novo in Task { await salvar(novo) } }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Repassar as taxas do cartão")
+                                .font(Theme.body(15, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(valor
+                                 ? "O paciente paga as taxas e você recebe o valor cheio."
+                                 : "Você paga as taxas do cartão (padrão).")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    .tint(Theme.primary)
+                    .disabled(salvando)
+                    if salvando { ProgressView().controlSize(.small) }
+                }
+                if let erro {
+                    Text(erro)
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.danger)
+                }
+            }
+        }
+        .onChange(of: ligado) { _, novo in valor = novo }
+        .accessibilityIdentifier("gwRepasseCartao")
+    }
+
+    private func salvar(_ novo: Bool) async {
+        let antes = valor
+        valor = novo
+        salvando = true
+        erro = nil
+        defer { salvando = false }
+        do {
+            let r = try await FinGatewayAPI.updateCardSettings(feesPassThrough: novo)
+            valor = r.feesPassThrough
+            Haptics.success()
+            await FinGatewayStore.shared.load(showSpinner: false)
+        } catch is CancellationError {
+            valor = antes
+        } catch {
+            valor = antes
+            erro = (error as? APIError)?.message ?? "Não foi possível salvar."
+        }
     }
 }
 

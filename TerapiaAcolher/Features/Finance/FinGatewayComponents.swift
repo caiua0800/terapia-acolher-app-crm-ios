@@ -270,10 +270,13 @@ struct GwFeesCard: View {
                 )
                 Divider().overlay(Theme.border)
                 GwValueRow(
-                    label: "Total por cobrança",
+                    label: fees.cartaoDisponivel ? "Total por Pix" : "Total por cobrança",
                     value: Formatters.brl(fees.totalPerCharge),
                     destaque: true
                 )
+                if let card = fees.card, card.available {
+                    taxasDoCartao(card)
+                }
                 // A tarifa vem do servidor: cravar "sem tarifa" faria o app
                 // mentir no dia em que o provedor passar a cobrar o saque.
                 Text(fees.withdrawalFee > 0
@@ -284,6 +287,48 @@ struct GwFeesCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+extension GwFeesCard {
+    /// Cartão à vista: só as partes que se aplicam (a da Terapia Acolher pode
+    /// ser só %, só R$, os dois ou nenhum — definido no admin).
+    @ViewBuilder
+    func taxasDoCartao(_ card: GwCardFees) -> some View {
+        Text("CARTÃO DE CRÉDITO (À VISTA)")
+            .font(Theme.body(10, weight: .semibold))
+            .tracking(1.1)
+            .foregroundStyle(Theme.textSecondary)
+            .padding(.top, 6)
+        if let ta = GwCardFees.descricao(percentual: card.platformPercent, fixo: card.platformFixed) {
+            GwValueRow(label: "Taxa de plataforma Terapia Acolher", value: ta)
+        }
+        GwValueRow(
+            label: "Tarifa do cartão \(provider.name)",
+            value: GwCardFees.descricao(percentual: card.providerPercent, fixo: card.providerFixed) ?? Formatters.brl(0)
+        )
+        if let antecipacao = card.anticipationMonthlyPercent, antecipacao > 0 {
+            GwValueRow(
+                label: "Antecipação automática \(provider.name)",
+                value: GwCardFees.descricao(percentual: antecipacao, fixo: nil) ?? ""
+            )
+        }
+        Text("O valor do cartão é antecipado sozinho e cai no seu saldo. Você pode repassar as taxas ao paciente ao cobrar.")
+            .font(Theme.body(12))
+            .foregroundStyle(Theme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+extension GwCardFees {
+    /// "1% + R$ 0,50", "2,99%", "R$ 0,49". `nil` quando nada se aplica.
+    static func descricao(percentual: Double?, fixo: Double?) -> String? {
+        var partes: [String] = []
+        if let p = percentual, p > 0 {
+            partes.append("\(p.formatted(.number.precision(.fractionLength(0...2)).locale(Locale(identifier: "pt_BR"))))%")
+        }
+        if let f = fixo, f > 0 { partes.append(Formatters.brl(f)) }
+        return partes.isEmpty ? nil : partes.joined(separator: " + ")
     }
 }
 

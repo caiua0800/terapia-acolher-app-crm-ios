@@ -206,8 +206,72 @@ struct GwFees: Decodable {
     let minCharge: Double
     let minWithdrawal: Double
     let dailyWithdrawalLimit: Double
+    /// Cobrança no cartão (2026-10-06). Opcional: backend anterior não manda,
+    /// e aí o app simplesmente não oferece o cartão.
+    let card: GwCardFees?
 
     var totalPerCharge: Double { platformFixed + providerPixFixed }
+
+    /// Cartão liberado para esta conta (o servidor decide).
+    var cartaoDisponivel: Bool { card?.available == true }
+}
+
+/// Taxas do cartão à vista. Percentuais em "pontos" (1.0 = 1%). Parte da
+/// Terapia Acolher `nil` = não se aplica (definido no admin).
+struct GwCardFees: Decodable {
+    let available: Bool
+    let platformPercent: Double?
+    let platformFixed: Double?
+    let providerPercent: Double
+    let providerFixed: Double
+    let anticipationMonthlyPercent: Double?
+    let settlementDays: Int?
+
+    /// Soma dos percentuais que incidem sobre o valor cobrado.
+    var percentualTotal: Double {
+        (platformPercent ?? 0) + providerPercent + (anticipationMonthlyPercent ?? 0)
+    }
+
+    /// Prévia LOCAL para o formulário de nova cobrança (a cobrança ainda não
+    /// existe, então não há `quote` no servidor). O valor exato vem do servidor
+    /// ao gerar o link. Repassando, o paciente paga o suficiente para o
+    /// terapeuta receber o valor original — mesma fórmula do backend.
+    func estimativa(valor: Double, repassar: Bool) -> GwCardQuote {
+        let fixos = (platformFixed ?? 0) + providerFixed
+        let fator = 1 - percentualTotal / 100
+        let cobrado: Double = repassar && fator > 0
+            ? (((valor + fixos) / fator) * 100).rounded(.up) / 100
+            : valor
+        let plataforma = arredondar(cobrado * (platformPercent ?? 0) / 100 + (platformFixed ?? 0))
+        let provedor = arredondar(cobrado * providerPercent / 100 + providerFixed)
+        let antecipacao = arredondar(cobrado * (anticipationMonthlyPercent ?? 0) / 100)
+        let total = plataforma + provedor + antecipacao
+        return GwCardQuote(
+            baseAmount: valor,
+            chargedAmount: cobrado,
+            passFees: repassar,
+            fees: .init(platform: plataforma, provider: provedor, anticipation: antecipacao, total: total),
+            netAmount: max(0, arredondar(cobrado - total))
+        )
+    }
+
+    private func arredondar(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+}
+
+/// Prévia do cartão: `GET gateway/charges/:id/card/quote` (ou a estimativa local).
+struct GwCardQuote: Decodable, Equatable {
+    struct Fees: Decodable, Equatable {
+        let platform: Double
+        let provider: Double
+        let anticipation: Double?
+        let total: Double
+    }
+
+    let baseAmount: Double
+    let chargedAmount: Double
+    let passFees: Bool
+    let fees: Fees
+    let netAmount: Double
 }
 
 struct GwProvider: Decodable {
@@ -308,6 +372,8 @@ struct GwAccount: Decodable {
     let providerStatus: GwProviderStatus?
     /// O que o Asaas ainda pede (já sem os aprovados).
     let providerDocuments: [GwProviderDocument]?
+    /// Preferência "repassar as taxas do cartão ao paciente" (padrão: não).
+    let cardFeesPassThrough: Bool?
 
     var autoWithdraw: GwAutoWithdraw { settings?.autoWithdraw ?? .desligado }
 
@@ -673,15 +739,47 @@ struct GwCharge: Decodable, Identifiable {
     let platformFee: Double
     let providerFee: Double
     let netAmount: Double
+    /// Vazio no cartão (o paciente paga pelo link do Asaas, não por código).
     let pixCopyPaste: String
     let pixQrCodeImage: String?
-    let expiresAt: Date
+    let expiresAt: Date?
     let paidAt: Date?
     let createdAt: Date?
     let patientName: String?
     let description: String?
+    /// "PIX" | "CREDIT_CARD". Ausente = Pix (backend anterior ao cartão).
+    let method: String?
+    /// Página segura do Asaas onde o paciente paga no cartão.
+    let invoiceUrl: String?
 
     var id: String { chargeId }
+    var isCartao: Bool { method == "CREDIT_CARD" }
+
+    enum CodingKeys: String, CodingKey {
+        case chargeId, gatewayChargeId, status, amount, platformFee, providerFee, netAmount
+        case pixCopyPaste, pixQrCodeImage, expiresAt, paidAt, createdAt, patientName, description
+        case method, invoiceUrl
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        chargeId = try c.decode(String.self, forKey: .chargeId)
+        gatewayChargeId = try c.decodeIfPresent(String.self, forKey: .gatewayChargeId)
+        status = try c.decode(GwChargeStatus.self, forKey: .status)
+        amount = try c.decode(Double.self, forKey: .amount)
+        platformFee = try c.decodeIfPresent(Double.self, forKey: .platformFee) ?? 0
+        providerFee = try c.decodeIfPresent(Double.self, forKey: .providerFee) ?? 0
+        netAmount = try c.decodeIfPresent(Double.self, forKey: .netAmount) ?? 0
+        pixCopyPaste = try c.decodeIfPresent(String.self, forKey: .pixCopyPaste) ?? ""
+        pixQrCodeImage = try c.decodeIfPresent(String.self, forKey: .pixQrCodeImage)
+        expiresAt = try c.decodeIfPresent(Date.self, forKey: .expiresAt)
+        paidAt = try c.decodeIfPresent(Date.self, forKey: .paidAt)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+        patientName = try c.decodeIfPresent(String.self, forKey: .patientName)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        method = try c.decodeIfPresent(String.self, forKey: .method)
+        invoiceUrl = try c.decodeIfPresent(String.self, forKey: .invoiceUrl)
+    }
 }
 
 struct GwOk: Decodable {
@@ -729,6 +827,18 @@ struct GwAutoWithdrawBody: Encodable {
         try c.encode(minAmount, forKey: .minAmount)
         try c.encode(pixKeyId, forKey: .pixKeyId)
     }
+}
+
+struct GwCardBody: Encodable {
+    var passFees: Bool
+}
+
+struct GwCardSettingsBody: Encodable {
+    var feesPassThrough: Bool
+}
+
+struct GwCardSettings: Decodable {
+    let feesPassThrough: Bool
 }
 
 struct GwPixKeyBody: Encodable {
@@ -892,6 +1002,22 @@ enum FinGatewayAPI {
 
     static func createPix(chargeId: String) async throws -> GwCharge {
         try await APIClient.shared.post("gateway/charges/\(chargeId)/pix")
+    }
+
+    /// Link de pagamento no cartão (página segura do Asaas).
+    static func createCard(chargeId: String, passFees: Bool) async throws -> GwCharge {
+        try await APIClient.shared.post("gateway/charges/\(chargeId)/card", body: GwCardBody(passFees: passFees))
+    }
+
+    static func cardQuote(chargeId: String, passFees: Bool) async throws -> GwCardQuote {
+        try await APIClient.shared.get(
+            "gateway/charges/\(chargeId)/card/quote",
+            query: ["passFees": passFees ? "true" : "false"]
+        )
+    }
+
+    static func updateCardSettings(feesPassThrough: Bool) async throws -> GwCardSettings {
+        try await APIClient.shared.put("gateway/settings/card", body: GwCardSettingsBody(feesPassThrough: feesPassThrough))
     }
 
     static func charge(chargeId: String) async throws -> GwCharge {

@@ -1,10 +1,13 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Pix da cobrança gerado pelo Acolher Financeiro
+// MARK: - Pix (ou link do cartão) da cobrança gerado pelo Acolher Financeiro
 //
 // O servidor manda `pixQrCodeImage` nulo de propósito: o QR é desenhado aqui
 // a partir do copia-e-cola, então nada de imagem trafega pela rede.
+//
+// Cartão (2026-10-06): a mesma folha mostra o link da página segura do Asaas
+// no lugar do QR — o paciente digita o cartão lá, nunca no app.
 
 struct FinGatewayChargePixSheet: View {
     let charge: GwCharge
@@ -40,6 +43,9 @@ struct FinGatewayChargePixSheet: View {
                         cabecalho
                         if atual.status == .paid {
                             pago
+                        } else if atual.isCartao {
+                            linkDoCartao
+                            validade
                         } else {
                             GwQRCodeView(payload: codigoPix)
                             validade
@@ -56,7 +62,7 @@ struct FinGatewayChargePixSheet: View {
                     .padding(Theme.screenPadding)
                 }
             }
-            .navigationTitle("Cobrança por Pix")
+            .navigationTitle(atual.isCartao ? "Cobrança no cartão" : "Cobrança por Pix")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -74,7 +80,7 @@ struct FinGatewayChargePixSheet: View {
             }
         }
         .presentationDetents([.large])
-        // Pix em aberto: a confirmação chega por webhook do Asaas, de alguns
+        // Pix (ou cartão) em aberto: a confirmação chega por webhook do Asaas, de alguns
         // segundos a ~30 s depois do pagamento. Pergunta a cada 4 s enquanto
         // a folha estiver aberta, pra virar "pago" sozinha — sem isto a
         // terapeuta fechava e reabria achando que o pagamento não tinha caído.
@@ -150,9 +156,15 @@ struct FinGatewayChargePixSheet: View {
 
     private var validade: some View {
         VStack(spacing: 4) {
-            Text(atual.status == .expired ? "Pix expirado" : GwFormat.expiry(atual.expiresAt))
-                .font(Theme.body(12, weight: .semibold))
-                .foregroundStyle(atual.status == .expired ? Theme.danger : Theme.textSecondary)
+            if atual.status == .expired {
+                Text(atual.isCartao ? "Link expirado" : "Pix expirado")
+                    .font(Theme.body(12, weight: .semibold))
+                    .foregroundStyle(Theme.danger)
+            } else if let expira = atual.expiresAt {
+                Text(GwFormat.expiry(expira))
+                    .font(Theme.body(12, weight: .semibold))
+                    .foregroundStyle(Theme.textSecondary)
+            }
             // Ninguém precisa ficar conferindo: quando o pagamento cai, a
             // cobrança se marca sozinha e o líquido entra no saldo.
             if atual.status != .expired {
@@ -200,12 +212,89 @@ struct FinGatewayChargePixSheet: View {
         }
     }
 
+    private var linkDePagamento: URL? {
+        atual.invoiceUrl.flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
+    }
+
+    /// Cartão: o paciente paga na página segura do Asaas. Copiar, abrir e
+    /// compartilhar — o mesmo que o Pix oferece, com o link no lugar do código.
+    private var linkDoCartao: some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "creditcard")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 34, height: 34)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("LINK DE PAGAMENTO")
+                            .font(Theme.body(10, weight: .semibold))
+                            .tracking(1.2)
+                            .foregroundStyle(Theme.textSecondary)
+                        Text("O paciente paga no cartão na página segura do \(provider?.name ?? GwProvider.asaasPadrao.name).")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if let link = linkDePagamento {
+                    Text(link.absoluteString)
+                        .font(Theme.money(11))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                    HStack(spacing: 10) {
+                        GwCopyButton(title: "Copiar link", value: link.absoluteString, icon: "link")
+                        ShareLink(item: mensagemParaOPaciente) {
+                            Label("Enviar", systemImage: "square.and.arrow.up")
+                                .font(Theme.body(15, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 22)
+                                        .stroke(Theme.border, lineWidth: 1)
+                                )
+                        }
+                    }
+                    Link(destination: link) {
+                        Label("Abrir página de pagamento", systemImage: "safari")
+                            .font(Theme.body(14, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.top, 2)
+                } else {
+                    Text("O link ainda não chegou. Feche e abra a cobrança de novo em instantes.")
+                        .font(Theme.body(13))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Text("No cartão, contestações do pagamento podem ser debitadas da sua conta.")
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     /// Texto pronto para mandar ao paciente — o mesmo do CRM web.
     private var mensagemParaOPaciente: String {
         let primeiroNome = atual.patientName?
             .split(separator: " ").first
             .map { ", \($0)" } ?? ""
         let descricao = atual.description.map { " (\($0))" } ?? ""
+        if atual.isCartao {
+            return """
+            Oi\(primeiroNome)! Segue o link para pagar \(Formatters.brl(atual.amount))\(descricao) no cartão de crédito:
+
+            \(linkDePagamento?.absoluteString ?? "")
+
+            É só abrir e pagar com o cartão. Qualquer dúvida é só me chamar.
+            """
+        }
         return """
         Oi\(primeiroNome)! Segue o Pix de \(Formatters.brl(atual.amount))\(descricao):
 
@@ -224,7 +313,9 @@ struct FinGatewayChargePixSheet: View {
                     value: "− \(Formatters.brl(atual.platformFee))"
                 )
                 GwValueRow(
-                    label: "Tarifa Pix \(provider?.name ?? GwProvider.asaasPadrao.name)",
+                    label: atual.isCartao
+                        ? "Tarifas do cartão \(provider?.name ?? GwProvider.asaasPadrao.name) (com antecipação)"
+                        : "Tarifa Pix \(provider?.name ?? GwProvider.asaasPadrao.name)",
                     value: "− \(Formatters.brl(atual.providerFee))"
                 )
                 Divider().overlay(Theme.border)

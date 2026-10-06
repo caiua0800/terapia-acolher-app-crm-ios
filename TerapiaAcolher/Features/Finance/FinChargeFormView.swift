@@ -22,6 +22,20 @@ struct FinChargeFormView: View {
     @State private var pixCriado: GwCharge?
     /// Fecha o sheet quando o Pix for fechado (a cobrança já existe).
     @State private var fecharAoFecharPix = false
+    /// Pix ou cartão (2026-10-06). O cartão só aparece se o servidor liberar.
+    @State private var noCartao = false
+    /// Repassar as taxas do cartão ao paciente. Começa com a preferência da
+    /// conta; `nil` = ainda não mexeu aqui.
+    @State private var repassarEscolhido: Bool?
+
+    private var cartao: GwCardFees? {
+        guard let card = taxas?.card, card.available else { return nil }
+        return card
+    }
+    private var usandoCartao: Bool { noCartao && cartao != nil }
+    private var repassar: Bool {
+        repassarEscolhido ?? store.account?.cardFeesPassThrough ?? false
+    }
 
     private var valor: Double? { FinFormat.parseAmount(amountText) }
 
@@ -98,7 +112,7 @@ struct FinChargeFormView: View {
                         }
 
                         PrimaryButton(
-                            title: "Criar e gerar Pix",
+                            title: usandoCartao ? "Criar e gerar link do cartão" : "Criar e gerar Pix",
                             isLoading: isSaving,
                             isEnabled: isValid
                         ) {
@@ -197,6 +211,9 @@ struct FinChargeFormView: View {
 
             // Só o Acolher Financeiro cobra. Sem conta aprovada o cartão
             // aparece apagado, com o motivo — e o link abaixo leva pra abrir.
+            if podeCobrarPorPix, let cartao {
+                opcoesDeRecebimento(cartao)
+            } else {
             ThemeCard {
                 HStack(spacing: 12) {
                     Image(systemName: "qrcode")
@@ -217,6 +234,7 @@ struct FinChargeFormView: View {
                     Spacer(minLength: 0)
                 }
                 .opacity(podeCobrarPorPix || store.overview == nil ? 1 : 0.45)
+            }
             }
 
             if store.overview != nil, !podeCobrarPorPix {
@@ -239,6 +257,88 @@ struct FinChargeFormView: View {
         }
     }
 
+    /// Pix ou Cartão, lado a lado, e o repasse das taxas quando é cartão.
+    private func opcoesDeRecebimento(_ cartao: GwCardFees) -> some View {
+        VStack(spacing: 10) {
+            opcao(
+                icone: "qrcode",
+                titulo: "Pix",
+                subtitulo: taxas.map { "Cai no seu saldo na hora · taxa \(Formatters.brl($0.totalPerCharge))" } ?? "Cai no seu saldo na hora",
+                selecionada: !noCartao
+            ) { noCartao = false }
+            opcao(
+                icone: "creditcard",
+                titulo: "Cartão de crédito",
+                subtitulo: "À vista, pago pelo link seguro do \(store.overview?.provider.name ?? GwProvider.asaasPadrao.name)",
+                selecionada: noCartao
+            ) { noCartao = true }
+            if noCartao {
+                ThemeCard {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Toggle(isOn: Binding(
+                            get: { repassar },
+                            set: { repassarEscolhido = $0 }
+                        )) {
+                            Text("Repassar as taxas ao paciente")
+                                .font(Theme.body(15, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                        .tint(Theme.primary)
+                        Text(repassar
+                             ? "O paciente paga um pouco mais e você recebe o valor cheio."
+                             : "O paciente paga o valor da cobrança e as taxas saem do que você recebe.")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: noCartao)
+    }
+
+    private func opcao(
+        icone: String,
+        titulo: String,
+        subtitulo: String,
+        selecionada: Bool,
+        acao: @escaping () -> Void
+    ) -> some View {
+        Button {
+            Haptics.tap()
+            acao()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icone)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 32, height: 32)
+                    .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(titulo)
+                        .font(Theme.body(15, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(subtitulo)
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: selecionada ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(selecionada ? Theme.primary : Theme.border)
+            }
+            .padding(Theme.cardPadding)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                    .stroke(selecionada ? Theme.primary : Theme.border, lineWidth: selecionada ? 1.5 : 1)
+            )
+        }
+        .buttonStyle(.pressableSubtle)
+        .accessibilityAddTraits(selecionada ? .isSelected : [])
+    }
+
     // MARK: - Quanto entra na conta
 
     @ViewBuilder
@@ -254,6 +354,9 @@ struct FinChargeFormView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        } else if usandoCartao, let cartao, let valor, valor > 0 {
+            resumoDoCartao(cartao.estimativa(valor: valor, repassar: repassar))
+                .transition(.opacity)
         } else if podeCobrarPorPix, let taxas, let valor, valor > 0 {
             // Taxa da plataforma e tarifa Pix do Asaas, sempre separadas
             // (regra do playbook) — e o líquido é o que ele recebe de fato.
@@ -273,6 +376,31 @@ struct FinChargeFormView: View {
                 }
             }
             .transition(.opacity)
+        }
+    }
+
+    /// Estimativa local: a cobrança ainda não existe para pedir a prévia ao
+    /// servidor. O valor exato aparece na folha do link, ao gerar.
+    private func resumoDoCartao(_ q: GwCardQuote) -> some View {
+        let provedor = store.overview?.provider.name ?? GwProvider.asaasPadrao.name
+        return ThemeCard {
+            VStack(spacing: 10) {
+                linha(q.passFees ? "O paciente paga" : "Valor da cobrança", Formatters.brl(q.chargedAmount), destaque: false)
+                if q.fees.platform > 0 {
+                    linha("Taxa Terapia Acolher", "− \(Formatters.brl(q.fees.platform))", destaque: false)
+                }
+                linha("Tarifa do cartão \(provedor)", "− \(Formatters.brl(q.fees.provider))", destaque: false)
+                if let antecipacao = q.fees.anticipation, antecipacao > 0 {
+                    linha("Antecipação \(provedor)", "− \(Formatters.brl(antecipacao))", destaque: false)
+                }
+                Divider().overlay(Theme.border)
+                linha("Você recebe", Formatters.brl(q.netAmount), destaque: true)
+                Text("Estimativa. O valor exato aparece ao gerar o link. No cartão, contestações do pagamento podem ser debitadas da sua conta.")
+                    .font(Theme.body(11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -299,8 +427,10 @@ struct FinChargeFormView: View {
             amount: amount,
             dueDate: FinFormat.isoDay.string(from: dueDate),
             referenceMonth: FinFormat.monthQuery.string(from: referenceMonthDate),
-            intendedBillingType: "PIX"
+            intendedBillingType: usandoCartao ? "CARD" : "PIX"
         )
+        let cartaoAgora = usandoCartao
+        let repassarAgora = repassar
         do {
             let criada = try await FinanceAPI.createCharge(body)
             onSaved()
@@ -308,15 +438,18 @@ struct FinChargeFormView: View {
             // ao paciente deixava o terapeuta no meio do caminho: ele tinha que
             // achar a cobrança na lista e só então pedir o Pix.
             do {
-                pixCriado = try await FinGatewayAPI.createPix(chargeId: criada.id)
+                pixCriado = cartaoAgora
+                    ? try await FinGatewayAPI.createCard(chargeId: criada.id, passFees: repassarAgora)
+                    : try await FinGatewayAPI.createPix(chargeId: criada.id)
                 fecharAoFecharPix = true
                 Haptics.success()
             } catch {
                 // A cobrança FOI criada. Tratar como erro genérico faria ele
                 // criar tudo de novo e ficar com duas.
+                let oQue = cartaoAgora ? "o link do cartão" : "o Pix"
                 errorMessage = (error as? APIError).map {
-                    "Cobrança criada, mas o Pix não foi gerado: \($0.message)"
-                } ?? "Cobrança criada, mas o Pix não foi gerado. Você pode gerá-lo abrindo a cobrança."
+                    "Cobrança criada, mas \(oQue) não foi gerado: \($0.message)"
+                } ?? "Cobrança criada, mas \(oQue) não foi gerado. Você pode gerar abrindo a cobrança."
             }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso

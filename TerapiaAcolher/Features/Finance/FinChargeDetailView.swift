@@ -10,6 +10,10 @@ final class FinChargeDetailModel {
     var alerta: String?
     var showAlerta = false
     var gatewayPix: GwCharge?
+    /// Folha de cobrar no cartão (prévia + gerar link) e o link gerado, que
+    /// só abre depois que a prévia fecha — duas folhas juntas se derrubam.
+    var cobrandoNoCartao = false
+    var cartaoGerado: GwCharge?
 
     init(charge: FinCharge) {
         self.charge = charge
@@ -101,6 +105,21 @@ struct FinChargeDetailView: View {
         } message: {
             Text(model.alerta ?? "Algo deu errado.")
         }
+        .sheet(isPresented: $model.cobrandoNoCartao, onDismiss: {
+            if let criada = model.cartaoGerado {
+                model.cartaoGerado = nil
+                model.gatewayPix = criada
+            }
+        }) {
+            FinCardChargeSheet(
+                charge: model.charge,
+                repassarPadrao: store.account?.cardFeesPassThrough ?? false
+            ) { criada in
+                model.cartaoGerado = criada
+                Task { await model.carregar() }
+                onChange()
+            }
+        }
         .sheet(item: $model.gatewayPix) { pix in
             FinGatewayChargePixSheet(
                 charge: pix,
@@ -128,7 +147,11 @@ struct FinChargeDetailView: View {
                 )
                 if model.charge.gatewayName == "ACOLHER",
                    model.charge.status != .paid, model.charge.status != .canceled {
-                    StatusBadge(label: "PIX GERADO", color: Theme.primary, background: Theme.primarySoft)
+                    StatusBadge(
+                        label: model.charge.ehNoCartao ? "LINK DO CARTÃO GERADO" : "PIX GERADO",
+                        color: Theme.primary,
+                        background: Theme.primarySoft
+                    )
                 }
             }
 
@@ -208,14 +231,22 @@ struct FinChargeDetailView: View {
             VStack(spacing: 8) {
                 PrimaryButton(
                     title: model.charge.gatewayName == "ACOLHER"
-                        ? "Ver Pix"
+                        ? (model.charge.ehNoCartao ? "Ver link do cartão" : "Ver Pix")
                         : "Cobrar por Pix (Acolher Financeiro)",
-                    icon: "qrcode",
+                    icon: model.charge.ehNoCartao && model.charge.gatewayName == "ACOLHER" ? "creditcard" : "qrcode",
                     isLoading: model.isWorkingPix
                 ) {
                     Task { await model.pixDoGateway() }
                 }
                 .accessibilityIdentifier("gwCobrarPix")
+                // Cartão só antes de existir cobrança online (Pix ou link):
+                // dois meios abertos para a mesma cobrança confundiriam o paciente.
+                if model.charge.gatewayName != "ACOLHER", store.overview?.fees.cartaoDisponivel == true {
+                    SecondaryButton(title: "Cobrar no cartão de crédito", icon: "creditcard") {
+                        model.cobrandoNoCartao = true
+                    }
+                    .accessibilityIdentifier("gwCobrarCartao")
+                }
             }
         } else if store.overview != nil {
             // Só o Acolher Financeiro cobra. Sem conta aprovada, o caminho é

@@ -160,6 +160,10 @@ struct FinChargesView: View {
     @State private var store = FinGatewayStore.shared
     @State private var showChargeForm = false
     @State private var cancelingCharge: FinCharge?
+    /// Cobrar no cartão (prévia + gerar link) e o link gerado, que só abre
+    /// depois que a folha da prévia fecha — duas folhas juntas se derrubam.
+    @State private var cobrandoNoCartao: FinCharge?
+    @State private var cartaoGerado: GwCharge?
 
     init(patient: FinPatientRef) {
         _model = State(initialValue: FinChargesViewModel(patient: patient))
@@ -232,6 +236,20 @@ struct FinChargesView: View {
                 simulation: store.simulation,
                 provider: store.overview?.provider
             ) {
+                Task { await model.load() }
+            }
+        }
+        .sheet(item: $cobrandoNoCartao, onDismiss: {
+            if let criada = cartaoGerado {
+                cartaoGerado = nil
+                model.gatewayPix = criada
+            }
+        }) { charge in
+            FinCardChargeSheet(
+                charge: charge,
+                repassarPadrao: store.account?.cardFeesPassThrough ?? false
+            ) { criada in
+                cartaoGerado = criada
                 Task { await model.load() }
             }
         }
@@ -469,7 +487,11 @@ struct FinChargesView: View {
                     // Já existe Pix desta cobrança: sem o selo, a única forma
                     // de saber era abrir a cobrança e esperar carregar.
                     if charge.gatewayName == "ACOLHER", charge.status != .paid, charge.status != .canceled {
-                        StatusBadge(label: "PIX GERADO", color: Theme.primary, background: Theme.primarySoft)
+                        StatusBadge(
+                            label: charge.ehNoCartao ? "CARTÃO" : "PIX GERADO",
+                            color: Theme.primary,
+                            background: Theme.primarySoft
+                        )
                     }
                     Text(dueLabel(charge))
                         .font(Theme.body(12))
@@ -563,9 +585,9 @@ struct FinChargesView: View {
                     } label: {
                         Label(
                             charge.gatewayName == "ACOLHER"
-                                ? "Ver Pix"
+                                ? (charge.ehNoCartao ? "Ver link do cartão" : "Ver Pix")
                                 : "Cobrar por Pix (Acolher Financeiro)",
-                            systemImage: "qrcode"
+                            systemImage: charge.ehNoCartao && charge.gatewayName == "ACOLHER" ? "creditcard" : "qrcode"
                         )
                     }
                 }
@@ -574,6 +596,16 @@ struct FinChargesView: View {
                     Task { await model.sendReminder(charge) }
                 } label: {
                     Label("Enviar lembrete de cobrança", systemImage: "bell")
+                }
+                // Cartão só antes de existir cobrança online para ela.
+                if store.isApproved, charge.gatewayName != "ACOLHER",
+                   store.overview?.fees.cartaoDisponivel == true {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        cobrandoNoCartao = charge
+                    } label: {
+                        Label("Cobrar no cartão de crédito", systemImage: "creditcard")
+                    }
                 }
                 // Cobrança criada antes do Acolher Financeiro (link do Asaas
                 // próprio): só copiar, sem gerar link novo por esse caminho.
@@ -594,7 +626,10 @@ struct FinChargesView: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await model.pixDoGateway(charge) }
                 } label: {
-                    Label("Ver Pix", systemImage: "qrcode")
+                    Label(
+                        charge.ehNoCartao ? "Ver cobrança no cartão" : "Ver Pix",
+                        systemImage: charge.ehNoCartao ? "creditcard" : "qrcode"
+                    )
                 }
             }
         } label: {
