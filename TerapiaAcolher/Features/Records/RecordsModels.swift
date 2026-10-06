@@ -70,13 +70,20 @@ struct RecPatientRef: Identifiable, Hashable {
 // MARK: - Form-builder (schema dos modelos)
 
 struct RecQuestion: Codable, Identifiable, Hashable {
-    let id: String
-    let label: String
-    let kind: String // text | single | multiple
-    let options: [String]?
-    let required: Bool?
+    var id: String
+    var label: String
+    var kind: String // text | single | multiple
+    var options: [String]?
+    var required: Bool?
     /// Pergunta vedada à IA (natureza diagnóstica) — o terapeuta preenche à mão.
-    let aiExcluded: Bool?
+    var aiExcluded: Bool? = nil
+
+    /// Pergunta criada na hora, dentro do registro. Id próprio (`q_` + 8
+    /// caracteres): o backend recusa id repetido de pergunta do modelo.
+    static func nova(label: String = "", kind: String = "text") -> RecQuestion {
+        let curto = UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8).lowercased()
+        return RecQuestion(id: "q_\(curto)", label: label, kind: kind, options: nil, required: nil)
+    }
 
     var isRequired: Bool { required ?? false }
     var isAiExcluded: Bool { aiExcluded ?? false }
@@ -155,6 +162,8 @@ struct RecEntryDetail: Codable, Identifiable, Hashable {
     let answers: [String: RecAnswer]
     let entryDate: Date
     let template: RecEntryTemplateRef?
+    /// Perguntas criadas na hora (API ≥ 2026-10-06): vêm depois das do modelo.
+    let extraQuestions: [RecQuestion]?
     let createdAt: Date
     let updatedAt: Date
 }
@@ -167,6 +176,8 @@ struct RecEntryCreatePayload: Encodable {
     let entryDate: Date?
     /// Rascunho de IA que originou as respostas — alimenta a taxa de aceitação.
     var aiDraftId: String? = nil
+    /// Perguntas criadas na hora, somadas às do modelo (ou sozinhas, sem modelo).
+    var questions: [RecQuestion]? = nil
 }
 
 // MARK: - IA (organizar rascunho nos campos)
@@ -178,12 +189,30 @@ struct RecAiStatus: Decodable {
     let summaryEnabled: Bool?
     /// Cadastro de paciente pela foto da ficha (API ≥ 2026-10-06).
     let intakeEnabled: Bool?
+    /// Foto das anotações à mão → texto do rascunho do Zelo.
+    let noteOcrEnabled: Bool?
 }
 
 struct RecDraftPayload: Encodable {
     let kind: String
-    let templateId: String
+    /// Opcional: o registro em branco só tem perguntas criadas na hora.
+    let templateId: String?
     let text: String
+    var questions: [RecQuestion]? = nil
+}
+
+/// Texto transcrito da foto das anotações (POST ai/notes/transcribe).
+struct RecNotesTranscription: Decodable {
+    let texto: String
+    let restantes: Int?
+}
+
+/// POST templates — "Salvar também como modelo".
+struct RecTemplateCreatePayload: Encodable {
+    struct Schema: Encodable { let questions: [RecQuestion] }
+    let type: String
+    let name: String
+    let schema: Schema
 }
 
 struct RecDraftExcluded: Decodable, Hashable {
@@ -206,6 +235,8 @@ struct RecDraftResponse: Decodable {
 struct RecEntryUpdatePayload: Encodable {
     let title: String?
     let answers: [String: RecAnswer]?
+    /// Substitui as perguntas criadas na hora (nil = não mexe).
+    var questions: [RecQuestion]? = nil
 }
 
 struct RecDeletedResponse: Decodable {
@@ -271,6 +302,23 @@ enum RecordsAPI {
     /// Organiza o rascunho digitado nos campos do modelo. Não salva nada.
     static func draftRecord(patientId: String, _ payload: RecDraftPayload) async throws -> RecDraftResponse {
         try await APIClient.shared.post("patients/\(patientId)/records/draft", body: payload)
+    }
+
+    /// Foto(s) das anotações à mão → texto para o rascunho. Não salva nada.
+    static func transcribeNotes(_ fotos: [Data]) async throws -> RecNotesTranscription {
+        try await APIClient.shared.uploadMany(
+            "ai/notes/transcribe",
+            files: fotos.enumerated().map { (data: $0.element, fileName: "anotacao-\($0.offset + 1).jpg", mimeType: "image/jpeg") },
+            fieldName: "fotos"
+        )
+    }
+
+    /// "Salvar também como modelo": as perguntas do registro viram um modelo.
+    static func createTemplate(kind: RecordsKind, name: String, questions: [RecQuestion]) async throws {
+        let _: EmptyResponse = try await APIClient.shared.post(
+            "templates",
+            body: RecTemplateCreatePayload(type: kind.apiValue, name: name, schema: .init(questions: questions))
+        )
     }
 
     static func notes(patientId: String) async throws -> [RecNote] {

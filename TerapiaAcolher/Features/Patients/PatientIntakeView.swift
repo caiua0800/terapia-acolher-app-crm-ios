@@ -63,6 +63,8 @@ enum IntakeImage {
 
 /// Scanner de documentos do iOS: recorta a folha e endireita a perspectiva.
 struct FichaScannerView: UIViewControllerRepresentable {
+    /// Ficha: frente e verso (2). Anotações do Zelo: até 4 páginas.
+    var maxPages = 2
     let onFinish: ([UIImage]) -> Void
     let onCancel: () -> Void
 
@@ -81,8 +83,7 @@ struct FichaScannerView: UIViewControllerRepresentable {
         init(_ parent: FichaScannerView) { self.parent = parent }
 
         func documentCameraViewController(_: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
-            // Frente e verso: no máximo 2 páginas.
-            let pages = (0 ..< min(scan.pageCount, 2)).map { scan.imageOfPage(at: $0) }
+            let pages = (0 ..< min(scan.pageCount, parent.maxPages)).map { scan.imageOfPage(at: $0) }
             parent.onFinish(pages)
         }
 

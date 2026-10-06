@@ -1,4 +1,6 @@
+import PhotosUI
 import SwiftUI
+import VisionKit
 
 // MARK: - Selecionar modelo (fiel ao print)
 
@@ -238,7 +240,10 @@ final class RecEntryFormViewModel {
     let patient: RecPatientRef
     let kind: RecordsKind
 
-    var questions: [RecQuestion] = []
+    /// Perguntas do modelo (fixas) + criadas na hora neste registro.
+    var templateQuestions: [RecQuestion] = []
+    var extraQuestions: [RecQuestion] = []
+    var questions: [RecQuestion] { templateQuestions + extraQuestions }
     var textAnswers: [String: String] = [:]
     var multiAnswers: [String: Set<String>] = [:]
     var title = ""
@@ -251,6 +256,21 @@ final class RecEntryFormViewModel {
     var isDeleting = false
     var errorMessage: String? = nil
     var validationMessage: String? = nil
+
+    // MARK: "Salvar também como modelo"
+
+    var saveAsTemplate = false
+    var newTemplateName = ""
+    /// Registro já gravado, mas o modelo falhou: salvar de novo só refaz o modelo.
+    private var recordAlreadySaved = false
+    var canSaveAsTemplate: Bool { !extraQuestions.isEmpty }
+
+    // MARK: Foto das anotações → rascunho
+
+    var noteOcrEnabled = false
+    var isReadingNotes = false
+    var notesError: String? = nil
+    var notesLimitReached = false
 
     // MARK: IA — organizar rascunho nos campos
 
@@ -281,8 +301,7 @@ final class RecEntryFormViewModel {
     var aiExcludedQuestions: [RecQuestion] { questions.filter(\.isAiExcluded) }
     /// Só mostra o recurso quando há campos pra preencher e IA ligada no backend.
     var showsAiComposer: Bool {
-        aiEnabled && !isBlank && templateId != nil
-            && questions.contains { !$0.isAiExcluded }
+        aiEnabled && !isBlank && questions.contains { !$0.isAiExcluded }
     }
 
     var draftCharacterCount: Int { draftText.count }
@@ -290,17 +309,89 @@ final class RecEntryFormViewModel {
         draftText.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20
     }
 
-    /// Registro em branco (sem modelo): título + texto livre.
-    var isBlank: Bool { questions.isEmpty }
+    /// Registro antigo sem modelo nem perguntas: caixa única de texto.
+    var isBlank = false
 
     init(mode: Mode, patient: RecPatientRef, kind: RecordsKind) {
         self.mode = mode
         self.patient = patient
         self.kind = kind
-        if case let .create(template) = mode, let template {
-            questions = template.questions
-            templateName = template.name
-            templateId = template.id
+        if case let .create(template) = mode {
+            if let template {
+                templateQuestions = template.questions
+                templateName = template.name
+                templateId = template.id
+            } else {
+                // Em branco: começa com uma anotação livre; ela acrescenta o resto.
+                extraQuestions = [RecQuestion.nova(label: "Anotação")]
+            }
+        }
+    }
+
+    // MARK: Perguntas criadas na hora
+
+    @MainActor
+    func upsertExtra(_ question: RecQuestion) {
+        if let i = extraQuestions.firstIndex(where: { $0.id == question.id }) {
+            let antiga = extraQuestions[i]
+            extraQuestions[i] = question
+            // Mudou o tipo ou as opções: resposta antiga pode não valer mais.
+            if antiga.kind != question.kind {
+                textAnswers[question.id] = nil
+                multiAnswers[question.id] = nil
+            } else if let opcoes = question.options {
+                if let t = textAnswers[question.id], question.kind == "single", !opcoes.contains(t) {
+                    textAnswers[question.id] = nil
+                }
+                if let m = multiAnswers[question.id] { multiAnswers[question.id] = m.filter(opcoes.contains) }
+            }
+        } else {
+            extraQuestions.append(question)
+        }
+        validationMessage = nil
+    }
+
+    @MainActor
+    func removeExtra(_ id: String) {
+        extraQuestions.removeAll { $0.id == id }
+        textAnswers[id] = nil
+        multiAnswers[id] = nil
+        aiFilledIds.remove(id)
+    }
+
+    @MainActor
+    func moveExtra(_ id: String, by offset: Int) {
+        guard let i = extraQuestions.firstIndex(where: { $0.id == id }) else { return }
+        let j = i + offset
+        guard extraQuestions.indices.contains(j) else { return }
+        extraQuestions.swapAt(i, j)
+        Haptics.tap()
+    }
+
+    func isExtra(_ id: String) -> Bool { extraQuestions.contains { $0.id == id } }
+
+    // MARK: Foto das anotações
+
+    @MainActor
+    func readNotes(_ fotos: [Data]) async {
+        guard !fotos.isEmpty, !isReadingNotes else { return }
+        notesError = nil
+        notesLimitReached = false
+        isReadingNotes = true
+        defer { isReadingNotes = false }
+        do {
+            let r = try await RecordsAPI.transcribeNotes(fotos)
+            let atual = draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+            draftText = atual.isEmpty ? r.texto : "\(atual)\n\n\(r.texto)"
+            isComposerOpen = true
+            Haptics.success()
+        } catch is CancellationError {
+            // tela fechada — silencioso
+        } catch let error as APIError {
+            notesError = error.message
+            notesLimitReached = error.code == "LIMITE_DO_PLANO"
+        } catch {
+            notesError = "Não foi possível ler a foto. Tente de novo."
         }
     }
 
@@ -315,8 +406,10 @@ final class RecEntryFormViewModel {
             title = detail.title
             templateName = detail.template?.name
             templateId = detail.template?.id
-            questions = detail.template?.schema?.questions ?? []
-            if questions.isEmpty {
+            templateQuestions = detail.template?.schema?.questions ?? []
+            extraQuestions = detail.extraQuestions ?? []
+            isBlank = questions.isEmpty
+            if isBlank {
                 // Registro em branco: junta as respostas livres num texto só
                 blankContent = detail.answers
                     .sorted { $0.key < $1.key }
@@ -348,8 +441,9 @@ final class RecEntryFormViewModel {
     func loadAiStatus() async {
         guard !isBlank else { return }
         async let cota: Void = loadZeloQuota()
-        if !aiEnabled {
-            aiEnabled = ((try? await RecordsAPI.aiStatus())?.enabled ?? false)
+        if !aiEnabled, let status = try? await RecordsAPI.aiStatus() {
+            aiEnabled = status.enabled
+            noteOcrEnabled = status.noteOcrEnabled ?? false
         }
         await cota
     }
@@ -366,7 +460,7 @@ final class RecEntryFormViewModel {
     /// Manda o rascunho pro backend e distribui a resposta nos campos.
     @MainActor
     func structureWithAI() async {
-        guard let templateId, canRunDraft, !isDrafting else { return }
+        guard canRunDraft, !isDrafting else { return }
         aiError = nil
         isDrafting = true
         defer { isDrafting = false }
@@ -377,7 +471,8 @@ final class RecEntryFormViewModel {
                 RecDraftPayload(
                     kind: kind.apiValue,
                     templateId: templateId,
-                    text: draftText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    text: draftText.trimmingCharacters(in: .whitespacesAndNewlines),
+                    questions: extraQuestions.isEmpty ? nil : extraQuestions
                 )
             )
             applyDraft(response)
@@ -396,6 +491,14 @@ final class RecEntryFormViewModel {
     /// Campos que a IA não preencheu ficam como estavam — nada é apagado.
     @MainActor
     private func applyDraft(_ response: RecDraftResponse) {
+        // Nada preenchido: o rascunho fica aberto e a terapeuta sabe por quê,
+        // em vez de o bloco fechar como se nada tivesse acontecido.
+        guard !response.answers.isEmpty else {
+            aiError = "O Zelo não encontrou no texto respostas para estas perguntas. Ajuste o rascunho ou preencha à mão."
+            isComposerOpen = true
+            Haptics.warning()
+            return
+        }
         if undoSnapshot == nil {
             undoSnapshot = (text: textAnswers, multi: multiAnswers)
         }
@@ -474,6 +577,15 @@ final class RecEntryFormViewModel {
             validationMessage = "Escreva o conteúdo do registro."
             return false
         }
+        if !isBlank && questions.isEmpty {
+            validationMessage = "Adicione pelo menos uma pergunta."
+            return false
+        }
+        if saveAsTemplate && canSaveAsTemplate
+            && newTemplateName.trimmingCharacters(in: .whitespaces).isEmpty {
+            validationMessage = "Dê um nome ao modelo."
+            return false
+        }
         validationMessage = nil
         return true
     }
@@ -487,21 +599,43 @@ final class RecEntryFormViewModel {
         defer { isSaving = false }
         do {
             let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
-            switch mode {
-            case let .create(template):
-                _ = try await RecordsAPI.createEntry(patientId: patient.id, RecEntryCreatePayload(
-                    templateId: template?.id,
-                    kind: kind.apiValue,
-                    title: trimmedTitle.isEmpty ? nil : trimmedTitle,
-                    answers: answers,
-                    entryDate: nil,
-                    aiDraftId: aiDraftId
-                ))
-            case let .edit(entryId):
-                _ = try await RecordsAPI.updateEntry(patientId: patient.id, id: entryId, RecEntryUpdatePayload(
-                    title: trimmedTitle.isEmpty ? nil : trimmedTitle,
-                    answers: answers
-                ))
+            if !recordAlreadySaved {
+                switch mode {
+                case let .create(template):
+                    _ = try await RecordsAPI.createEntry(patientId: patient.id, RecEntryCreatePayload(
+                        templateId: template?.id,
+                        kind: kind.apiValue,
+                        title: trimmedTitle.isEmpty ? nil : trimmedTitle,
+                        answers: answers,
+                        entryDate: nil,
+                        aiDraftId: aiDraftId,
+                        questions: extraQuestions.isEmpty ? nil : extraQuestions
+                    ))
+                case let .edit(entryId):
+                    _ = try await RecordsAPI.updateEntry(patientId: patient.id, id: entryId, RecEntryUpdatePayload(
+                        title: trimmedTitle.isEmpty ? nil : trimmedTitle,
+                        answers: answers,
+                        // Registro antigo (caixa única) não tem perguntas a mandar.
+                        questions: isBlank ? nil : extraQuestions
+                    ))
+                }
+                recordAlreadySaved = true
+            }
+            if saveAsTemplate && canSaveAsTemplate {
+                do {
+                    try await RecordsAPI.createTemplate(
+                        kind: kind,
+                        name: newTemplateName.trimmingCharacters(in: .whitespaces),
+                        questions: questions.map { q in
+                            var c = q
+                            c.label = q.label.trimmingCharacters(in: .whitespaces)
+                            return c
+                        }
+                    )
+                } catch let error as APIError {
+                    errorMessage = "O registro foi salvo, mas o modelo não: \(error.message)"
+                    return false
+                }
             }
             return true
         } catch is CancellationError {
@@ -536,6 +670,11 @@ final class RecEntryFormViewModel {
 struct RecEntryFormView: View {
     @State private var model: RecEntryFormViewModel
     @State private var showDeleteConfirm = false
+    /// Pergunta em edição na folha (nova ou existente).
+    @State private var editingQuestion: RecQuestion? = nil
+    @State private var showNotesScanner = false
+    @State private var showNotesPicker = false
+    @State private var notesPickerItems: [PhotosPickerItem] = []
     @Environment(\.dismiss) private var dismiss
 
     let onSaved: () -> Void
@@ -607,8 +746,48 @@ struct RecEntryFormView: View {
                 await model.loadIfNeeded()
                 await model.loadAiStatus()
             }
-            .interactiveDismissDisabled(model.isSaving || model.isDeleting || model.isDrafting)
+            .interactiveDismissDisabled(model.isSaving || model.isDeleting || model.isDrafting || model.isReadingNotes)
+            .sheet(item: $editingQuestion) { question in
+                RecQuestionEditorSheet(
+                    question: question,
+                    isNew: !model.isExtra(question.id)
+                ) { saved in
+                    model.upsertExtra(saved)
+                }
+            }
+            .fullScreenCover(isPresented: $showNotesScanner) {
+                FichaScannerView(
+                    maxPages: 4,
+                    onFinish: { pages in
+                        showNotesScanner = false
+                        readNotes(pages)
+                    },
+                    onCancel: { showNotesScanner = false }
+                )
+                .ignoresSafeArea()
+            }
+            .photosPicker(isPresented: $showNotesPicker, selection: $notesPickerItems, maxSelectionCount: 4, matching: .images)
+            .onChange(of: notesPickerItems) { _, items in
+                guard !items.isEmpty else { return }
+                Task {
+                    var images: [UIImage] = []
+                    for item in items {
+                        if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                            images.append(image)
+                        }
+                    }
+                    notesPickerItems = []
+                    readNotes(images)
+                }
+            }
         }
+    }
+
+    private func readNotes(_ images: [UIImage]) {
+        let fotos = images.compactMap(IntakeImage.jpeg(from:))
+        guard !fotos.isEmpty else { return }
+        Haptics.tap()
+        Task { await model.readNotes(fotos) }
     }
 
     private var form: some View {
@@ -643,6 +822,10 @@ struct RecEntryFormView: View {
                     } else {
                         ForEach(model.questions) { question in
                             questionCard(question)
+                        }
+                        addQuestionButton
+                        if model.canSaveAsTemplate {
+                            saveAsTemplateCard
                         }
                     }
 
@@ -808,12 +991,16 @@ struct RecEntryFormView: View {
             }
             .foregroundStyle(RecAi.accent)
 
+            if model.noteOcrEnabled {
+                notesPhotoRow
+            }
+
             RecTextArea(
                 text: $model.draftText,
                 placeholder: "Ex.: paciente chegou mais falante hoje, relatou que dormiu melhor na semana, trouxe o conflito com a irmã de novo…",
                 minHeight: 132
             )
-            .disabled(model.isDrafting)
+            .disabled(model.isDrafting || model.isReadingNotes)
 
             HStack(spacing: 10) {
                 Text(
@@ -858,6 +1045,152 @@ struct RecEntryFormView: View {
             RoundedRectangle(cornerRadius: Theme.cornerRadius)
                 .stroke(RecAi.soft.opacity(0.45), lineWidth: 1)
         )
+    }
+
+    /// Foto das anotações à mão: a IA transcreve e o texto cai na caixa abaixo.
+    @ViewBuilder
+    private var notesPhotoRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if model.isReadingNotes {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small).tint(RecAi.accent)
+                    Text("Lendo as anotações…")
+                        .font(Theme.body(13, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                }
+                .padding(.vertical, 4)
+                .accessibilityIdentifier("notesReading")
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(RecAi.accent)
+                    Text("Foto das anotações")
+                        .font(Theme.body(12.5, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer(minLength: 4)
+                    if VNDocumentCameraViewController.isSupported {
+                        notesButton("Escanear", icon: "camera.viewfinder", id: "notesScan") {
+                            showNotesScanner = true
+                        }
+                    }
+                    notesButton("Galeria", icon: "photo.on.rectangle", id: "notesGallery") {
+                        showNotesPicker = true
+                    }
+                }
+            }
+            if let erro = model.notesError {
+                Text(erro)
+                    .font(Theme.body(12.5, weight: .medium))
+                    .foregroundStyle(Theme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+                if model.notesLimitReached {
+                    ManageAccountButton(style: .compact, tint: RecAi.accent)
+                }
+            }
+        }
+    }
+
+    private func notesButton(_ title: String, icon: String, id: String, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.tap()
+            action()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 11, weight: .semibold))
+                Text(title).font(Theme.body(12.5, weight: .semibold))
+            }
+            .foregroundStyle(RecAi.accent)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
+            .background(RecAi.accent.opacity(0.12))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.pressable)
+        .disabled(model.isDrafting)
+        .accessibilityIdentifier(id)
+    }
+
+    // MARK: Perguntas criadas na hora
+
+    private var addQuestionButton: some View {
+        Button {
+            Haptics.tap()
+            editingQuestion = RecQuestion.nova()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus").font(.system(size: 13, weight: .bold))
+                Text("Adicionar pergunta").font(Theme.body(15, weight: .semibold))
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(Theme.primarySoft.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                    .stroke(style: StrokeStyle(lineWidth: 1.2, dash: [6, 5]))
+                    .foregroundStyle(Theme.textSecondary.opacity(0.5))
+            )
+        }
+        .buttonStyle(.pressableSubtle)
+        .accessibilityIdentifier("recAddQuestion")
+    }
+
+    private var saveAsTemplateCard: some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(isOn: $model.saveAsTemplate) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Salvar também como modelo")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Use estas perguntas de novo com outros pacientes.")
+                            .font(Theme.body(12.5))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                }
+                .tint(Theme.primary)
+                .accessibilityIdentifier("recSaveAsTemplate")
+                if model.saveAsTemplate {
+                    TextField("Nome do modelo", text: $model.newTemplateName)
+                        .font(Theme.body(15))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Theme.background)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 1))
+                        .accessibilityIdentifier("recTemplateName")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .animation(.easeOut(duration: 0.2), value: model.saveAsTemplate)
+    }
+
+    /// Menu de uma pergunta criada na hora: editar, mover e remover.
+    private func extraMenu(_ question: RecQuestion) -> some View {
+        let lista = model.extraQuestions
+        let i = lista.firstIndex { $0.id == question.id } ?? 0
+        return Menu {
+            Button { editingQuestion = question } label: { Label("Editar pergunta", systemImage: "pencil") }
+            if i > 0 {
+                Button { model.moveExtra(question.id, by: -1) } label: { Label("Mover para cima", systemImage: "arrow.up") }
+            }
+            if i < lista.count - 1 {
+                Button { model.moveExtra(question.id, by: 1) } label: { Label("Mover para baixo", systemImage: "arrow.down") }
+            }
+            Button(role: .destructive) { model.removeExtra(question.id) } label: {
+                Label("Remover pergunta", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 30, height: 26)
+                .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier("recQuestionMenu")
     }
 
     /// Depois de organizar: o que fazer agora fica explícito, e dá pra voltar.
@@ -962,7 +1295,8 @@ struct RecEntryFormView: View {
             label: question.label,
             isRequired: question.isRequired,
             isAiFilled: model.aiFilledIds.contains(question.id),
-            isAiExcluded: question.isAiExcluded && model.showsAiComposer
+            isAiExcluded: question.isAiExcluded && model.showsAiComposer,
+            accessory: model.isExtra(question.id) ? AnyView(extraMenu(question)) : nil
         ) {
             switch question.kind {
             case "single":
@@ -1039,6 +1373,8 @@ struct RecQuestionCard<Content: View>: View {
     var isAiFilled = false
     /// Campo que a IA nunca preenche (diagnóstico).
     var isAiExcluded = false
+    /// Ações da pergunta criada na hora (menu "…").
+    var accessory: AnyView? = nil
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -1063,6 +1399,7 @@ struct RecQuestionCard<Content: View>: View {
                             tint: Theme.textSecondary
                         )
                     }
+                    if let accessory { accessory }
                 }
                 content()
             }
