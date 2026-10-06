@@ -36,6 +36,10 @@ final class FinGatewayOnboardingModel {
     var district = ""
     var city = ""
     var state = ""
+    /// Busca de endereço pelo CEP em andamento / CEP não encontrado.
+    var buscandoCep = false
+    var cepNaoEncontrado = false
+    private var ultimoCepBuscado = ""
     // Etapa 5
     var aceitouTermos = false
     var registrandoAceite = false
@@ -165,6 +169,28 @@ final class FinGatewayOnboardingModel {
     var documentosPedidos: [GwDocumentType] {
         if dispensaDocumentos { return [] }
         return account?.requiredDocuments ?? [.identityFront, .identityBack, .selfie]
+    }
+
+    /// Preenche rua, bairro, cidade e UF quando o CEP fica completo. Número e
+    /// complemento ficam com o terapeuta.
+    func buscarCep() async {
+        let digitos = GwMask.digits(cep)
+        guard digitos.count == 8, digitos != ultimoCepBuscado else {
+            if digitos.count < 8 { cepNaoEncontrado = false; ultimoCepBuscado = "" }
+            return
+        }
+        ultimoCepBuscado = digitos
+        buscandoCep = true
+        cepNaoEncontrado = false
+        let achado = await CEPLookup.buscar(digitos)
+        buscandoCep = false
+        // O CEP mudou enquanto buscava: descarta a resposta velha.
+        guard GwMask.digits(cep) == digitos else { return }
+        guard let e = achado else { cepNaoEncontrado = true; return }
+        if !e.rua.isEmpty { street = e.rua }
+        if !e.bairro.isEmpty { district = e.bairro }
+        city = e.cidade
+        if GwUF.todas.contains(e.uf) { state = e.uf }
     }
 
     var aceiteRegistrado: Bool { account?.termsAcceptedAt != nil }
@@ -673,14 +699,25 @@ struct FinGatewayOnboardingView: View {
     private var etapaEndereco: some View {
         PatientFormSection(icon: "mappin.and.ellipse", title: "ENDEREÇO") {
             VStack(spacing: 14) {
-                GwField(label: "CEP") {
-                    TextField("00000-000", text: $model.cep)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("gwCep")
-                        .onChange(of: model.cep) { _, novo in
-                            let mascarado = GwMask.cep(novo)
-                            if mascarado != novo { model.cep = mascarado }
+                GwField(
+                    label: "CEP",
+                    hint: model.buscandoCep
+                        ? "Buscando endereço…"
+                        : model.cepNaoEncontrado ? "CEP não encontrado. Preencha o endereço abaixo." : nil
+                ) {
+                    HStack(spacing: 8) {
+                        TextField("00000-000", text: $model.cep)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("gwCep")
+                            .onChange(of: model.cep) { _, novo in
+                                let mascarado = GwMask.cep(novo)
+                                if mascarado != novo { model.cep = mascarado }
+                                Task { await model.buscarCep() }
+                            }
+                        if model.buscandoCep {
+                            ProgressView().controlSize(.small)
                         }
+                    }
                 }
                 GwField(label: "Rua") {
                     TextField("Av. Paulista", text: $model.street)
