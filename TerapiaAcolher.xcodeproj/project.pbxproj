@@ -45,6 +45,7 @@
 		51A9E3E44350B330A1EFD467 /* ProfileStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331E61F8E58E506EB1E9C073 /* ProfileStatus.swift */; };
 		52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */; };
 		52F5F80D731401189B3C86CA /* GeneralTranscriptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC1385C82FEE5BFFEBFDA46 /* GeneralTranscriptsView.swift */; };
+		57903B5EAED855E337A7E1BE /* AuthLoginCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF6E235851A9159B10DCBA8 /* AuthLoginCodeView.swift */; };
 		5FBF0B1AE8BC02807F701972 /* SetOfficeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446E9A5DEC0A9B75EC4C8E1B /* SetOfficeView.swift */; };
 		6051AC5B70E462C367DEFC3B /* ManageAccountButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C022AEDCFA93C01F9D92AB13 /* ManageAccountButton.swift */; };
 		60E73004478C5541FAE16BD6 /* SetProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */; };
@@ -231,6 +232,7 @@
 		BC36D6F293E32EC2A6F776AE /* LeadsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsModels.swift; sourceTree = "<group>"; };
 		BC56C24412E3971E5971B892 /* TranscriptPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptPDF.swift; sourceTree = "<group>"; };
 		BDFB60343805E0A349238A47 /* AiFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiFlowUITests.swift; sourceTree = "<group>"; };
+		BEF6E235851A9159B10DCBA8 /* AuthLoginCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthLoginCodeView.swift; sourceTree = "<group>"; };
 		C012D826105BD8E4A20AC26A /* SubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionView.swift; sourceTree = "<group>"; };
 		C022AEDCFA93C01F9D92AB13 /* ManageAccountButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageAccountButton.swift; sourceTree = "<group>"; };
 		C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgendaWeekView.swift; sourceTree = "<group>"; };
@@ -522,6 +524,7 @@
 			children = (
 				5FC2F6EF4852925C086AE4DB /* AuthComponents.swift */,
 				F927E4106A52CE6F67BEAAAF /* AuthForgotPasswordView.swift */,
+				BEF6E235851A9159B10DCBA8 /* AuthLoginCodeView.swift */,
 				06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */,
 				A8873019933013DFFFB1133D /* LoginFlowView.swift */,
 			);
@@ -728,6 +731,7 @@
 				807179436B4DF34196267778 /* AgendaWeekView.swift in Sources */,
 				4CC72E142DE9A14B6294FC67 /* AuthComponents.swift in Sources */,
 				1BB72C1B1937D3208B6B099B /* AuthForgotPasswordView.swift in Sources */,
+				57903B5EAED855E337A7E1BE /* AuthLoginCodeView.swift in Sources */,
 				FBB931C8CD61AF4358523439 /* AuthRegisterView.swift in Sources */,
 				1C6B001E72DAF6500C9A2704 /* CEPLookup.swift in Sources */,
 				0BA3A80F60729B99283CC24F /* Components.swift in Sources */,

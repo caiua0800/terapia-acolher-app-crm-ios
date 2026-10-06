@@ -8,6 +8,8 @@ enum AuthRoute: Hashable {
     case checkEmail(email: String)
     case forgotPassword
     case resetPassword
+    /// Senha certa de um local novo: código por e-mail ou WhatsApp.
+    case loginCode(LoginChallenge)
 }
 
 // MARK: - ViewModel do login
@@ -29,8 +31,10 @@ final class AuthLoginModel {
         email.contains("@") && !password.isEmpty
     }
 
+    /// Devolve o desafio quando o login veio de um local novo (IP).
     @MainActor
-    func submit() async {
+    @discardableResult
+    func submit() async -> LoginChallenge? {
         errorMessage = nil
         infoMessage = nil
         canResendVerification = false
@@ -38,10 +42,11 @@ final class AuthLoginModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            try await SessionStore.shared.login(
+            let outcome = try await SessionStore.shared.login(
                 email: email.trimmingCharacters(in: .whitespaces),
                 password: password
             )
+            if case let .needsCode(desafio) = outcome { return desafio }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
@@ -55,6 +60,7 @@ final class AuthLoginModel {
         } catch {
             errorMessage = "Não foi possível conectar. Verifique sua internet e tente de novo."
         }
+        return nil
     }
 
     @MainActor
@@ -161,7 +167,11 @@ struct LoginFlowView: View {
                                 isLoading: model.isLoading,
                                 isEnabled: model.canSubmit
                             ) {
-                                Task { await model.submit() }
+                                Task {
+                                    if let desafio = await model.submit() {
+                                        path.append(.loginCode(desafio))
+                                    }
+                                }
                             }
                             .padding(.top, 4)
 
@@ -206,6 +216,8 @@ struct LoginFlowView: View {
                     AuthForgotPasswordView(path: $path)
                 case .resetPassword:
                     AuthResetPasswordView(path: $path)
+                case let .loginCode(desafio):
+                    AuthLoginCodeView(challenge: desafio, path: $path)
                 }
             }
         }

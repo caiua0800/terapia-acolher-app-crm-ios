@@ -23,6 +23,35 @@ struct LoginResponse: Codable {
     let user: AuthUser
 }
 
+/// Login de um local (IP) que a terapeuta nunca confirmou: a senha estava
+/// certa, mas a sessão só abre com o código mandado por e-mail ou WhatsApp.
+struct LoginChallenge: Codable, Hashable {
+    let challenge: String
+    let canais: [LoginCodeChannel]
+}
+
+struct LoginCodeChannel: Codable, Hashable, Identifiable {
+    /// "EMAIL" ou "WHATSAPP".
+    let canal: String
+    /// Destino mascarado ("te***@x.com", "+55 17 *****-2727").
+    let destino: String
+    var id: String { canal }
+    var isWhatsapp: Bool { canal == "WHATSAPP" }
+}
+
+/// Resposta de `auth/login/codigo`.
+struct LoginCodeSent: Codable {
+    let canal: String
+    let destino: String
+    let reenviarEm: Int
+}
+
+/// Resultado do login: sessão aberta, ou código pedido (IP novo).
+enum LoginOutcome {
+    case loggedIn
+    case needsCode(LoginChallenge)
+}
+
 struct MessageResponse: Codable {
     let message: String
 }
@@ -82,12 +111,52 @@ final class SessionStore {
     // MARK: - Fluxos
 
     @MainActor
-    func login(email: String, password: String) async throws {
+    @discardableResult
+    func login(email: String, password: String) async throws -> LoginOutcome {
         struct Body: Encodable { let email: String, password: String }
-        let response: LoginResponse = try await APIClient.shared.post(
+        /// O mesmo 200 traz os tokens OU o desafio do IP novo.
+        struct Resposta: Decodable {
+            let accessToken: String?
+            let refreshToken: String?
+            let user: AuthUser?
+            let verificacao: LoginChallenge?
+        }
+        let response: Resposta = try await APIClient.shared.post(
             "auth/login",
             body: Body(email: email, password: password)
         )
+        if let desafio = response.verificacao {
+            return .needsCode(desafio)
+        }
+        guard let access = response.accessToken, let refresh = response.refreshToken, let user = response.user else {
+            throw APIError(statusCode: 500, message: "Resposta inesperada do servidor. Tente de novo.", code: nil)
+        }
+        abrirSessao(LoginResponse(accessToken: access, refreshToken: refresh, user: user))
+        return .loggedIn
+    }
+
+    /// IP novo: manda o código pelo canal escolhido ("EMAIL" ou "WHATSAPP").
+    func sendLoginCode(challenge: String, channel: String) async throws -> LoginCodeSent {
+        struct Body: Encodable { let challenge: String, canal: String }
+        return try await APIClient.shared.post(
+            "auth/login/codigo",
+            body: Body(challenge: challenge, canal: channel)
+        )
+    }
+
+    /// IP novo: código certo abre a sessão como um login normal.
+    @MainActor
+    func verifyLoginCode(challenge: String, code: String) async throws {
+        struct Body: Encodable { let challenge: String, codigo: String }
+        let response: LoginResponse = try await APIClient.shared.post(
+            "auth/login/verificar",
+            body: Body(challenge: challenge, codigo: code)
+        )
+        abrirSessao(response)
+    }
+
+    @MainActor
+    private func abrirSessao(_ response: LoginResponse) {
         accessToken = response.accessToken
         refreshToken = response.refreshToken
         user = response.user
