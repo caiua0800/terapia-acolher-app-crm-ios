@@ -121,6 +121,7 @@
 		F71B220893C9D8B5C6B0E2D8 /* AgendaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5CC9EE47B4D16B4B987A168 /* AgendaView.swift */; };
 		F80393D15732389739B6A80D /* PatientsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072C9798DC11D2C096035921 /* PatientsListView.swift */; };
 		F822337F8E4F33E5AD6C41E9 /* PatientFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */; };
+		F8F7ADCB0C6F22998ED8A526 /* PatientMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2F4A0D2E66DA2235353B79 /* PatientMessagesView.swift */; };
 		F9A95DFA5E8089F59A587DCB /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB18CE34C1D0C335D5474293 /* DashboardView.swift */; };
 		FAE1F2C2BFBBA552E43F1AE0 /* LeadsCheckoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE4E78A4574F19A22DA3542 /* LeadsCheckoutUITests.swift */; };
 		FBB931C8CD61AF4358523439 /* AuthRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */; };
@@ -150,6 +151,7 @@
 		1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChangePasswordView.swift; sourceTree = "<group>"; };
 		1789733F05F834AF2551531A /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		1AE59154F265E091D9B1BF76 /* SetMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetMessagesView.swift; sourceTree = "<group>"; };
+		1B2F4A0D2E66DA2235353B79 /* PatientMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientMessagesView.swift; sourceTree = "<group>"; };
 		1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetDeleteAccountView.swift; sourceTree = "<group>"; };
 		1D61DB26EF0328C8A2A6DDE7 /* FinTransactionFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinTransactionFormView.swift; sourceTree = "<group>"; };
 		1E13313F1B76B704FD227550 /* FinanceHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceHomeView.swift; sourceTree = "<group>"; };
@@ -570,6 +572,7 @@
 				7457FB896822FD65F63C5AD5 /* PatientIntakeView.swift */,
 				3EAFADD310E650ABB47216CC /* PatientInviteView.swift */,
 				8CA6E6821A5437545E324147 /* PatientMainDataView.swift */,
+				1B2F4A0D2E66DA2235353B79 /* PatientMessagesView.swift */,
 				A2BB62754D9694D79708E833 /* PatientModels.swift */,
 				072C9798DC11D2C096035921 /* PatientsListView.swift */,
 			);
@@ -789,6 +792,7 @@
 				5CA458DFCC152284896ED9F3 /* PatientIntakeView.swift in Sources */,
 				BD65EE0A0DC9A3DE82D4C2DD /* PatientInviteView.swift in Sources */,
 				93C857D2F23A9DD26F0A4F55 /* PatientMainDataView.swift in Sources */,
+				F8F7ADCB0C6F22998ED8A526 /* PatientMessagesView.swift in Sources */,
 				459B04B35A8F8830B6599151 /* PatientModels.swift in Sources */,
 				F80393D15732389739B6A80D /* PatientsListView.swift in Sources */,
 				6ECE5DA8D95A8FB9110C7028 /* PhoneRules.swift in Sources */,

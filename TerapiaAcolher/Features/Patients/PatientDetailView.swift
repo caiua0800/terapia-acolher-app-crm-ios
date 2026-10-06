@@ -462,6 +462,18 @@ struct PatientDetailView: View {
                 }
                 rowDivider
                 NavigationLink {
+                    PatientMessagesView(patientId: detail.id, patientName: detail.name)
+                } label: {
+                    sectionRow(
+                        icon: "bubble.left.and.text.bubble.right",
+                        tint: Color(hex: 0x1F9E4F),
+                        title: "Mensagens enviadas",
+                        subtitle: "WhatsApp e e-mail: o que chegou e o que foi lido"
+                    )
+                }
+                .accessibilityIdentifier("patientMessagesRow")
+                rowDivider
+                NavigationLink {
                     DocPatientDocumentsView(patient: DocPatientRef(from: detail))
                 } label: {
                     sectionRow(
