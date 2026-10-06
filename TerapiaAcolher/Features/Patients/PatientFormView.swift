@@ -47,6 +47,20 @@ final class PatientFormViewModel {
     var isSaving = false
     var errorMessage: String? = nil
 
+    // Ficha pela foto (só em cadastro novo)
+    var intakeEnabled = false
+    var isReadingIntake = false
+    var intakeError: String? = nil
+    var intakeLimitReached = false
+    var intakeApplied = false
+    /// Fotos já reduzidas, só em memória; vão para os Arquivos se ela quiser.
+    var intakeImages: [Data] = []
+    var keepIntakePhoto = false
+    /// Campos que a IA pediu para conferir (chaves da API).
+    var fieldsToCheck: Set<String> = []
+    /// Grupo escolhido à mão: a leitura não troca.
+    var groupPickedByUser = false
+
     let steps: [Step] = [
         Step(id: 0, title: "Grupo"),
         Step(id: 1, title: "Dados do paciente"),
@@ -137,6 +151,106 @@ final class PatientFormViewModel {
             groupsError = "Não foi possível carregar os grupos."
         }
         isLoadingGroups = false
+    }
+
+    @MainActor
+    func loadIntakeAvailability() async {
+        guard !mode.isEdit else { return }
+        intakeEnabled = await PatientIntakeAPI.isEnabled()
+    }
+
+    @MainActor
+    func readIntake(_ fotos: [Data]) async {
+        guard !isReadingIntake else { return }
+        Haptics.tap()
+        isReadingIntake = true
+        intakeError = nil
+        intakeLimitReached = false
+        defer { isReadingIntake = false }
+        do {
+            let result = try await PatientIntakeAPI.read(fotos)
+            intakeImages = fotos
+            apply(result)
+            Haptics.success()
+            withAnimation { stepIndex = 1 }
+        } catch is CancellationError {
+        } catch let error as APIError {
+            Haptics.warning()
+            intakeError = error.message
+            intakeLimitReached = error.code == "LIMITE_DO_PLANO"
+        } catch {
+            Haptics.warning()
+            intakeError = "Não conseguimos ler a ficha agora. Tente de novo ou preencha à mão."
+        }
+    }
+
+    /// Preenche só o que está vazio: o que a terapeuta já digitou fica.
+    @MainActor
+    func apply(_ result: PatientIntakeResult) {
+        let c = result.campos
+        func filled(_ v: String?) -> String? {
+            guard let v = v?.trimmingCharacters(in: .whitespaces), !v.isEmpty else { return nil }
+            return v
+        }
+        if name.trimmingCharacters(in: .whitespaces).isEmpty, let v = filled(c.nome) { name = v }
+        if cpf.isEmpty, let v = filled(c.cpf) { cpf = PatientMask.cpf(v) }
+        if email.isEmpty, let v = filled(c.email) { email = v.lowercased() }
+        if whatsapp.isEmpty, let v = filled(c.whatsapp) { whatsapp = PatientMask.whatsapp(v) }
+        if !hasBirthDate, let v = filled(c.dataNascimento), let date = Self.intakeDate(v) {
+            hasBirthDate = true
+            birthDate = date
+        }
+        let guardianName = filled(c.responsavelNome)
+        let guardianContact = filled(c.responsavelContato)
+        if guardianName != nil || guardianContact != nil {
+            hasGuardian = true
+            if self.guardianName.isEmpty, let guardianName { self.guardianName = guardianName }
+            if self.guardianContact.isEmpty, let guardianContact {
+                self.guardianContact = Self.intakeContact(guardianContact)
+            }
+        }
+        if !groupPickedByUser, let id = result.grupoId, groups.contains(where: { $0.id == id }) {
+            groupId = id
+        }
+        fieldsToCheck = Set(result.conferir)
+        intakeApplied = true
+    }
+
+    /// "AAAA-MM-DD" (dia-calendário) → data local ao meio-dia (sem pular de dia por fuso).
+    static func intakeDate(_ text: String) -> Date? {
+        let parts = text.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12))
+    }
+
+    /// Contato do responsável: telefone só com dígitos vira "(11) 99812-3344"; e-mail fica como veio.
+    static func intakeContact(_ raw: String) -> String {
+        var d = raw.filter(\.isNumber)
+        guard !raw.contains("@"), d.count >= 10, d.count <= 13 else { return raw }
+        if d.count > 11, d.hasPrefix("55") { d = String(d.dropFirst(2)) }
+        guard d.count == 10 || d.count == 11 else { return raw }
+        let ddd = d.prefix(2), resto = d.dropFirst(2)
+        let corte = resto.count - 4
+        return "(\(ddd)) \(resto.prefix(corte))-\(resto.suffix(4))"
+    }
+
+    func needsCheck(_ key: String) -> Bool { fieldsToCheck.contains(key) }
+
+    /// Fotos da ficha nos Arquivos do paciente, se ela pediu. Falha não
+    /// desfaz o cadastro — o paciente já está salvo.
+    @MainActor
+    func uploadIntakePhotos(patientId: String) async {
+        guard keepIntakePhoto, !intakeImages.isEmpty else { return }
+        for (i, data) in intakeImages.enumerated() {
+            _ = try? await PFilesAPI.upload(
+                patientId: patientId,
+                data: data,
+                fileName: intakeImages.count > 1 ? "Ficha de cadastro (\(i + 1)).jpg" : "Ficha de cadastro.jpg",
+                mimeType: "image/jpeg",
+                category: .image
+            )
+        }
+        intakeImages = []
     }
 
     @MainActor
@@ -260,7 +374,10 @@ struct PatientFormView: View {
                         .disabled(!model.canSave)
                 }
             }
-            .task { await model.loadGroups() }
+            .task {
+                await model.loadGroups()
+                await model.loadIntakeAvailability()
+            }
             .interactiveDismissDisabled(model.isSaving)
         }
     }
@@ -268,6 +385,9 @@ struct PatientFormView: View {
     private func save() {
         Task {
             if let saved = await model.save() {
+                if !model.mode.isEdit {
+                    await model.uploadIntakePhotos(patientId: saved.id)
+                }
                 onSaved(saved)
                 dismiss()
             }
@@ -308,6 +428,15 @@ struct PatientFormView: View {
     }
 
     private var groupStep: some View {
+        VStack(spacing: 16) {
+            if model.intakeEnabled && !model.mode.isEdit {
+                PatientIntakeCard(model: model)
+            }
+            groupSection
+        }
+    }
+
+    private var groupSection: some View {
         PatientFormSection(icon: "person.2", title: "GRUPO") {
             if model.isLoadingGroups {
                 ProgressView().tint(Theme.primary)
@@ -326,6 +455,7 @@ struct PatientFormView: View {
                     ForEach(model.groups) { group in
                         Button {
                             model.groupId = model.groupId == group.id ? nil : group.id
+                            model.groupPickedByUser = true
                         } label: {
                             HStack(spacing: 12) {
                                 Circle()
@@ -352,13 +482,16 @@ struct PatientFormView: View {
 
     private var dataStep: some View {
         VStack(spacing: 16) {
+            if model.intakeApplied {
+                IntakeReviewNotice()
+            }
             PatientFormSection(icon: "exclamationmark.circle", title: "INFORMAÇÕES") {
-                PatientFieldRow(label: "Nome") {
+                PatientFieldRow(label: "Nome", check: model.needsCheck("nome")) {
                     TextField("Nome completo", text: $model.name)
                         .multilineTextAlignment(.trailing)
                 }
                 Divider().overlay(Theme.border)
-                PatientFieldRow(label: "WhatsApp") {
+                PatientFieldRow(label: "WhatsApp", check: model.needsCheck("whatsapp")) {
                     TextField("+55 (11) 91234-5678", text: $model.whatsapp)
                         .keyboardType(.phonePad)
                         .multilineTextAlignment(.trailing)
@@ -368,7 +501,7 @@ struct PatientFormView: View {
                         }
                 }
                 Divider().overlay(Theme.border)
-                PatientFieldRow(label: "E-mail") {
+                PatientFieldRow(label: "E-mail", check: model.needsCheck("email")) {
                     // Sanitiza no binding, não só no teclado: `.textInputAutocapitalization`
                     // não alcança texto colado nem teclado físico (iPad/Mac).
                     TextField("email@exemplo.com", text: Binding(
@@ -381,7 +514,7 @@ struct PatientFormView: View {
                     .multilineTextAlignment(.trailing)
                 }
                 Divider().overlay(Theme.border)
-                PatientFieldRow(label: "CPF") {
+                PatientFieldRow(label: "CPF", check: model.needsCheck("cpf")) {
                     TextField(cpfPlaceholder, text: $model.cpf)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
@@ -409,6 +542,9 @@ struct PatientFormView: View {
                     .font(Theme.body(15))
                     .environment(\.locale, Locale(identifier: "pt_BR"))
                     .tint(Theme.primary)
+                    if model.needsCheck("dataNascimento") {
+                        IntakeCheckHint()
+                    }
                 }
             }
         }
@@ -437,12 +573,12 @@ struct PatientFormView: View {
 
             if model.hasGuardian {
                 Divider().overlay(Theme.border)
-                PatientFieldRow(label: "Nome") {
+                PatientFieldRow(label: "Nome", check: model.needsCheck("responsavelNome")) {
                     TextField("Nome do responsável", text: $model.guardianName)
                         .multilineTextAlignment(.trailing)
                 }
                 Divider().overlay(Theme.border)
-                PatientFieldRow(label: "Contato") {
+                PatientFieldRow(label: "Contato", check: model.needsCheck("responsavelContato")) {
                     TextField("Telefone ou e-mail", text: $model.guardianContact)
                         .multilineTextAlignment(.trailing)
                 }
@@ -581,17 +717,26 @@ struct PatientFormSection<Content: View>: View {
 
 struct PatientFieldRow<Field: View>: View {
     let label: String
+    /// A IA marcou este campo para conferir (ficha pela foto).
+    var check: Bool = false
     @ViewBuilder var field: () -> Field
 
     var body: some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(Theme.body(15))
-                .foregroundStyle(Theme.textPrimary)
-            field()
-                .font(Theme.body(15))
-                .foregroundStyle(Theme.textPrimary)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 12) {
+                Text(label)
+                    .font(Theme.body(15))
+                    .foregroundStyle(check ? Theme.warning : Theme.textPrimary)
+                field()
+                    .font(Theme.body(15))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            .padding(.vertical, 8)
+            if check {
+                IntakeCheckHint()
+            }
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, check ? 8 : 0)
+        .background(check ? Theme.warningSoft.opacity(0.6) : .clear, in: RoundedRectangle(cornerRadius: 8))
     }
 }

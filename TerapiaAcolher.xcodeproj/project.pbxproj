@@ -46,6 +46,7 @@
 		52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */; };
 		52F5F80D731401189B3C86CA /* GeneralTranscriptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC1385C82FEE5BFFEBFDA46 /* GeneralTranscriptsView.swift */; };
 		57903B5EAED855E337A7E1BE /* AuthLoginCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF6E235851A9159B10DCBA8 /* AuthLoginCodeView.swift */; };
+		5CA458DFCC152284896ED9F3 /* PatientIntakeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7457FB896822FD65F63C5AD5 /* PatientIntakeView.swift */; };
 		5FBF0B1AE8BC02807F701972 /* SetOfficeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446E9A5DEC0A9B75EC4C8E1B /* SetOfficeView.swift */; };
 		6051AC5B70E462C367DEFC3B /* ManageAccountButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C022AEDCFA93C01F9D92AB13 /* ManageAccountButton.swift */; };
 		60E73004478C5541FAE16BD6 /* SetProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */; };
@@ -201,6 +202,7 @@
 		6DF9745374D0A39F789A83C3 /* SessionScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionScope.swift; sourceTree = "<group>"; };
 		7173C710F75ACB3A65D24C2F /* LeadsCreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCreditsView.swift; sourceTree = "<group>"; };
 		7428CD1FAD206B3F5EB288DE /* SetProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetProfileView.swift; sourceTree = "<group>"; };
+		7457FB896822FD65F63C5AD5 /* PatientIntakeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientIntakeView.swift; sourceTree = "<group>"; };
 		784CFCF124134E8A5792C19D /* SetGoogleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetGoogleView.swift; sourceTree = "<group>"; };
 		78CF82E020D220F16B4C60F4 /* FinGatewayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayModels.swift; sourceTree = "<group>"; };
 		7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecNotesView.swift; sourceTree = "<group>"; };
@@ -562,6 +564,7 @@
 				3B9847DB566C59DF73787EE0 /* PatientDetailView.swift */,
 				CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */,
 				C2F6A455F161AADA394EF4EB /* PatientImportView.swift */,
+				7457FB896822FD65F63C5AD5 /* PatientIntakeView.swift */,
 				3EAFADD310E650ABB47216CC /* PatientInviteView.swift */,
 				8CA6E6821A5437545E324147 /* PatientMainDataView.swift */,
 				A2BB62754D9694D79708E833 /* PatientModels.swift */,
@@ -780,6 +783,7 @@
 				3482D9BC4012A09AC56B15B7 /* PatientDetailView.swift in Sources */,
 				F822337F8E4F33E5AD6C41E9 /* PatientFormView.swift in Sources */,
 				19E6275F147F8C90568BF650 /* PatientImportView.swift in Sources */,
+				5CA458DFCC152284896ED9F3 /* PatientIntakeView.swift in Sources */,
 				BD65EE0A0DC9A3DE82D4C2DD /* PatientInviteView.swift in Sources */,
 				93C857D2F23A9DD26F0A4F55 /* PatientMainDataView.swift in Sources */,
 				459B04B35A8F8830B6599151 /* PatientModels.swift in Sources */,

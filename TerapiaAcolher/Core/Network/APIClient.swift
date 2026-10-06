@@ -161,6 +161,30 @@ final class APIClient {
         )
     }
 
+    /// Upload multipart com vários arquivos no mesmo campo (fotos da ficha).
+    func uploadMany<Response: Decodable>(
+        _ path: String,
+        files: [(data: Data, fileName: String, mimeType: String)],
+        fieldName: String
+    ) async throws -> Response {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+        for file in files {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(file.fileName)\"\r\nContent-Type: \(file.mimeType)\r\n\r\n")
+            body.append(file.data)
+            body.append("\r\n")
+        }
+        body.append("--\(boundary)--\r\n")
+        return try await rawRequest(
+            path: path,
+            method: "POST",
+            query: [:],
+            bodyData: body,
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            allowRetry: true
+        )
+    }
+
     /// Arquivo devolvido pela API (PDF, CSV) com o nome sugerido pelo servidor.
     struct DownloadedFile {
         let data: Data

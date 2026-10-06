@@ -176,6 +176,8 @@ struct RecAiStatus: Decodable {
     let model: String
     /// Resumo de transcrição (Gemini) liga separado do rascunho de prontuário.
     let summaryEnabled: Bool?
+    /// Cadastro de paciente pela foto da ficha (API ≥ 2026-10-06).
+    let intakeEnabled: Bool?
 }
 
 struct RecDraftPayload: Encodable {
