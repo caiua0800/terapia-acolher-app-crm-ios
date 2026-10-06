@@ -225,37 +225,64 @@ struct GwCardFees: Decodable {
     let providerPercent: Double
     let providerFixed: Double
     let anticipationMonthlyPercent: Double?
+    /// Dias que entram na conta da antecipação (taxa mensal × dias / 30).
+    /// Backend antigo não manda: usa 34 (prazo padrão do Asaas 32 + folga 2).
+    let anticipationDays: Double?
     let settlementDays: Int?
-
-    /// Soma dos percentuais que incidem sobre o valor cobrado.
-    var percentualTotal: Double {
-        (platformPercent ?? 0) + providerPercent + (anticipationMonthlyPercent ?? 0)
-    }
 
     /// Prévia LOCAL para o formulário de nova cobrança (a cobrança ainda não
     /// existe, então não há `quote` no servidor). O valor exato vem do servidor
-    /// ao gerar o link. Repassando, o paciente paga o suficiente para o
-    /// terapeuta receber o valor original — mesma fórmula do backend.
+    /// ao gerar o link. É o porte EXATO de backend/src/modules/gateway/
+    /// gateway-cartao.ts (2026-10-06), para a prévia bater com o `quote`:
+    /// tarifa = P×a + b; antecipação = (P − tarifa) × c, com c = taxa mensal ×
+    /// dias / 30 (o Asaas cobra por dia antecipado); Terapia Acolher = P×p + f.
+    /// Repassando, P sobe até o líquido ficar igual ao valor (nunca abaixo).
     func estimativa(valor: Double, repassar: Bool) -> GwCardQuote {
-        let fixos = (platformFixed ?? 0) + providerFixed
-        let fator = 1 - percentualTotal / 100
-        let cobrado: Double = repassar && fator > 0
-            ? (((valor + fixos) / fator) * 100).rounded(.up) / 100
-            : valor
-        let plataforma = arredondar(cobrado * (platformPercent ?? 0) / 100 + (platformFixed ?? 0))
-        let provedor = arredondar(cobrado * providerPercent / 100 + providerFixed)
-        let antecipacao = arredondar(cobrado * (anticipationMonthlyPercent ?? 0) / 100)
-        let total = plataforma + provedor + antecipacao
+        let a = providerPercent / 100
+        let b = providerFixed
+        let mensal = anticipationMonthlyPercent ?? 0
+        let dias = anticipationDays ?? 34
+        let c = mensal > 0 ? (mensal / 100) * dias / 30 : 0
+        let pPct = platformPercent ?? 0
+        let pFixo = platformFixed ?? 0
+
+        func taxas(_ v: Double) -> (provedor: Double, antecipacao: Double, plataforma: Double, total: Double, liquido: Double) {
+            // Mesma ordem de operações do backend: (v × %) / 100.
+            let provedor = r2((v * providerPercent) / 100 + b)
+            let antecipacao = r2((v - provedor) * c)
+            let plataforma = r2((v * pPct) / 100 + pFixo)
+            let total = r2(provedor + antecipacao + plataforma)
+            return (provedor, antecipacao, plataforma, total, r2(v - total))
+        }
+
+        let base = r2(valor)
+        var cobrado = base
+        if repassar {
+            // líquido = (P(1−a) − b)(1−c) − pP − f  ⇒  P = (base + f + b(1−c)) / ((1−a)(1−c) − p)
+            let divisor = (1 - a) * (1 - c) - pPct / 100
+            if divisor > 0 {
+                cobrado = tetoCentavo((base + pFixo + b * (1 - c)) / divisor)
+                // Arredondamento de cada taxa pode tirar 1 centavo do líquido.
+                var i = 0
+                while i < 5 && taxas(cobrado).liquido < base {
+                    cobrado = r2(cobrado + 0.01)
+                    i += 1
+                }
+            }
+        }
+        let x = taxas(cobrado)
         return GwCardQuote(
-            baseAmount: valor,
+            baseAmount: base,
             chargedAmount: cobrado,
             passFees: repassar,
-            fees: .init(platform: plataforma, provider: provedor, anticipation: antecipacao, total: total),
-            netAmount: max(0, arredondar(cobrado - total))
+            fees: .init(platform: x.plataforma, provider: x.provedor, anticipation: x.antecipacao, total: x.total),
+            netAmount: max(0, x.liquido)
         )
     }
 
-    private func arredondar(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+    /// Igual ao `Math.round((v + Number.EPSILON) * 100) / 100` do backend.
+    private func r2(_ v: Double) -> Double { ((v + .ulpOfOne) * 100).rounded() / 100 }
+    private func tetoCentavo(_ v: Double) -> Double { (r2(v * 100) - 1e-9).rounded(.up) / 100 }
 }
 
 /// Prévia do cartão: `GET gateway/charges/:id/card/quote` (ou a estimativa local).
