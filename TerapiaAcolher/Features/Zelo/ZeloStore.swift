@@ -79,6 +79,11 @@ final class ZeloStore {
     /// Limite do plano: mostra o botão Gerenciar conta.
     var noLimite = false
 
+    /// Altura ocupada embaixo por um botão flutuante da própria tela (ex.:
+    /// "Criar cobrança" no Acolher Financeiro): o Zelo fica acima dele em vez
+    /// de cobri-lo. A tela liga ao aparecer e zera ao sair.
+    var folgaInferior: CGFloat = 0
+
     // Posição do botão flutuante (0…1 da área útil), salva entre aberturas.
     private let chaveX = "zelo.botao.x"
     private let chaveY = "zelo.botao.y"

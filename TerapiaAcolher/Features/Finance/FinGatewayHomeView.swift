@@ -15,6 +15,9 @@ struct FinGatewayHomeView: View {
     @State private var resumoCobrancas: FinChargeSummary?
     @State private var ultimasMovimentacoes: [GwLedgerEntry] = []
     @State private var chaves: [GwPixKey] = []
+    /// Botão flutuante "Criar cobrança": abre o mesmo fluxo do "Cobrar".
+    @State private var abrindoCobranca = false
+    @State private var zelo = ZeloStore.shared
 
     var body: some View {
         // Toda entrada (menu, Ajustes, cobranças, notificação) cai aqui.
@@ -57,10 +60,28 @@ struct FinGatewayHomeView: View {
                 }
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 12)
-                .padding(.bottom, 40)
+                .padding(.bottom, store.isApproved ? 96 : 40)
             }
             .refreshable { await recarregar() }
+
+            // Cobrar é a ação mais comum da conta aprovada (pedido do Caiuã,
+            // 2026-10-06): sempre à mão no canto, sem rolar até o cartão do
+            // saldo. Os botões do cartão continuam.
+            if store.isApproved {
+                botaoCriarCobranca
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(.trailing, Theme.screenPadding)
+                    .padding(.bottom, 16)
+            }
         }
+        .navigationDestination(isPresented: $abrindoCobranca) {
+            FinChargesEntryView()
+        }
+        // O Zelo sobe acima do botão enquanto ele estiver na tela.
+        .onChange(of: store.isApproved, initial: true) { _, aprovada in
+            zelo.folgaInferior = aprovada ? 68 : 0
+        }
+        .onDisappear { zelo.folgaInferior = 0 }
         .setToolbarTitle("Acolher Financeiro")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showOnboarding, onDismiss: {
@@ -78,6 +99,27 @@ struct FinGatewayHomeView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
+    }
+
+    private var botaoCriarCobranca: some View {
+        Button {
+            Haptics.tap()
+            abrindoCobranca = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Criar cobrança")
+                    .font(Theme.body(16, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .frame(height: 52)
+            .background(Theme.primary, in: Capsule())
+            .shadow(color: Theme.primary.opacity(0.4), radius: 10, y: 4)
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.95))
+        .accessibilityIdentifier("gwCriarCobrancaFlutuante")
     }
 
     private func recarregar() async {

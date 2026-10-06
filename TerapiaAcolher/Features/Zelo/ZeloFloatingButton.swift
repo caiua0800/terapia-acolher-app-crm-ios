@@ -16,7 +16,7 @@ struct ZeloFloatingButton: View {
                 x: margem,
                 y: margem + 60,
                 width: max(1, geo.size.width - tamanho - margem * 2),
-                height: max(1, geo.size.height - tamanho - margem * 2 - 60)
+                height: max(1, geo.size.height - tamanho - margem * 2 - 60 - zelo.folgaInferior)
             )
             let base = CGPoint(
                 x: area.minX + area.width * zelo.posicao.x,

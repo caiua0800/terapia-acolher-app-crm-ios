@@ -119,8 +119,11 @@ struct PushOptInSheet: View {
 /// Decide quando convidar.
 ///
 /// Regras, em ordem de importância:
-/// 1. Nunca antes de o terapeuta ter usado o app. Pedir na primeira tela é o
-///    jeito mais rápido de levar um "não" definitivo do sistema.
+/// 1. Logo no primeiro acesso, ANTES de qualquer outro aviso (validar WhatsApp
+///    e e-mail incluídos) — decisão do Caiuã em 2026-10-06: terapeuta novo
+///    abria o app, caía na validação do número e nunca era convidado. A nossa
+///    tela continua vindo antes do alerta do sistema, que é único: "Agora não"
+///    aqui não queima o alerta do iOS.
 /// 2. "Agora não" adia por uma semana, não para sempre — mas a cada recusa o
 ///    intervalo dobra, até parar de perguntar. Insistir irrita e não converte.
 /// 3. Se o sistema já foi respondido (autorizado ou negado), nunca mais mostra:
@@ -135,26 +138,32 @@ final class PushOptIn {
     private let chaveAdiadoAte = "push.optin.adiadoAte"
     private let chaveRecusas = "push.optin.recusas"
     private let chaveAberturas = "push.optin.aberturas"
-
-    /// Aberturas antes do primeiro convite. O terapeuta precisa ter visto o app
-    /// funcionando para a pergunta fazer sentido.
-    private let aberturasMinimas = 2
     /// Depois de 3 "agora não", paramos: quem recusou três vezes está dizendo
     /// não, e o caminho passa a ser Configurações.
     private let recusasMaximas = 3
 
     var mostrando = false
+    /// Já decidiu se convida nesta sessão. Os outros avisos da abertura (perfil
+    /// incompleto no Início) esperam isto e o convite fechar: dois sheets na
+    /// mesma janela se derrubam.
+    private(set) var avaliadoNestaSessao = false
 
     func registrarAbertura() {
         defaults.set(defaults.integer(forKey: chaveAberturas) + 1, forKey: chaveAberturas)
     }
 
     func avaliar(status: UNAuthorizationStatus?) {
+        defer { avaliadoNestaSessao = true }
         guard status == .notDetermined else { return }
-        guard defaults.integer(forKey: chaveAberturas) >= aberturasMinimas else { return }
         guard defaults.integer(forKey: chaveRecusas) < recusasMaximas else { return }
         if let ate = defaults.object(forKey: chaveAdiadoAte) as? Date, ate > Date() { return }
         mostrando = true
+    }
+
+    /// Saída da conta: a próxima sessão avalia de novo antes dos outros avisos.
+    func encerrarSessao() {
+        avaliadoNestaSessao = false
+        mostrando = false
     }
 
     /// Chamado quando a tela fecha, tendo o terapeuta ativado ou não. Se ele

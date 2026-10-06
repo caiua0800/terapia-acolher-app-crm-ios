@@ -77,6 +77,24 @@ final class FinGatewayOnboardingModel {
             stepIndex = account.wizardStartIndex
             preencher(com: account)
         }
+        preencherComOPerfil()
+    }
+
+    /// Nome, e-mail e WhatsApp já vêm do perfil (2026-10-06, pedido do Caiuã:
+    /// "é só pra facilitar a vida"). Só onde a conta ainda não tem o dado —
+    /// o que a pessoa já salvou aqui nunca é sobrescrito — e tudo segue
+    /// editável. O endereço do consultório é texto livre no perfil, sem CEP
+    /// separado, então o endereço continua pelo CEP.
+    private func preencherComOPerfil() {
+        guard let perfil = SessionStore.shared.user else { return }
+        if legalName.isEmpty { legalName = perfil.name }
+        if email.isEmpty { email = perfil.email }
+        if phone.isEmpty, let zap = perfil.whatsapp, !zap.isEmpty {
+            // O perfil guarda com DDI (55…); o campo daqui é o nacional.
+            let digitos = GwMask.digits(zap)
+            let nacional = digitos.count > 11 && digitos.hasPrefix("55") ? String(digitos.dropFirst(2)) : digitos
+            phone = GwMask.phone(nacional)
+        }
     }
 
     private func preencher(com account: GwAccount) {

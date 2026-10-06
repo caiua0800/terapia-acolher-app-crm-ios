@@ -203,23 +203,12 @@ struct MainShellView: View {
         }
         .task {
             await PushManager.shared.refreshAuthorization()
-            // Só convida depois de o terapeuta ter usado o app. O alerta do
-            // sistema só pode ser mostrado UMA vez — pedir na primeira tela é
-            // o jeito mais rápido de levar um "não" definitivo.
             optIn.registrarAbertura()
-
-            // Dois sheets na mesma janela se derrubam: o SwiftUI apresenta um
-            // e fecha o outro na hora. O aviso de perfil incompleto (Início)
-            // tem prioridade — sem e-mail e telefone confirmados o terapeuta
-            // não recebe nada, então convidar para push antes disso é pedir
-            // permissão para um canal que ainda não tem o que entregar.
-            if ProfileStatusStore.shared.status == nil {
-                await ProfileStatusStore.shared.refresh()
-            }
-            let temPendencia = ProfileStatusStore.shared.status?.temPendencia ?? false
-            if !temPendencia || ProfileStatusStore.shared.dispensadoNestaSessao {
-                optIn.avaliar(status: PushManager.shared.authorization)
-            }
+            // Notificação primeiro (2026-10-06): o convite vem antes do aviso
+            // de perfil incompleto (validar WhatsApp/e-mail). Dois sheets na
+            // mesma janela se derrubam, então o Início espera este avaliar e o
+            // convite fechar (`PushOptIn.avaliadoNestaSessao`) para mostrar o dele.
+            optIn.avaliar(status: PushManager.shared.authorization)
         }
         .sheet(isPresented: $optIn.mostrando) {
             PushOptInSheet {

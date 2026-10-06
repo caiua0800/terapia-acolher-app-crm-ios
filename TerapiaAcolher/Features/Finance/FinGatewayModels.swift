@@ -318,7 +318,12 @@ struct GwAccount: Decodable {
     /// etapa de documentos e a captura nossa.
     var dispensaDocumentos: Bool { isAsaas || requiredDocuments.isEmpty }
 
-    var pendenciasDoProvedor: [GwProviderDocument] { providerDocuments ?? [] }
+    /// Na ordem em que o Asaas pede: documentos antes da selfie (2026-10-06 —
+    /// a selfie vinha primeiro na lista e a página pedia o documento antes).
+    var pendenciasDoProvedor: [GwProviderDocument] {
+        let todos = providerDocuments ?? []
+        return todos.filter { !$0.ehSelfie } + todos.filter(\.ehSelfie)
+    }
 
     func document(_ type: GwDocumentType) -> GwDocument? {
         documents.first { $0.type == type }
@@ -392,6 +397,12 @@ struct GwProviderDocument: Decodable, Identifiable, Hashable {
     var enviaPeloLink: Bool { linkDeEnvio != nil && situacao != .emAnalise }
 
     var enviaPeloApp: Bool { linkDeEnvio == nil && (uploadInApp ?? false) }
+
+    /// Selfie/prova de vida: o Asaas pede por último na página dele (primeiro
+    /// a foto do documento), então a lista segue a mesma ordem.
+    var ehSelfie: Bool {
+        "\(type ?? "") \(title ?? "")".lowercased().contains("selfie")
+    }
 
     /// O link do Asaas expira; vencido, recarregamos a conta antes de abrir.
     var linkExpirado: Bool {

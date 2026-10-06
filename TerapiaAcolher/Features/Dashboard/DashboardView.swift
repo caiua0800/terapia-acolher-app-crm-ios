@@ -47,6 +47,7 @@ struct DashboardView: View {
     @State private var profileStatus = ProfileStatusStore.shared
     @State private var deepLink = DeepLink.shared
     @State private var mostrandoPendencias = false
+    @State private var optIn = PushOptIn.shared
     @State private var vitrine = VitrineViewModel.shared
     @State private var leads = LeadsStore.shared
 
@@ -79,6 +80,19 @@ struct DashboardView: View {
             Task { await vitrine.load() }
             Task { await leads.load() }
         }
+        // O convite de notificação vem antes (2026-10-06): quando ele é
+        // avaliado ou fecha, é a vez do aviso de perfil incompleto.
+        .onChange(of: optIn.avaliadoNestaSessao) { _, avaliado in
+            if avaliado { Task { await avaliarPerfil() } }
+        }
+        .onChange(of: optIn.mostrando) { _, mostrando in
+            guard !mostrando else { return }
+            Task {
+                // Espera o sheet do convite terminar de sair antes de abrir outro.
+                try? await Task.sleep(for: .milliseconds(650))
+                await avaliarPerfil()
+            }
+        }
         .sheet(isPresented: $mostrandoPendencias) {
             ProfilePendingSheet(
                 status: profileStatus.status,
@@ -108,9 +122,9 @@ struct DashboardView: View {
         if profileStatus.status == nil { await profileStatus.refresh() }
         guard let status = profileStatus.status, status.temPendencia else { return }
         guard !mostrandoPendencias else { return }
-        // Cinto e suspensório: se o convite de push ganhou a corrida, este
-        // aviso espera a próxima abertura em vez de brigar pela janela.
-        guard !PushOptIn.shared.mostrando else { return }
+        // O convite de notificação tem a vez primeiro: este aviso só sai
+        // depois que ele foi avaliado e fechou (os onChange chamam de novo).
+        guard optIn.avaliadoNestaSessao, !optIn.mostrando else { return }
         profileStatus.dispensadoNestaSessao = true
         mostrandoPendencias = true
     }

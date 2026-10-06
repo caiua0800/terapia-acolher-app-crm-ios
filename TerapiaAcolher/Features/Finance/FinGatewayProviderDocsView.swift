@@ -8,6 +8,32 @@ import UniformTypeIdentifiers
 // ele devolve grupos de documento. Grupo com `onboardingUrl` abre a página
 // segura dele DENTRO do app (SFSafariViewController — câmera e prova de vida
 // funcionam lá); grupo com `uploadInApp` sobe o arquivo pelo nosso backend.
+//
+// Todos os grupos com link são UM passo só (2026-10-06): na conta real o
+// Caiuã tocou em "selfie", a página pediu o documento e depois a selfie — o
+// link da selfie percorre o fluxo inteiro. Viram "Verificação de identidade",
+// com a ordem que o Asaas segue e um botão que abre o link da SELFIE (sem
+// selfie, o primeiro). Grupos sem link (envio pelo app) seguem separados.
+
+/// Um item da lista: o passo de verificação (grupos com link) ou um grupo só.
+private struct GwBlocoDoProvedor: Identifiable {
+    let id: String
+    let itens: [GwProviderDocument]
+    let verificacaoUnica: Bool
+
+    /// `pendencias` já vem na ordem do Asaas (documentos antes da selfie).
+    static func montar(_ pendencias: [GwProviderDocument]) -> [GwBlocoDoProvedor] {
+        let peloLink = pendencias.filter(\.enviaPeloLink)
+        var blocos: [GwBlocoDoProvedor] = []
+        if !peloLink.isEmpty {
+            blocos.append(GwBlocoDoProvedor(id: "verificacao", itens: peloLink, verificacaoUnica: true))
+        }
+        for documento in pendencias where !documento.enviaPeloLink {
+            blocos.append(GwBlocoDoProvedor(id: documento.id, itens: [documento], verificacaoUnica: false))
+        }
+        return blocos
+    }
+}
 
 struct GwProviderDocumentsCard: View {
     let account: GwAccount
@@ -60,9 +86,13 @@ struct GwProviderDocumentsCard: View {
                     if algumPeloLink {
                         notaDaPaginaSegura
                     }
-                    ForEach(Array(pendencias.enumerated()), id: \.element.id) { indice, documento in
+                    ForEach(Array(GwBlocoDoProvedor.montar(pendencias).enumerated()), id: \.element.id) { indice, bloco in
                         if indice > 0 { Divider().overlay(Theme.border) }
-                        linha(documento)
+                        if bloco.verificacaoUnica {
+                            verificacaoDeIdentidade(bloco.itens)
+                        } else if let documento = bloco.itens.first {
+                            linha(documento)
+                        }
                     }
                 }
 
@@ -218,6 +248,65 @@ struct GwProviderDocumentsCard: View {
                     escolhendoOrigem = documento
                 }
                 .accessibilityIdentifier("gwProvedorArquivo-\(documento.id)")
+            }
+        }
+    }
+
+    /// Vários grupos, uma página: um botão só e a ordem que o Asaas segue.
+    private func verificacaoDeIdentidade(_ itens: [GwProviderDocument]) -> some View {
+        let recusado = itens.contains { $0.situacao == .recusado }
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: recusado ? "exclamationmark.circle" : "person.text.rectangle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(recusado ? Theme.danger : Theme.primary)
+                    .frame(width: 26)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Verificação de identidade")
+                        .font(Theme.body(14, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Na página segura do \(providerName), nesta ordem: 1. Foto do documento (RG ou CNH) · 2. Selfie com prova de vida.")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(itens.enumerated()), id: \.element.id) { indice, documento in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("\(indice + 1).")
+                            .font(Theme.body(13, weight: .semibold))
+                            .foregroundStyle(documento.situacao == .recusado ? Theme.danger : Theme.textSecondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(documento.titulo)
+                                .font(Theme.body(13))
+                                .foregroundStyle(Theme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if documento.situacao == .recusado {
+                                Text("Recusado, envie de novo")
+                                    .font(Theme.body(12, weight: .medium))
+                                    .foregroundStyle(Theme.danger)
+                            }
+                        }
+                        Spacer(minLength: 8)
+                        badge(documento.situacao)
+                    }
+                }
+            }
+            .padding(.leading, 38)
+            // O link da selfie leva pelo fluxo inteiro (documento → selfie).
+            if let primeiro = itens.first(where: \.ehSelfie) ?? itens.first {
+                SecondaryButton(
+                    title: recusado ? "Enviar de novo" : "Começar verificação",
+                    icon: "arrow.up.forward.app",
+                    isLoading: renovandoLinkId == primeiro.id,
+                    isEnabled: !ocupado,
+                    tint: Theme.primary
+                ) {
+                    Task { await abrirPagina(primeiro) }
+                }
+                .accessibilityIdentifier("gwProvedorVerificacao")
             }
         }
     }
