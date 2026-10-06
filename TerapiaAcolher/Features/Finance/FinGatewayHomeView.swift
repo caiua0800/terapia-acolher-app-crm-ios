@@ -820,52 +820,49 @@ struct FinGatewayHomeView: View {
         .background(destaque ? Color.white : Color.white.opacity(0.12), in: Capsule())
     }
 
-    /// Resumo da conta (2026-10-06, igual ao web): o recebido vem com as taxas
-    /// abatidas na mesma caixa até o líquido — taxa e tarifa soltas pareciam
-    /// saldo. Taxa da Terapia Acolher e tarifa do Asaas em linhas separadas
-    /// (playbook do Asaas).
+    /// Resumo da conta (2026-10-06, igual ao web): três caixas — recebido,
+    /// recebido líquido (já sem as taxas) e sacado. O detalhe das taxas fica no
+    /// cartão "O que é descontado de cada cobrança"; repetir aqui pesava.
     private func metricas(_ conta: GwAccount) -> some View {
         let s = conta.stats
         let liquido = s.receivedTotal - s.platformFeesTotal - s.providerFeesTotal
-        let provedor = store.overview?.provider.name ?? GwProvider.asaasPadrao.name
         return VStack(spacing: 12) {
-            ThemeCard {
-                VStack(spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        rotuloDoResumo("RECEBIDO")
-                        Spacer()
-                        Text(Formatters.brl(s.receivedTotal))
-                            .font(Theme.body(18, weight: .semibold))
-                            .foregroundStyle(Theme.ink)
-                    }
-                    linhaDeDesconto("Taxa de plataforma", s.platformFeesTotal)
-                    linhaDeDesconto("Tarifa Pix \(provedor)", s.providerFeesTotal)
-                    Divider().overlay(Theme.border).padding(.vertical, 4)
-                    HStack(alignment: .firstTextBaseline) {
-                        rotuloDoResumo("RECEBIDO LÍQUIDO")
-                        Spacer()
-                        Text(Formatters.brl(liquido))
-                            .font(Theme.body(20, weight: .bold))
-                            .foregroundStyle(Theme.success)
-                    }
-                }
-                .monospacedDigit()
+            HStack(spacing: 12) {
+                caixaDoResumo("RECEBIDO", s.receivedTotal, cor: Theme.ink)
+                caixaDoResumo("RECEBIDO LÍQUIDO", liquido, cor: Theme.success, forte: true)
             }
-            ThemeCard {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        rotuloDoResumo("SACADO")
-                        Text("Transferido para as suas contas.")
-                            .font(Theme.body(12))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                    Text(Formatters.brl(s.withdrawnTotal))
-                        .font(Theme.body(18, weight: .semibold))
-                        .foregroundStyle(Theme.ink)
-                        .monospacedDigit()
+            caixaDoResumo(
+                "SACADO",
+                s.withdrawnTotal,
+                cor: Theme.ink,
+                nota: "Transferido para as suas contas para saque."
+            )
+        }
+    }
+
+    private func caixaDoResumo(
+        _ rotulo: String,
+        _ valor: Double,
+        cor: Color,
+        forte: Bool = false,
+        nota: String? = nil
+    ) -> some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 6) {
+                rotuloDoResumo(rotulo)
+                Text(Formatters.brl(valor))
+                    .font(Theme.body(20, weight: forte ? .bold : .semibold))
+                    .foregroundStyle(cor)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if let nota {
+                    Text(nota)
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -876,15 +873,6 @@ struct FinGatewayHomeView: View {
             .foregroundStyle(Theme.textSecondary)
     }
 
-    private func linhaDeDesconto(_ rotulo: String, _ valor: Double) -> some View {
-        HStack {
-            Text("− \(rotulo)")
-            Spacer()
-            Text(Formatters.brl(valor))
-        }
-        .font(Theme.body(13.5))
-        .foregroundStyle(Theme.textSecondary)
-    }
 
     @ViewBuilder
     private var saquesRecentes: some View {
