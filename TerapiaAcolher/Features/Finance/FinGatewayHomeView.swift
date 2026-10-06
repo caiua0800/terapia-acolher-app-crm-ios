@@ -14,6 +14,8 @@ struct FinGatewayHomeView: View {
     @State private var ultimosSaques: [GwWithdrawal] = []
     @State private var resumoCobrancas: FinChargeSummary?
     @State private var ultimasMovimentacoes: [GwLedgerEntry] = []
+    /// Movimentação tocada na prévia: abre os detalhes com o comprovante.
+    @State private var movimentacaoSelecionada: GwLedgerEntry?
     @State private var chaves: [GwPixKey] = []
     /// Botão flutuante "Criar cobrança": abre o mesmo fluxo do "Cobrar".
     @State private var abrindoCobranca = false
@@ -84,6 +86,12 @@ struct FinGatewayHomeView: View {
         .onDisappear { zelo.folgaInferior = 0 }
         .setToolbarTitle("Acolher Financeiro")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $movimentacaoSelecionada) { entrada in
+            FinGatewayLedgerDetailSheet(
+                entrada: entrada,
+                provider: store.overview?.provider ?? .asaasPadrao
+            )
+        }
         .sheet(isPresented: $showOnboarding, onDismiss: {
             Task { await recarregar() }
         }) {
@@ -736,7 +744,14 @@ struct FinGatewayHomeView: View {
                     .padding(.bottom, 4)
 
                     ForEach(ultimasMovimentacoes) { entrada in
-                        GwLedgerEntryRow(entrada: entrada, mostraSaldo: false)
+                        Button {
+                            movimentacaoSelecionada = entrada
+                        } label: {
+                            GwLedgerEntryRow(entrada: entrada, mostraSaldo: false)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.pressable)
+                        .accessibilityHint("Abre os detalhes e o comprovante")
                         if entrada.id != ultimasMovimentacoes.last?.id {
                             Divider().overlay(Theme.border).padding(.leading, 64)
                         }

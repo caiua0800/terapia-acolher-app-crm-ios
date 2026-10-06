@@ -100,6 +100,7 @@
 		A9A898CB825ED343C4CEA929 /* SetTemplateEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F167C5DA6C3235054D9AD4 /* SetTemplateEditorView.swift */; };
 		AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */; };
 		B136EAEC95FECFB0A0C2A0BE /* FinGatewayWithdrawView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5746D3D832FE60A5AFC1F60D /* FinGatewayWithdrawView.swift */; };
+		B4D0B3E9ABA148EFE2FABAE4 /* FinGatewayLedgerDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030E7CE5395FA94E8E795D63 /* FinGatewayLedgerDetailSheet.swift */; };
 		B6F1CDAFC0796BF24C4B9051 /* SetBiometricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCCD0B1CFAB861492C078E6 /* SetBiometricRow.swift */; };
 		BAC31C526CBFABFAB0F76A08 /* SetVerifyPhoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB2AA1DB6CD3FF50189B9F /* SetVerifyPhoneView.swift */; };
 		BCAC7313BEF6855C94EB0D82 /* AgendaMonthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4239C8459754261031FB88 /* AgendaMonthView.swift */; };
@@ -147,6 +148,7 @@
 
 /* Begin PBXFileReference section */
 		01BA8722857B72DCDB93FA5A /* SubscriptionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionBanner.swift; sourceTree = "<group>"; };
+		030E7CE5395FA94E8E795D63 /* FinGatewayLedgerDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayLedgerDetailSheet.swift; sourceTree = "<group>"; };
 		0377288FE401272734328942 /* LeadDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadDetailView.swift; sourceTree = "<group>"; };
 		05999A9CF5B35B9903DD595B /* BiometricVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricVault.swift; sourceTree = "<group>"; };
 		06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthRegisterView.swift; sourceTree = "<group>"; };
@@ -445,6 +447,7 @@
 				C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */,
 				62B0627A9684B931738FFCCA /* FinGatewayComponents.swift */,
 				4423F4FA4D990F1E0406EC67 /* FinGatewayHomeView.swift */,
+				030E7CE5395FA94E8E795D63 /* FinGatewayLedgerDetailSheet.swift */,
 				8087D4E36A7EB31D5FC85628 /* FinGatewayLedgerView.swift */,
 				78CF82E020D220F16B4C60F4 /* FinGatewayModels.swift */,
 				3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */,
@@ -791,6 +794,7 @@
 				18E51764031F0641ECD90E5B /* FinGatewayChargePixSheet.swift in Sources */,
 				A15335D536E89C04A92C786D /* FinGatewayComponents.swift in Sources */,
 				8C0FF15ABF94D41BC3EA1D7C /* FinGatewayHomeView.swift in Sources */,
+				B4D0B3E9ABA148EFE2FABAE4 /* FinGatewayLedgerDetailSheet.swift in Sources */,
 				27143198B98D6A7492A3476A /* FinGatewayLedgerView.swift in Sources */,
 				4E6EC05CACEF7208F28D0A79 /* FinGatewayModels.swift in Sources */,
 				52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */,

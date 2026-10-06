@@ -91,6 +91,16 @@ enum GwLedgerKind: String, Decodable {
     case withdrawalReversal = "WITHDRAWAL_REVERSAL"
     case adjustment = "ADJUSTMENT"
     case platformPurchase = "PLATFORM_PURCHASE"
+    /// Estorno/contestação de cobrança no cartão (2026-10-06).
+    case chargeReversal = "CHARGE_REVERSAL"
+    /// Tipo que esta versão do app ainda não conhece: sem isto, um lançamento
+    /// novo do servidor derrubaria o extrato inteiro na decodificação.
+    case outro = "__OUTRO__"
+
+    init(from decoder: Decoder) throws {
+        let bruto = try decoder.singleValueContainer().decode(String.self)
+        self = GwLedgerKind(rawValue: bruto) ?? .outro
+    }
 
     var icon: String {
         switch self {
@@ -101,6 +111,8 @@ enum GwLedgerKind: String, Decodable {
         case .withdrawalReversal: "arrow.uturn.left.circle"
         case .adjustment: "slider.horizontal.3"
         case .platformPurchase: "cart"
+        case .chargeReversal: "arrow.uturn.backward.circle"
+        case .outro: "circle"
         }
     }
 
@@ -114,12 +126,14 @@ enum GwLedgerKind: String, Decodable {
         case .withdrawalReversal: "Estorno de saque"
         case .adjustment: "Ajuste"
         case .platformPurchase: "Compra na plataforma"
+        case .chargeReversal: "Estorno de cobrança"
+        case .outro: "Movimentação"
         }
     }
 
     /// Categorias que fazem sentido como filtro do extrato (na ordem do menu).
     static let filterable: [GwLedgerKind] = [
-        .chargeReceived, .withdrawal, .withdrawalReversal, .platformFee,
+        .chargeReceived, .withdrawal, .withdrawalReversal, .chargeReversal, .platformFee,
         .providerFee, .platformPurchase, .adjustment, .openingBonus,
     ]
 }
@@ -548,6 +562,52 @@ struct GwLedgerEntry: Decodable, Identifiable {
     let referenceType: String?
     let referenceId: String?
     let createdAt: Date
+}
+
+/// Detalhe de uma movimentação do extrato (`GET gateway/ledger/:id`, 2026-10-06).
+/// Tudo opcional além do básico: o comprovante só existe para recebimento e
+/// saque, e o servidor antigo nem tem a rota.
+struct GwLedgerDetail: Decodable, Identifiable {
+    struct Charge: Decodable {
+        let id: String
+        let patientName: String?
+        let description: String?
+        let amount: Double?
+        let platformFee: Double?
+        let providerFee: Double?
+        let netAmount: Double?
+        let paidAt: Date?
+    }
+
+    struct Withdrawal: Decodable {
+        let id: String
+        let amount: Double?
+        let status: String?
+        let pixKeyMasked: String?
+        let ownerName: String?
+        let bankName: String?
+        let endToEndId: String?
+        let processedAt: Date?
+    }
+
+    let id: String
+    let kind: GwLedgerKind
+    let type: GwLedgerType
+    let amount: Double
+    let balanceAfter: Double?
+    let description: String?
+    let createdAt: Date
+    let method: String?
+    let charge: Charge?
+    let withdrawal: Withdrawal?
+    let providerTransactionId: String?
+    let endToEndId: String?
+    let receiptAvailable: Bool?
+    let authCode: String?
+    let verifyUrl: String?
+
+    var temComprovante: Bool { receiptAvailable == true }
+    var noCartao: Bool { method == "CREDIT_CARD" }
 }
 
 struct GwLedgerPage: Decodable {
@@ -985,6 +1045,17 @@ enum FinGatewayAPI {
             "pageSize": String(pageSize),
             "status": status?.rawValue,
         ])
+    }
+
+    static func ledgerEntry(id: String) async throws -> GwLedgerDetail {
+        try await APIClient.shared.get("gateway/ledger/\(id)")
+    }
+
+    static func ledgerReceiptPDF(id: String, authCode: String?) async throws -> APIClient.DownloadedFile {
+        try await APIClient.shared.download(
+            "gateway/ledger/\(id)/receipt",
+            fallbackName: "comprovante-\(authCode ?? id).pdf"
+        )
     }
 
     static func receiptPDF(id: String, receiptCode: String?) async throws -> APIClient.DownloadedFile {

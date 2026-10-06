@@ -92,6 +92,8 @@ struct FinGatewayLedgerView: View {
     @State private var store = FinGatewayStore.shared
     @State private var filtrosAbertos = false
     @State private var arquivo: GwArquivoBaixado?
+    /// Movimentação tocada: abre os detalhes com o comprovante (2026-10-06).
+    @State private var selecionada: GwLedgerEntry?
 
     var body: some View {
         ZStack {
@@ -154,6 +156,12 @@ struct FinGatewayLedgerView: View {
         .sheet(item: $arquivo) { baixado in
             GwShareSheet(url: baixado.url)
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $selecionada) { entrada in
+            FinGatewayLedgerDetailSheet(
+                entrada: entrada,
+                provider: store.overview?.provider ?? .asaasPadrao
+            )
         }
         .alert("Ops", isPresented: .init(
             get: { model.errorMessage != nil },
@@ -346,7 +354,14 @@ struct FinGatewayLedgerView: View {
     }
 
     private func linha(_ entrada: GwLedgerEntry) -> some View {
-        GwLedgerEntryRow(entrada: entrada)
+        Button {
+            selecionada = entrada
+        } label: {
+            GwLedgerEntryRow(entrada: entrada)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityHint("Abre os detalhes e o comprovante")
     }
 }
 
