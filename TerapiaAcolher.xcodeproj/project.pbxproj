@@ -17,6 +17,7 @@
 		1A387C9314EAE346F3C5EE61 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B1731D2888D6B675ED0C87 /* Skeleton.swift */; };
 		1BB72C1B1937D3208B6B099B /* AuthForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F927E4106A52CE6F67BEAAAF /* AuthForgotPasswordView.swift */; };
 		1C6B001E72DAF6500C9A2704 /* CEPLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A919FB20AA2F58C4B8B2D425 /* CEPLookup.swift */; };
+		1C9E52655599D5FF6FE6E448 /* BiometricUnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 937F889BF6C6CA14484A1B1A /* BiometricUnlockView.swift */; };
 		238A3C5D08ACDEF181551DDB /* SubscriptionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED8BD47A06008523EB6F41C /* SubscriptionModels.swift */; };
 		255F8DA4CB2D23CAA223AB6D /* LeadsCreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7173C710F75ACB3A65D24C2F /* LeadsCreditsView.swift */; };
 		26E4C6CB548422D924DD4FE4 /* SupportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE3808910B236532AA6E4A5 /* SupportModels.swift */; };
@@ -71,6 +72,7 @@
 		7F68A4F8E126B765B061E9E1 /* DesignAuditUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 205F5E639DBAE925963E3835 /* DesignAuditUITests.swift */; };
 		807179436B4DF34196267778 /* AgendaWeekView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C3751A7ACC9291A6B561A7 /* AgendaWeekView.swift */; };
 		8107C33634FCAE7F966D4470 /* DashModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08BC7C70CD62C98716637F27 /* DashModels.swift */; };
+		84F346F29C5EE2FFA7C84BB2 /* BiometricVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05999A9CF5B35B9903DD595B /* BiometricVault.swift */; };
 		84FBAE960242C07A997EA92C /* RecordFormViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A0E4CC76AD29C3A89EE662 /* RecordFormViews.swift */; };
 		86D5C6F834CC87360ABE2AD4 /* SetDeleteAccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */; };
 		87BAA306CD43A2F29E3E3888 /* LoginOnlyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352ABA2D9A3498B577E4F164 /* LoginOnlyUITests.swift */; };
@@ -94,6 +96,7 @@
 		A9A898CB825ED343C4CEA929 /* SetTemplateEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F167C5DA6C3235054D9AD4 /* SetTemplateEditorView.swift */; };
 		AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C45E0EC9FD1D4FB218863B4 /* FinChargeDetailView.swift */; };
 		B136EAEC95FECFB0A0C2A0BE /* FinGatewayWithdrawView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5746D3D832FE60A5AFC1F60D /* FinGatewayWithdrawView.swift */; };
+		B6F1CDAFC0796BF24C4B9051 /* SetBiometricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCCD0B1CFAB861492C078E6 /* SetBiometricRow.swift */; };
 		BAC31C526CBFABFAB0F76A08 /* SetVerifyPhoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB2AA1DB6CD3FF50189B9F /* SetVerifyPhoneView.swift */; };
 		BCAC7313BEF6855C94EB0D82 /* AgendaMonthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4239C8459754261031FB88 /* AgendaMonthView.swift */; };
 		BD65EE0A0DC9A3DE82D4C2DD /* PatientInviteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EAFADD310E650ABB47216CC /* PatientInviteView.swift */; };
@@ -141,6 +144,7 @@
 /* Begin PBXFileReference section */
 		01BA8722857B72DCDB93FA5A /* SubscriptionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionBanner.swift; sourceTree = "<group>"; };
 		0377288FE401272734328942 /* LeadDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadDetailView.swift; sourceTree = "<group>"; };
+		05999A9CF5B35B9903DD595B /* BiometricVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricVault.swift; sourceTree = "<group>"; };
 		06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthRegisterView.swift; sourceTree = "<group>"; };
 		072C9798DC11D2C096035921 /* PatientsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientsListView.swift; sourceTree = "<group>"; };
 		07E1301E46DD6038BD8F44E6 /* LeadsCheckoutModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCheckoutModel.swift; sourceTree = "<group>"; };
@@ -218,6 +222,7 @@
 		9261C659523D773C27096526 /* FinGatewayAutoWithdrawView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayAutoWithdrawView.swift; sourceTree = "<group>"; };
 		92C1A41EBF5A17F0536A057A /* FilesHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesHomeView.swift; sourceTree = "<group>"; };
 		9300DA65BEE554BD3BD178FC /* FilesModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesModels.swift; sourceTree = "<group>"; };
+		937F889BF6C6CA14484A1B1A /* BiometricUnlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricUnlockView.swift; sourceTree = "<group>"; };
 		9668296259B004E93A2F0F89 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		969DDEC8B91D4D2926F0F47B /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
 		979329498713B5025B070857 /* SupportMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportMediaViews.swift; sourceTree = "<group>"; };
@@ -253,6 +258,7 @@
 		D705A4FBA1AF73A5FAEA767A /* RemoteAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAvatar.swift; sourceTree = "<group>"; };
 		D81CFBFFCBADE67B31028CBD /* LeadsOrderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsOrderView.swift; sourceTree = "<group>"; };
 		D8A201782BAFC2ED79635898 /* DocGenerateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocGenerateView.swift; sourceTree = "<group>"; };
+		DBCCD0B1CFAB861492C078E6 /* SetBiometricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetBiometricRow.swift; sourceTree = "<group>"; };
 		DD3AA7ED1CDA52D3C9EE5023 /* SupportHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportHomeView.swift; sourceTree = "<group>"; };
 		ECE4E78A4574F19A22DA3542 /* LeadsCheckoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCheckoutUITests.swift; sourceTree = "<group>"; };
 		EEFE7D088B66D2BABCACDAF7 /* RecQuestionEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecQuestionEditorSheet.swift; sourceTree = "<group>"; };
@@ -288,6 +294,7 @@
 			isa = PBXGroup;
 			children = (
 				53746DAEF71E1D9E71CBE881 /* SetAgendaView.swift */,
+				DBCCD0B1CFAB861492C078E6 /* SetBiometricRow.swift */,
 				1313D5C28C31A524B2C22A7E /* SetChangePasswordView.swift */,
 				1B8B3889A5F2DAF773B98706 /* SetDeleteAccountView.swift */,
 				784CFCF124134E8A5792C19D /* SetGoogleView.swift */,
@@ -396,6 +403,7 @@
 		5EAC9F04C97656F55DD2394A /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				05999A9CF5B35B9903DD595B /* BiometricVault.swift */,
 				331E61F8E58E506EB1E9C073 /* ProfileStatus.swift */,
 				6DF9745374D0A39F789A83C3 /* SessionScope.swift */,
 				53416F117F1C16CDACE718AB /* SessionStore.swift */,
@@ -533,6 +541,7 @@
 				F927E4106A52CE6F67BEAAAF /* AuthForgotPasswordView.swift */,
 				BEF6E235851A9159B10DCBA8 /* AuthLoginCodeView.swift */,
 				06EC09CA419374F8D610EF7E /* AuthRegisterView.swift */,
+				937F889BF6C6CA14484A1B1A /* BiometricUnlockView.swift */,
 				A8873019933013DFFFB1133D /* LoginFlowView.swift */,
 			);
 			path = Auth;
@@ -742,6 +751,8 @@
 				1BB72C1B1937D3208B6B099B /* AuthForgotPasswordView.swift in Sources */,
 				57903B5EAED855E337A7E1BE /* AuthLoginCodeView.swift in Sources */,
 				FBB931C8CD61AF4358523439 /* AuthRegisterView.swift in Sources */,
+				1C9E52655599D5FF6FE6E448 /* BiometricUnlockView.swift in Sources */,
+				84F346F29C5EE2FFA7C84BB2 /* BiometricVault.swift in Sources */,
 				1C6B001E72DAF6500C9A2704 /* CEPLookup.swift in Sources */,
 				0BA3A80F60729B99283CC24F /* Components.swift in Sources */,
 				8107C33634FCAE7F966D4470 /* DashModels.swift in Sources */,
@@ -808,6 +819,7 @@
 				C5DB17077F76DE9B8FAA2525 /* SessionScope.swift in Sources */,
 				6E5221EDAF735C8733EE9C20 /* SessionStore.swift in Sources */,
 				2BF58C1F88428F92113CFE20 /* SetAgendaView.swift in Sources */,
+				B6F1CDAFC0796BF24C4B9051 /* SetBiometricRow.swift in Sources */,
 				C7FC031779E0C71A2A0BC680 /* SetChangePasswordView.swift in Sources */,
 				86D5C6F834CC87360ABE2AD4 /* SetDeleteAccountView.swift in Sources */,
 				E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */,

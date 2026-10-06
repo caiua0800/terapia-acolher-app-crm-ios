@@ -220,6 +220,8 @@ struct SettingsHomeView: View {
                         SetRow(icon: "lock", iconColor: Theme.textSecondary, title: "Trocar senha")
                     }
                     Divider().padding(.leading, 62)
+                    SetBiometricRow()
+                    Divider().padding(.leading, 62)
                     Button {
                         showLogoutConfirm = true
                     } label: {

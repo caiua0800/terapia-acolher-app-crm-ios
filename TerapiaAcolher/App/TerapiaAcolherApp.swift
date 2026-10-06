@@ -12,6 +12,8 @@ struct TerapiaAcolherApp: App {
         if CommandLine.arguments.contains("--reset-session") {
             Keychain.delete("accessToken")
             Keychain.delete("refreshToken")
+            BiometricVault.apagar()
+            BiometricVault.isEnabled = false
         }
     }
 
@@ -34,6 +36,8 @@ struct RootView: View {
                 BootSplashView()
             } else if session.isAuthenticated {
                 MainShellView()
+            } else if session.travadoPorBiometria {
+                BiometricUnlockView()
             } else {
                 LoginFlowView()
             }

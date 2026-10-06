@@ -95,6 +95,18 @@ struct LoginFlowView: View {
     @State private var model = AuthLoginModel()
 
     var body: some View {
+        loginStack
+            .task {
+                // Aviso vindo do desbloqueio por biometria (biometria do
+                // aparelho mudou, sessão expirou): aparece no lugar do erro.
+                if let aviso = SessionStore.shared.avisoDeBiometria {
+                    model.errorMessage = aviso
+                    SessionStore.shared.avisoDeBiometria = nil
+                }
+            }
+    }
+
+    private var loginStack: some View {
         NavigationStack(path: $path) {
             ZStack {
                 AuthBackground()

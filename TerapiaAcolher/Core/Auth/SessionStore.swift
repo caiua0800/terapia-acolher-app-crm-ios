@@ -65,6 +65,16 @@ final class SessionStore {
     private(set) var user: AuthUser?
     private(set) var isBooting = true
     var isAuthenticated: Bool { user != nil }
+    /// Biometria ligada e app recém-aberto: a tela de desbloqueio aparece no
+    /// lugar do login até o rosto/digital (ou "Entrar com senha").
+    private(set) var travadoPorBiometria = false
+    /// Aviso para a tela de login (ex.: biometria do aparelho mudou).
+    var avisoDeBiometria: String?
+
+    /// Com a biometria ligada os tokens vivem só em memória; o refresh fica no
+    /// cofre biométrico (BiometricVault). Desligada, ficam no Keychain comum.
+    private var memAccess: String?
+    private var memRefresh: String?
 
     private let accessKey = "accessToken"
     private let refreshKey = "refreshToken"
@@ -78,16 +88,31 @@ final class SessionStore {
     }
 
     private var accessToken: String? {
-        get { Keychain.get(accessKey) }
+        get { BiometricVault.isEnabled ? memAccess : Keychain.get(accessKey) }
         set {
-            if let newValue { Keychain.set(newValue, forKey: accessKey) } else { Keychain.delete(accessKey) }
+            if BiometricVault.isEnabled {
+                memAccess = newValue
+            } else if let newValue {
+                Keychain.set(newValue, forKey: accessKey)
+            } else {
+                Keychain.delete(accessKey)
+            }
         }
     }
 
     private var refreshToken: String? {
-        get { Keychain.get(refreshKey) }
+        get { BiometricVault.isEnabled ? memRefresh : Keychain.get(refreshKey) }
         set {
-            if let newValue { Keychain.set(newValue, forKey: refreshKey) } else { Keychain.delete(refreshKey) }
+            if BiometricVault.isEnabled {
+                memRefresh = newValue
+                // Rotação do token: o cofre guarda sempre o mais novo (gravar
+                // não pede biometria; só ler).
+                if let newValue { BiometricVault.salvar(newValue) }
+            } else if let newValue {
+                Keychain.set(newValue, forKey: refreshKey)
+            } else {
+                Keychain.delete(refreshKey)
+            }
         }
     }
 
@@ -97,6 +122,15 @@ final class SessionStore {
     @MainActor
     func boot() async {
         defer { isBooting = false }
+        if BiometricVault.isEnabled {
+            // Nada de token em texto no disco com a biometria ligada.
+            Keychain.delete(accessKey)
+            Keychain.delete(refreshKey)
+            if memRefresh == nil {
+                travadoPorBiometria = true
+                return
+            }
+        }
         guard accessToken != nil || refreshToken != nil else { return }
         do {
             user = try await APIClient.shared.get("auth/me")
@@ -162,6 +196,92 @@ final class SessionStore {
         user = response.user
     }
 
+    // MARK: - Biometria
+
+    /// Desbloqueio pelo rosto/digital: lê o refresh do cofre e renova a sessão.
+    /// Devolve um aviso para a tela, ou nil se entrou (ou se ela cancelou).
+    @MainActor
+    func desbloquearComBiometria() async -> String? {
+        let nome = BiometricVault.biometryName ?? "biometria"
+        let token: String
+        do {
+            token = try await BiometricVault.ler(motivo: "Entrar no Terapia Acolher com \(nome)")
+        } catch BiometricVault.Falha.cancelada {
+            return nil
+        } catch BiometricVault.Falha.invalidada {
+            desligarCofre()
+            travadoPorBiometria = false
+            avisoDeBiometria = "A biometria do aparelho mudou. Por segurança, entre com a senha e ligue de novo em Configurações."
+            return avisoDeBiometria
+        } catch BiometricVault.Falha.indisponivel(let msg) {
+            return msg
+        } catch {
+            return "Não foi possível usar a biometria. Entre com a senha."
+        }
+        memRefresh = token
+        switch await performRefreshDetalhado() {
+        case .ok:
+            do {
+                user = try await APIClient.shared.get("auth/me")
+                travadoPorBiometria = false
+                return nil
+            } catch {
+                return "Não foi possível entrar agora. Verifique a internet e tente de novo."
+            }
+        case .recusado:
+            // Sessão revogada/expirada no servidor: o cofre não serve mais.
+            desligarCofre()
+            memRefresh = nil
+            travadoPorBiometria = false
+            avisoDeBiometria = "Sua sessão expirou. Entre com a senha."
+            return avisoDeBiometria
+        case .semRede:
+            memRefresh = nil
+            return "Não foi possível entrar agora. Verifique a internet e tente de novo."
+        }
+    }
+
+    /// "Entrar com senha" na tela de desbloqueio. A biometria continua ligada:
+    /// o login com senha grava o token novo no cofre.
+    @MainActor
+    func usarSenhaEmVezDaBiometria() {
+        travadoPorBiometria = false
+    }
+
+    /// Liga a entrada por biometria (pede o rosto/digital para confirmar).
+    @MainActor
+    func ligarBiometria() async throws {
+        guard isAuthenticated, let refresh = refreshToken, let access = accessToken else {
+            throw APIError(statusCode: 0, message: "Entre de novo para ligar a biometria.", code: nil)
+        }
+        let nome = BiometricVault.biometryName ?? "biometria"
+        try await BiometricVault.confirmarPresenca(motivo: "Confirme para entrar com \(nome) nas próximas vezes")
+        guard BiometricVault.salvar(refresh) else {
+            throw APIError(statusCode: 0, message: "Não foi possível preparar a biometria neste aparelho.", code: nil)
+        }
+        memAccess = access
+        memRefresh = refresh
+        BiometricVault.isEnabled = true
+        Keychain.delete(accessKey)
+        Keychain.delete(refreshKey)
+    }
+
+    /// Desliga: os tokens voltam ao Keychain comum e o cofre é apagado.
+    @MainActor
+    func desligarBiometria() {
+        let access = memAccess, refresh = memRefresh
+        desligarCofre()
+        if let access { Keychain.set(access, forKey: accessKey) }
+        if let refresh { Keychain.set(refresh, forKey: refreshKey) }
+    }
+
+    private func desligarCofre() {
+        BiometricVault.apagar()
+        BiometricVault.isEnabled = false
+        memAccess = nil
+        memRefresh = nil
+    }
+
     @MainActor
     func logout() async {
         // Antes de limpar a sessão: o DELETE precisa do access token ainda
@@ -197,8 +317,14 @@ final class SessionStore {
         return result
     }
 
+    private enum ResultadoDoRefresh { case ok, recusado, semRede }
+
     private func performRefresh() async -> Bool {
-        guard let refreshToken else { return false }
+        await performRefreshDetalhado() == .ok
+    }
+
+    private func performRefreshDetalhado() async -> ResultadoDoRefresh {
+        guard let refreshToken else { return .recusado }
         struct Body: Encodable { let refreshToken: String }
         struct TokenPair: Decodable { let accessToken: String, refreshToken: String }
         do {
@@ -208,9 +334,11 @@ final class SessionStore {
             )
             self.accessToken = response.accessToken
             self.refreshToken = response.refreshToken
-            return true
+            return .ok
+        } catch let error as APIError where error.isUnauthorized || error.statusCode == 400 || error.statusCode == 403 {
+            return .recusado
         } catch {
-            return false
+            return .semRede
         }
     }
 
@@ -227,6 +355,11 @@ final class SessionStore {
     private func clearSession() {
         accessToken = nil
         refreshToken = nil
+        // Logout ou sessão recusada (401): o cofre biométrico vai junto.
+        desligarCofre()
+        Keychain.delete(accessKey)
+        Keychain.delete(refreshKey)
+        travadoPorBiometria = false
         user = nil
         // Sem isto, o próximo terapeuta a logar neste aparelho veria as
         // pendências de perfil do anterior.

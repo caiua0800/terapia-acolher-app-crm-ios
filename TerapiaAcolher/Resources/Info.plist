@@ -25,7 +25,9 @@
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>O microfone é usado para gravar áudios no chat de suporte com o time da Terapia Acolher.</string>
+	<string>O microfone é usado para gravar áudios no chat de suporte com o time da Terapia Acolher e para falar com o Zelo.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>O Face ID é usado para você entrar no Terapia Acolher sem digitar a senha, se ligar essa opção em Configurações.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>A câmera é usada para fotografar seus documentos e a selfie na abertura da sua conta de recebimentos.</string>
 	<key>NSAppTransportSecurity</key>
