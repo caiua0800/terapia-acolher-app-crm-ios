@@ -261,10 +261,14 @@ struct SideMenuView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
-                Image("LogoAcolher")
+                // Logo transparente sobre o quadrado claro: no grafite do menu as
+                // pétalas escuras (roxo, azul) sumiriam.
+                Image("LogoAcolherGestao")
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
+                    .padding(5)
                     .frame(width: 42, height: 42)
+                    .background(Theme.background)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -272,7 +276,7 @@ struct SideMenuView: View {
                     )
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Terapia Acolher")
+                    Text("Acolher Gestão")
                         .font(Theme.serifTitle(18))
                         .foregroundStyle(.white)
                     Text("PAINEL DA TERAPEUTA")

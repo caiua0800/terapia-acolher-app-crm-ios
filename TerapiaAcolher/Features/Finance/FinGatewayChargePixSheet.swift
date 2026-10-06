@@ -10,7 +10,7 @@ struct FinGatewayChargePixSheet: View {
     let charge: GwCharge
     var simulation: Bool
     var provider: GwProvider?
-    /// Chamado quando o pagamento é simulado, pra a tela de trás recarregar.
+    /// Chamado quando o pagamento cai (real ou simulado), pra a tela de trás recarregar.
     var onPaid: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -74,6 +74,28 @@ struct FinGatewayChargePixSheet: View {
             }
         }
         .presentationDetents([.large])
+        // Pix em aberto: a confirmação chega por webhook do Asaas, de alguns
+        // segundos a ~30 s depois do pagamento. Pergunta a cada 4 s enquanto
+        // a folha estiver aberta, pra virar "pago" sozinha — sem isto a
+        // terapeuta fechava e reabria achando que o pagamento não tinha caído.
+        // A task morre ao fechar a folha ou quando o status muda.
+        .task(id: atual.status) {
+            guard atual.status == .pending else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled,
+                      let novo = try? await FinGatewayAPI.charge(chargeId: atual.chargeId),
+                      novo.status != atual.status
+                else { continue }
+                atual = novo
+                if novo.status == .paid {
+                    Haptics.success()
+                    await FinGatewayStore.shared.load(showSpinner: false)
+                    onPaid()
+                }
+                return
+            }
+        }
     }
 
     /// BR Code sem espaço/quebra nas pontas: colado com "\n" no fim, o app
@@ -134,7 +156,7 @@ struct FinGatewayChargePixSheet: View {
             // Ninguém precisa ficar conferindo: quando o pagamento cai, a
             // cobrança se marca sozinha e o líquido entra no saldo.
             if atual.status != .expired {
-                Text("Quando o pagamento cair, a cobrança é marcada como paga e o valor líquido entra no seu saldo automaticamente.")
+                Text("Depois do pagamento, a confirmação chega em alguns segundos. Esta tela atualiza sozinha.")
                     .font(Theme.body(11))
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)

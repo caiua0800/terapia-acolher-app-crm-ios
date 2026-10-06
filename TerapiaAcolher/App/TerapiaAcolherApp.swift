@@ -51,15 +51,8 @@ struct BootSplashView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 16) {
-                Circle()
-                    .fill(Theme.primary.opacity(0.18))
-                    .frame(width: 96, height: 96)
-                    .overlay(
-                        Image(systemName: "heart.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Theme.primary)
-                    )
-                Text("Terapia Acolher")
+                AuthLogoView(size: 96)
+                Text("Acolher Gestão")
                     .font(Theme.serifTitle(30))
                     .foregroundStyle(Theme.textPrimary)
                 ProgressView()

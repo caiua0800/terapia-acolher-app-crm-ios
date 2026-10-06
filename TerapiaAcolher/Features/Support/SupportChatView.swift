@@ -72,7 +72,7 @@ struct SupportChatView: View {
             }
             Button("Agora não", role: .cancel) {}
         } message: {
-            Text("Para gravar áudio, permita o acesso ao microfone em Ajustes > Terapia Acolher.")
+            Text("Para gravar áudio, permita o acesso ao microfone em Ajustes > Acolher Gestão.")
         }
     }
 

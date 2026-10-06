@@ -205,7 +205,7 @@ final class SessionStore {
         let nome = BiometricVault.biometryName ?? "biometria"
         let token: String
         do {
-            token = try await BiometricVault.ler(motivo: "Entrar no Terapia Acolher com \(nome)")
+            token = try await BiometricVault.ler(motivo: "Entrar no Acolher Gestão com \(nome)")
         } catch BiometricVault.Falha.cancelada {
             return nil
         } catch BiometricVault.Falha.invalidada {

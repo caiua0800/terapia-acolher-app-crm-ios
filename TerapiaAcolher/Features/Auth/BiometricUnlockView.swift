@@ -18,7 +18,7 @@ struct BiometricUnlockView: View {
                 Spacer()
                 AuthLogoView()
                 VStack(spacing: 6) {
-                    Text("Terapia Acolher")
+                    Text("Acolher Gestão")
                         .font(Theme.serifTitle(28))
                         .foregroundStyle(Theme.textPrimary)
                     Text("Sua conta está protegida pelo \(nome) deste aparelho.")

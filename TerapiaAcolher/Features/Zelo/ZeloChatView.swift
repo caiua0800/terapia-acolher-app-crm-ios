@@ -36,7 +36,7 @@ struct ZeloChatView: View {
                         ZeloAvatar(size: 26)
                         VStack(alignment: .leading, spacing: 0) {
                             Zelo.nomeEstilizado(17)
-                            Text("Seu assistente no Terapia Acolher")
+                            Text("Seu assistente no Acolher Gestão")
                                 .font(Theme.body(10))
                                 .foregroundStyle(Theme.textSecondary)
                         }

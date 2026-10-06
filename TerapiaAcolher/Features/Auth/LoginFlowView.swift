@@ -115,7 +115,7 @@ struct LoginFlowView: View {
                         AuthLogoView()
                             .padding(.top, 48)
 
-                        Text("Terapia Acolher")
+                        Text("Acolher Gestão")
                             .font(Theme.serifTitle(34))
                             .foregroundStyle(Theme.textPrimary)
                             .padding(.top, 28)

@@ -19,50 +19,17 @@ struct AuthBackground: View {
     }
 }
 
-/// Logo circular multicolorido (anel segmentado com miolo difuso).
+/// Logo do Acolher Gestão (a flor colorida). Até 2026-10-06 era um anel
+/// segmentado desenhado em código, que não era a marca de verdade.
 struct AuthLogoView: View {
     var size: CGFloat = 118
 
-    private let segments: [Color] = [
-        Color(hex: 0x46656F), // teal escuro
-        Color(hex: 0x8FBCA6), // sálvia
-        Color(hex: 0xB9A6D9), // lavanda
-        Color(hex: 0x5E7D8C), // azul-ardósia
-        Color(hex: 0xD9A96C), // caramelo
-        Color(hex: 0x9AA5A8), // cinza
-        Color(hex: 0x6FA88B), // verde
-        Color(hex: 0xC7B9DD), // lilás claro
-    ]
-
     var body: some View {
-        ZStack {
-            ForEach(0 ..< 8, id: \.self) { index in
-                Circle()
-                    .trim(
-                        from: CGFloat(index) / 8 + 0.006,
-                        to: CGFloat(index + 1) / 8 - 0.006
-                    )
-                    .stroke(segments[index], style: StrokeStyle(lineWidth: size * 0.21))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: size * 0.78, height: size * 0.78)
-            }
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color(hex: 0x7FA8C9).opacity(0.55),
-                            Color(hex: 0xB9A6D9).opacity(0.35),
-                            .white.opacity(0.05),
-                        ],
-                        center: .center,
-                        startRadius: 2,
-                        endRadius: size * 0.24
-                    )
-                )
-                .frame(width: size * 0.42, height: size * 0.42)
-                .blur(radius: 5)
-        }
-        .frame(width: size, height: size)
+        Image("LogoAcolherGestao")
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityLabel("Acolher Gestão")
     }
 }
 
