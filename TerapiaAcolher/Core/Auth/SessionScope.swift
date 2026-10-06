@@ -32,9 +32,21 @@ enum SessionScope {
         SetGroupsViewModel.shared = SetGroupsViewModel()
         SetTemplatesViewModel.shared = SetTemplatesViewModel()
         UsageViewModel.shared = UsageViewModel()
+        ZeloStore.shared = ZeloStore()
 
         // Fotos de paciente e do suporte: só memória, mas do usuário que saiu.
         RemoteImageCache.shared.limparTudo()
         SupImageCache.shared.limparTudo()
+    }
+
+    /// O Zelo agendou, cancelou, lançou ou anexou: as telas que já estão
+    /// pintadas recarregam por baixo (sem spinner).
+    static func zeloFezAlgo() {
+        Task {
+            await AgendaViewModel.shared.reloadCurrent()
+            await DashboardViewModel.shared.load()
+            await PatientsListViewModel.shared.load(showSpinner: false)
+            await FinHomeViewModel.shared.load()
+        }
     }
 }

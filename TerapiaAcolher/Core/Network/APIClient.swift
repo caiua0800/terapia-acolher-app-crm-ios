@@ -185,6 +185,36 @@ final class APIClient {
         )
     }
 
+    /// Multipart com campos de texto e arquivos em campos diferentes (Zelo:
+    /// `texto`, `audio` e `arquivos`).
+    func multipart<Response: Decodable>(
+        _ path: String,
+        fields: [String: String],
+        files: [(field: String, data: Data, fileName: String, mimeType: String)]
+    ) async throws -> Response {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+        for (key, value) in fields {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
+            body.append(Data(value.utf8))
+            body.append("\r\n")
+        }
+        for file in files {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(file.field)\"; filename=\"\(file.fileName)\"\r\nContent-Type: \(file.mimeType)\r\n\r\n")
+            body.append(file.data)
+            body.append("\r\n")
+        }
+        body.append("--\(boundary)--\r\n")
+        return try await rawRequest(
+            path: path,
+            method: "POST",
+            query: [:],
+            bodyData: body,
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            allowRetry: true
+        )
+    }
+
     /// Arquivo devolvido pela API (PDF, CSV) com o nome sugerido pelo servidor.
     struct DownloadedFile {
         let data: Data

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01663EA2B903AFB7A6825A2A /* ZeloChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36D0814ED75AAAE6A1FBEF2A /* ZeloChatView.swift */; };
 		0BA3A80F60729B99283CC24F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99C166FA6BE1FBE9A3BFE98 /* Components.swift */; };
 		0BEB9CB4AE7EF3AF1D7A5579 /* RecNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */; };
 		0D4AEB785038CC660BC0971E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1789733F05F834AF2551531A /* APIClient.swift */; };
@@ -16,6 +17,7 @@
 		19E6275F147F8C90568BF650 /* PatientImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F6A455F161AADA394EF4EB /* PatientImportView.swift */; };
 		1A387C9314EAE346F3C5EE61 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B1731D2888D6B675ED0C87 /* Skeleton.swift */; };
 		1BB72C1B1937D3208B6B099B /* AuthForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F927E4106A52CE6F67BEAAAF /* AuthForgotPasswordView.swift */; };
+		1C11366B7B72E5837CDD3368 /* ZeloFloatingButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97378BB7E1E8B9DCCF4E02C /* ZeloFloatingButton.swift */; };
 		1C6B001E72DAF6500C9A2704 /* CEPLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A919FB20AA2F58C4B8B2D425 /* CEPLookup.swift */; };
 		1C9E52655599D5FF6FE6E448 /* BiometricUnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 937F889BF6C6CA14484A1B1A /* BiometricUnlockView.swift */; };
 		238A3C5D08ACDEF181551DDB /* SubscriptionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED8BD47A06008523EB6F41C /* SubscriptionModels.swift */; };
@@ -43,6 +45,7 @@
 		4E19B3EE4AB9D9F96AB7AF10 /* SetGroupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BDB3BC791649306E74EE255 /* SetGroupsView.swift */; };
 		4E6EC05CACEF7208F28D0A79 /* FinGatewayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78CF82E020D220F16B4C60F4 /* FinGatewayModels.swift */; };
 		4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FDB80F2DECE037A88B025D /* FinChargeFormView.swift */; };
+		50C48D432B992EE8E68AC3EB /* ZeloStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98FFFD5BE634280901E8A77 /* ZeloStore.swift */; };
 		51A9E3E44350B330A1EFD467 /* ProfileStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331E61F8E58E506EB1E9C073 /* ProfileStatus.swift */; };
 		52D8447C608EE3D67C124DC6 /* FinGatewayOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EBAC05D96DC2FC087191FE2 /* FinGatewayOnboardingView.swift */; };
 		52F5F80D731401189B3C86CA /* GeneralTranscriptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC1385C82FEE5BFFEBFDA46 /* GeneralTranscriptsView.swift */; };
@@ -175,6 +178,7 @@
 		30AB2AA1DB6CD3FF50189B9F /* SetVerifyPhoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetVerifyPhoneView.swift; sourceTree = "<group>"; };
 		331E61F8E58E506EB1E9C073 /* ProfileStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatus.swift; sourceTree = "<group>"; };
 		352ABA2D9A3498B577E4F164 /* LoginOnlyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginOnlyUITests.swift; sourceTree = "<group>"; };
+		36D0814ED75AAAE6A1FBEF2A /* ZeloChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeloChatView.swift; sourceTree = "<group>"; };
 		36E70D53F96ED11307D89641 /* SetSignatureCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetSignatureCanvasView.swift; sourceTree = "<group>"; };
 		38A0E4CC76AD29C3A89EE662 /* RecordFormViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordFormViews.swift; sourceTree = "<group>"; };
 		396B0F27E3E0288FA83B3B9E /* LeadsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsListView.swift; sourceTree = "<group>"; };
@@ -249,6 +253,7 @@
 		C2F6A455F161AADA394EF4EB /* PatientImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientImportView.swift; sourceTree = "<group>"; };
 		C57AF509EC3749A6BE1F2B12 /* FinGatewayPixKeysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayPixKeysView.swift; sourceTree = "<group>"; };
 		C8F2793F66367C6D80326FF7 /* TranscriptPDFUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptPDFUITests.swift; sourceTree = "<group>"; };
+		C97378BB7E1E8B9DCCF4E02C /* ZeloFloatingButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeloFloatingButton.swift; sourceTree = "<group>"; };
 		C9D762C093A69161E9E75C65 /* FinGatewayChargePixSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinGatewayChargePixSheet.swift; sourceTree = "<group>"; };
 		CD19D30BA20132213C2BA7C8 /* SetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetModels.swift; sourceTree = "<group>"; };
 		CD7CA65A2A5D7613058CF359 /* PatientFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientFormView.swift; sourceTree = "<group>"; };
@@ -258,6 +263,7 @@
 		D705A4FBA1AF73A5FAEA767A /* RemoteAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAvatar.swift; sourceTree = "<group>"; };
 		D81CFBFFCBADE67B31028CBD /* LeadsOrderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsOrderView.swift; sourceTree = "<group>"; };
 		D8A201782BAFC2ED79635898 /* DocGenerateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocGenerateView.swift; sourceTree = "<group>"; };
+		D98FFFD5BE634280901E8A77 /* ZeloStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZeloStore.swift; sourceTree = "<group>"; };
 		DBCCD0B1CFAB861492C078E6 /* SetBiometricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetBiometricRow.swift; sourceTree = "<group>"; };
 		DD3AA7ED1CDA52D3C9EE5023 /* SupportHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportHomeView.swift; sourceTree = "<group>"; };
 		ECE4E78A4574F19A22DA3542 /* LeadsCheckoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCheckoutUITests.swift; sourceTree = "<group>"; };
@@ -320,6 +326,16 @@
 				97AD8214239075ECEC359E66 /* DocumentsModels.swift */,
 			);
 			path = Documents;
+			sourceTree = "<group>";
+		};
+		367A1F72756ACA96C49F3BEF /* Zelo */ = {
+			isa = PBXGroup;
+			children = (
+				36D0814ED75AAAE6A1FBEF2A /* ZeloChatView.swift */,
+				C97378BB7E1E8B9DCCF4E02C /* ZeloFloatingButton.swift */,
+				D98FFFD5BE634280901E8A77 /* ZeloStore.swift */,
+			);
+			path = Zelo;
 			sourceTree = "<group>";
 		};
 		370F68979CFB45887A50A70D /* Products */ = {
@@ -387,6 +403,7 @@
 				B2DE37D0587898EA7317DE29 /* Transcripts */,
 				4769AE45C3058DE66D927F99 /* Usage */,
 				D0D13498B26994E3C90B8523 /* Vitrine */,
+				367A1F72756ACA96C49F3BEF /* Zelo */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -852,6 +869,9 @@
 				A69A560AA3CD0298FEBCC25D /* VitrineModels.swift in Sources */,
 				76910CA929B7F840C92DCFB0 /* VitrineProfileView.swift in Sources */,
 				C33805A8046A3C02A1A552F6 /* VitrineView.swift in Sources */,
+				01663EA2B903AFB7A6825A2A /* ZeloChatView.swift in Sources */,
+				1C11366B7B72E5837CDD3368 /* ZeloFloatingButton.swift in Sources */,
+				50C48D432B992EE8E68AC3EB /* ZeloStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

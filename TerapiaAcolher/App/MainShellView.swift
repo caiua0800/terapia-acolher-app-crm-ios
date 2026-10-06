@@ -141,6 +141,9 @@ struct MainShellView: View {
                     }
             }
 
+            // Zelo: botão flutuante arrastável (abaixo do menu lateral aberto).
+            ZeloFloatingButton()
+
             if isMenuOpen {
                 Color.black.opacity(0.35)
                     .ignoresSafeArea()
