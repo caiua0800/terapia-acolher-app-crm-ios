@@ -486,7 +486,7 @@ private extension Color {
     }
 }
 
-// MARK: - Zelo (a IA da Terapia Acolher)
+// MARK: - Zelo (a IA do Acolher Gestão)
 
 /// Selo do Zelo: tudo que a IA faz (organizar rascunho, transcrever, resumir)
 /// leva este rosto, para o terapeuta reconhecer de relance o que veio dela.

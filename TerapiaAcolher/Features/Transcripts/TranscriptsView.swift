@@ -586,7 +586,7 @@ struct TranscriptSummaryCard: View {
     }
 
     private var rodape: String {
-        var base = "Resumido pelo Zelo, a IA da Terapia Acolher"
+        var base = "Resumido pelo Zelo, a IA do Acolher Gestão"
         if let data = estado.geradoEm {
             base += ", em " + Self.quando.string(from: data)
         }

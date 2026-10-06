@@ -85,7 +85,7 @@ enum UsageResource: CaseIterable, Identifiable {
     var explica: String {
         switch self {
         case .whatsapp: "Lembretes, confirmações e cobranças entregues aos seus pacientes."
-        case .resumos: "Resumos das sessões online feitos pelo Zelo, a IA da Terapia Acolher."
+        case .resumos: "Resumos das sessões online feitos pelo Zelo, a IA do Acolher Gestão."
         case .iaRegistros: "Vezes em que o Zelo organizou seu rascunho nos campos do modelo."
         }
     }
