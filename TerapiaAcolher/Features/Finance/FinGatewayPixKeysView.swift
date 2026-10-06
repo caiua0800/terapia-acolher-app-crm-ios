@@ -1,6 +1,9 @@
 import SwiftUI
 
-// MARK: - Chaves Pix do terapeuta (destino dos saques)
+// MARK: - Contas para saque: chaves Pix das contas do terapeuta (destino dos saques)
+//
+// "Contas para saque" (2026-10-06): "Chaves Pix" sozinho não dizia para que
+// servia. O campo técnico continua sendo a chave Pix.
 //
 // Regra do produto (2026-09-12): o saque só vai pra uma conta do próprio
 // terapeuta. O backend consulta a titularidade da chave e recusa (422) o que
@@ -132,7 +135,7 @@ struct FinGatewayPixKeysView: View {
             }
             .refreshable { await model.carregar() }
         }
-        .setToolbarTitle("Chaves Pix")
+        .setToolbarTitle("Contas para saque")
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.carregar() }
         .alert("Remover chave?", isPresented: .init(
@@ -175,10 +178,10 @@ struct FinGatewayPixKeysView: View {
                 .foregroundStyle(Theme.primary)
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Só chaves no seu CPF/CNPJ")
+                Text("Para onde vai o seu dinheiro")
                     .font(Theme.body(14, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
-                Text("O saque vai sempre pra uma conta sua. A titularidade é conferida na hora do cadastro.")
+                Text("Cadastre a chave Pix das suas contas no banco. É para elas que o seu saldo vai quando você saca — só aceitamos chaves no seu CPF/CNPJ.")
                     .font(Theme.body(12))
                     .foregroundStyle(Theme.textSecondary)
             }
@@ -198,8 +201,8 @@ struct FinGatewayPixKeysView: View {
         } else if model.keys.isEmpty {
             EmptyStateView(
                 icon: "key",
-                title: "Nenhuma chave salva",
-                message: "Cadastre a chave Pix, no seu nome, em que você quer receber os saques."
+                title: "Nenhuma conta para saque",
+                message: "Adicione a chave Pix de uma conta sua no banco, no seu CPF/CNPJ. É para lá que os saques vão."
             )
         } else {
             ThemeCard(padding: 0) {
@@ -291,7 +294,7 @@ struct FinGatewayPixKeysView: View {
                 }
             }
         } else {
-            PatientFormSection(icon: "plus.circle", title: "NOVA CHAVE") {
+            PatientFormSection(icon: "plus.circle", title: "ADICIONAR CONTA PARA SAQUE") {
                 VStack(alignment: .leading, spacing: 14) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -304,7 +307,7 @@ struct FinGatewayPixKeysView: View {
                         }
                         .padding(.vertical, 2)
                     }
-                    GwField(label: "Chave", hint: dicaDoTipo) {
+                    GwField(label: "Chave Pix", hint: dicaDoTipo) {
                         TextField(model.novoTipo.placeholder, text: $model.novaChave)
                             .keyboardType(teclado)
                             .textInputAutocapitalization(.never)
@@ -317,7 +320,7 @@ struct FinGatewayPixKeysView: View {
                             .accessibilityIdentifier("gwRotuloChave")
                     }
                     PrimaryButton(
-                        title: "Verificar e salvar",
+                        title: "Adicionar conta para saque",
                         icon: "checkmark.seal",
                         isLoading: model.isSaving,
                         isEnabled: model.podeSalvar

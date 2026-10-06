@@ -626,7 +626,7 @@ struct FinGatewayHomeView: View {
                     NavigationLink {
                         FinGatewayPixKeysView()
                     } label: {
-                        acaoDoCartao(icon: "key", title: "Chaves Pix", destaque: false)
+                        acaoDoCartao(icon: "building.columns", title: "Contas para saque", destaque: false)
                     }
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("gwChaves")
@@ -760,7 +760,7 @@ struct FinGatewayHomeView: View {
                 ThemeCard {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("MINHAS CHAVES PIX")
+                            Text("CONTAS PARA SAQUE")
                                 .font(Theme.body(10, weight: .semibold))
                                 .tracking(1.1)
                                 .foregroundStyle(Theme.textSecondary)
@@ -810,6 +810,9 @@ struct FinGatewayHomeView: View {
                 .font(.system(size: 14, weight: .semibold))
             Text(title)
                 .font(Theme.body(15, weight: .semibold))
+                // "Contas para saque" não cabe inteiro em iPhone estreito.
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .foregroundStyle(destaque ? Theme.ink : .white)
         .frame(maxWidth: .infinity)
@@ -852,7 +855,7 @@ struct FinGatewayHomeView: View {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 4) {
                         rotuloDoResumo("SACADO")
-                        Text("Transferido para as suas chaves Pix.")
+                        Text("Transferido para as suas contas.")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -968,10 +971,10 @@ struct FinGatewayHomeView: View {
                         .frame(width: 34, height: 34)
                         .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Minhas chaves Pix")
+                        Text("Contas para saque")
                             .font(Theme.body(15, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Só chaves no seu CPF/CNPJ. É onde o saque cai.")
+                        Text("A chave Pix das suas contas no banco, no seu CPF/CNPJ. É para lá que o saque vai.")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
