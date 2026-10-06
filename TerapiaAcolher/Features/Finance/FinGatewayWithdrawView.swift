@@ -319,7 +319,7 @@ struct FinGatewayWithdrawView: View {
     private var destino: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("PARA QUAL CHAVE")
+                Text("PARA QUAL CONTA")
                     .font(Theme.body(10, weight: .semibold))
                     .tracking(1.1)
                     .foregroundStyle(Theme.textSecondary)
@@ -327,7 +327,7 @@ struct FinGatewayWithdrawView: View {
                 NavigationLink {
                     FinGatewayPixKeysView()
                 } label: {
-                    Text(model.chaves.isEmpty ? "Cadastrar" : "Gerenciar")
+                    Text(model.chaves.isEmpty ? "Cadastrar" : "Gerenciar contas")
                         .font(Theme.body(12, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                 }
@@ -341,13 +341,13 @@ struct FinGatewayWithdrawView: View {
                     FinGatewayPixKeysView()
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "key")
+                        Image(systemName: "building.columns")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Theme.primary)
                             .frame(width: 32, height: 32)
                             .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 9))
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Cadastre uma chave Pix sua")
+                            Text("Cadastre uma conta para saque")
                                 .font(Theme.body(14, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
                             Text("O saque só vai pra uma conta no seu CPF/CNPJ.")
@@ -542,7 +542,7 @@ struct FinGatewayReceiptSheet: View {
                                 GwValueRow(label: "Titular", value: receipt.account.legalName ?? "—")
                                 GwValueRow(label: "Documento", value: receipt.account.cpfCnpjMasked ?? "—")
                                 GwValueRow(
-                                    label: "Chave de destino",
+                                    label: "Conta de destino",
                                     value: "\(receipt.withdrawal.pixKeyType.label) \(receipt.withdrawal.pixKeyMasked ?? "")"
                                 )
                                 GwValueRow(

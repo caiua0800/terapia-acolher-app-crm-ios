@@ -167,10 +167,21 @@ struct FinGatewayLedgerDetailSheet: View {
                         GwValueRow(label: "Para", value: titular)
                     }
                     if let chave = w.pixKeyMasked {
-                        GwValueRow(label: "Chave Pix", value: chave)
+                        GwValueRow(label: "Chave Pix de destino", value: chave)
                     }
-                    if let banco = w.bankName {
-                        GwValueRow(label: "Banco", value: banco)
+                    // Banco da conta de destino com a logo (2026-10-06).
+                    if let banco = w.bank?.short ?? w.bankName {
+                        HStack(spacing: 12) {
+                            Text("Conta de destino")
+                                .font(Theme.body(13))
+                                .foregroundStyle(Theme.textSecondary)
+                            Spacer(minLength: 8)
+                            BancoLogo(banco: w.bank, tamanho: 24)
+                            Text(banco)
+                                .font(Theme.money(13, weight: .medium))
+                                .foregroundStyle(Theme.textPrimary)
+                                .lineLimit(1)
+                        }
                     }
                     if let enviado = w.processedAt {
                         GwValueRow(label: "Enviado em", value: GwFormat.dayTime.string(from: enviado))

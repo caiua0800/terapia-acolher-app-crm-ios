@@ -220,25 +220,25 @@ struct FinGatewayPixKeysView: View {
 
     private func linha(_ chave: GwPixKey) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: chave.isDefault ? "star.fill" : "key")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(chave.isDefault ? Theme.warning : Theme.primary)
-                .frame(width: 32, height: 32)
-                .background(
-                    chave.isDefault ? Theme.warningSoft : Theme.primarySoft,
-                    in: RoundedRectangle(cornerRadius: 9)
-                )
+            BancoLogo(banco: chave.bank, tamanho: 36, destacado: chave.isDefault)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(chave.title)
                         .font(Theme.body(14, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
+                    // Com banco, o apelido vira texto secundário ao lado do nome.
+                    if chave.bank != nil, let apelido = chave.apelido {
+                        Text("· \(apelido)")
+                            .font(Theme.body(13))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(1)
+                    }
                     if chave.isDefault {
                         StatusBadge(label: "PADRÃO", color: Theme.warning, background: Theme.warningSoft)
                     }
                 }
-                Text(chave.label == nil ? chave.display : "\(chave.keyType.label) · \(chave.display)")
+                Text("\(chave.keyType.label) · \(chave.display)")
                     .font(Theme.body(12))
                     .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)

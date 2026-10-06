@@ -219,13 +219,13 @@ struct FinGatewayAutoWithdrawView: View {
 
     private var semChave: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Cadastre uma chave Pix antes de ligar o saque automático.")
+            Text("Cadastre uma conta para saque antes de ligar o saque automático.")
                 .font(Theme.body(13))
                 .foregroundStyle(Theme.textSecondary)
             NavigationLink {
                 FinGatewayPixKeysView()
             } label: {
-                Label("Cadastrar chave Pix", systemImage: "key")
+                Label("Cadastrar conta para saque", systemImage: "building.columns")
                     .font(Theme.body(14, weight: .semibold))
                     .foregroundStyle(Theme.primary)
             }
@@ -264,6 +264,7 @@ struct GwPixKeyOption: View {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 20))
                     .foregroundStyle(isSelected ? Theme.primary : Theme.border)
+                BancoLogo(banco: chave.bank, tamanho: 32, destacado: isSelected)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(chave.title)
@@ -274,7 +275,7 @@ struct GwPixKeyOption: View {
                             StatusBadge(label: "PADRÃO", color: Theme.warning, background: Theme.warningSoft)
                         }
                     }
-                    Text("\(chave.keyType.label) · \(chave.display)")
+                    Text([chave.bank != nil ? chave.apelido : nil, "\(chave.keyType.label) · \(chave.display)"].compactMap { $0 }.joined(separator: " · "))
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
                         .lineLimit(1)

@@ -586,6 +586,8 @@ struct GwLedgerDetail: Decodable, Identifiable {
         let pixKeyMasked: String?
         let ownerName: String?
         let bankName: String?
+        /// Banco da conta de destino (2026-10-06); null sem banco descoberto.
+        let bank: GwBank?
         let endToEndId: String?
         let processedAt: Date?
     }
@@ -677,9 +679,11 @@ struct GwPixKey: Decodable, Identifiable, Hashable {
     let isDefault: Bool
     let verifiedAt: Date?
     let createdAt: Date?
+    /// Banco descoberto na consulta ao Pix (DICT) no cadastro (2026-10-06).
+    let bank: GwBank?
 
     enum CodingKeys: String, CodingKey {
-        case id, keyType, key, keyMasked, label, ownerName, ownerDocumentMasked, isDefault, verifiedAt, createdAt
+        case id, keyType, key, keyMasked, label, ownerName, ownerDocumentMasked, isDefault, verifiedAt, createdAt, bank
     }
 
     init(from decoder: Decoder) throws {
@@ -694,14 +698,39 @@ struct GwPixKey: Decodable, Identifiable, Hashable {
         isDefault = try c.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
         verifiedAt = try c.decodeIfPresent(Date.self, forKey: .verifiedAt)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+        bank = try? c.decodeIfPresent(GwBank.self, forKey: .bank)
     }
 
     static func == (lhs: GwPixKey, rhs: GwPixKey) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
     var display: String { keyMasked ?? key }
-    /// "Nubank" ou, sem apelido, o tipo da chave.
-    var title: String { label?.isEmpty == false ? label! : keyType.label }
+    /// Nome do banco; sem banco, o apelido; sem apelido, o tipo da chave.
+    var title: String {
+        if let curto = bank?.short, !curto.isEmpty { return curto }
+        return apelido ?? keyType.label
+    }
+    /// Apelido que a pessoa deu (texto secundário quando há banco).
+    var apelido: String? { label?.isEmpty == false ? label : nil }
+}
+
+/// Banco da conta para saque. `logo` é o arquivo `<ispb>.png` (no app, o
+/// imageset `banco-<ispb>` em Bancos.xcassets); null = sem logo.
+struct GwBank: Decodable, Hashable {
+    let ispb: String?
+    let name: String?
+    let short: String
+    let logo: String?
+
+    enum CodingKeys: String, CodingKey { case ispb, name, short, logo }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ispb = try c.decodeIfPresent(String.self, forKey: .ispb)
+        name = try c.decodeIfPresent(String.self, forKey: .name)
+        logo = try c.decodeIfPresent(String.self, forKey: .logo)
+        short = try c.decodeIfPresent(String.self, forKey: .short) ?? name ?? "Banco"
+    }
 }
 
 // MARK: - Filtro do extrato

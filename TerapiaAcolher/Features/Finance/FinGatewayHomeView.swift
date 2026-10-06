@@ -786,16 +786,13 @@ struct FinGatewayHomeView: View {
                         }
                         ForEach(chaves) { chave in
                             HStack(spacing: 10) {
-                                Image(systemName: "key")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(Theme.primary)
-                                    .frame(width: 22)
+                                BancoLogo(banco: chave.bank, tamanho: 30, destacado: chave.isDefault)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(chave.title)
                                         .font(Theme.body(14, weight: .medium))
                                         .foregroundStyle(Theme.textPrimary)
                                         .lineLimit(1)
-                                    Text("\(chave.keyType.label) · \(chave.display)")
+                                    Text([chave.bank != nil ? chave.apelido : nil, "\(chave.keyType.label) · \(chave.display)"].compactMap { $0 }.joined(separator: " · "))
                                         .font(Theme.body(11))
                                         .foregroundStyle(Theme.textSecondary)
                                         .lineLimit(1)
