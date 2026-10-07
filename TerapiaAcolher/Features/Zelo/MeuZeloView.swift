@@ -16,6 +16,9 @@ final class MeuZeloStore {
     var previa: ZeloBomDiaPrevia?
     var carregandoPrevia = false
     var erroPrevia: String?
+    var enviandoTeste = false
+    var avisoTeste: String?
+    var testeOk = false
 
     var alterado: Bool {
         guard let salvo else { return false }
@@ -69,6 +72,23 @@ final class MeuZeloStore {
             previa = try await APIClient.shared.get("zelo/bom-dia/previa")
         } catch {
             erroPrevia = (error as? APIError)?.message ?? "Não foi possível montar a prévia."
+        }
+    }
+
+    /// Manda agora o e-mail do bom dia para o próprio terapeuta (limite do servidor: 3/dia).
+    func enviarTeste() async {
+        guard !enviandoTeste else { return }
+        enviandoTeste = true
+        defer { enviandoTeste = false }
+        do {
+            let _: EmptyResponse = try await APIClient.shared.post("zelo/bom-dia/enviar-teste")
+            testeOk = true
+            avisoTeste = "Enviado para \(SessionStore.shared.user?.email ?? "o seu e-mail")."
+            Haptics.success()
+        } catch {
+            testeOk = false
+            avisoTeste = (error as? APIError)?.message ?? "Não foi possível enviar o teste agora."
+            Haptics.warning()
         }
     }
 
@@ -354,20 +374,6 @@ struct MeuZeloView: View {
                 }
                 .tint(Theme.primary)
 
-                if !store.rascunho.canalDisponivel {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.warning)
-                        Text("O WhatsApp do Zelo chega em breve. Sua configuração já fica salva.")
-                            .font(Theme.body(12.5))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
-                }
-
                 if store.rascunho.bomDia.ativo {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
@@ -383,6 +389,12 @@ struct MeuZeloView: View {
                             diasDaSemana
                         }
 
+                        VStack(alignment: .leading, spacing: 8) {
+                            rotulo("Onde receber")
+                            canalEmail
+                            canalWhatsapp
+                        }
+
                         VStack(alignment: .leading, spacing: 4) {
                             rotulo("O que o Zelo te conta")
                             itemBomDia("Sessões do dia", "Horário, primeiro nome e se é online.", disponivel: store.rascunho.disponiveis.sessoes, motivo: "", valor: $store.rascunho.bomDia.itens.sessoes)
@@ -392,6 +404,8 @@ struct MeuZeloView: View {
                             itemBomDia("Leads esperando contato", "Quantos ainda estão sem atendimento.", disponivel: store.rascunho.disponiveis.leadsPendentes, motivo: "Conecte seus leads", valor: $store.rascunho.bomDia.itens.leadsPendentes)
                             itemBomDia("Visualizações da Vitrine", "Ontem e nos últimos 7 dias.", disponivel: store.rascunho.disponiveis.vitrineVisualizacoes, motivo: "Disponível no plano Pró com a Vitrine conectada", valor: $store.rascunho.bomDia.itens.vitrineVisualizacoes)
                         }
+
+                        botaoTeste
 
                         Button {
                             Haptics.tap()
@@ -455,6 +469,113 @@ struct MeuZeloView: View {
             }
         }
         .animation(.easeOut(duration: 0.15), value: store.rascunho.bomDia.dias)
+    }
+
+    // MARK: Onde receber
+
+    /// E-mail da conta, só para mostrar onde chega ("caiua@…").
+    private var emailMascarado: String {
+        guard let email = SessionStore.shared.user?.email, let arroba = email.firstIndex(of: "@") else {
+            return "o e-mail da sua conta"
+        }
+        return String(email[...arroba]) + "…"
+    }
+
+    private var canalEmail: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "envelope")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 34, height: 34)
+                .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Por e-mail")
+                    .font(Theme.body(14.5, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(emailMascarado)
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Spacer()
+            Toggle("Por e-mail", isOn: $store.rascunho.bomDia.canais.email)
+                .labelsHidden()
+                .tint(Theme.primary)
+        }
+        .padding(12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 1))
+    }
+
+    /// WhatsApp do Zelo ainda sem número: aparece, mas desabilitado e "em breve".
+    private var canalWhatsapp: some View {
+        let disponivel = store.rascunho.canaisDisponiveis.whatsapp
+        return HStack(spacing: 12) {
+            Image(systemName: "message")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 34, height: 34)
+                .background(Theme.border.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text("Pelo WhatsApp")
+                        .font(Theme.body(14.5, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    if !disponivel {
+                        Text("EM BREVE")
+                            .font(Theme.body(9.5, weight: .bold))
+                            .tracking(0.6)
+                            .foregroundStyle(Theme.warning)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Theme.warningSoft, in: Capsule())
+                    }
+                }
+                Text(disponivel ? "No número oficial do Zelo." : "Quando o número do Zelo estiver no ar.")
+                    .font(Theme.body(12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Spacer()
+            Toggle("Pelo WhatsApp", isOn: Binding {
+                disponivel && store.rascunho.bomDia.canais.whatsapp
+            } set: { store.rascunho.bomDia.canais.whatsapp = $0 })
+                .labelsHidden()
+                .tint(Theme.primary)
+                .disabled(!disponivel)
+        }
+        .padding(12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 1))
+        .opacity(disponivel ? 1 : 0.7)
+    }
+
+    private var botaoTeste: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Haptics.tap()
+                Task { await store.enviarTeste() }
+            } label: {
+                HStack(spacing: 8) {
+                    if store.enviandoTeste {
+                        ProgressView().tint(Theme.primary)
+                    } else {
+                        Image(systemName: "paperplane")
+                    }
+                    Text("Enviar um teste por e-mail")
+                }
+                .font(Theme.body(14, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .overlay(Capsule().stroke(Theme.primary.opacity(0.35), lineWidth: 1))
+            }
+            .buttonStyle(.pressable)
+            .disabled(store.enviandoTeste)
+            if let aviso = store.avisoTeste {
+                Text(aviso)
+                    .font(Theme.body(12))
+                    .foregroundStyle(store.testeOk ? Theme.success : Theme.danger)
+            }
+        }
     }
 
     private func itemBomDia(_ titulo: String, _ explicacao: String, disponivel: Bool, motivo: String, valor: Binding<Bool>) -> some View {
