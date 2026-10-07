@@ -639,7 +639,7 @@ struct MeuZeloView: View {
     private func balao(_ texto: String) -> some View {
         HStack(alignment: .bottom, spacing: 8) {
             ZeloAvatar(size: 28)
-            Text(texto)
+            Text(TextoWhatsApp.formatar(texto))
                 .font(Theme.body(14.5))
                 .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 12)

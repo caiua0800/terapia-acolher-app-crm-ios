@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		01663EA2B903AFB7A6825A2A /* ZeloChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36D0814ED75AAAE6A1FBEF2A /* ZeloChatView.swift */; };
+		07BD270F779B1840767FCE70 /* TextoWhatsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980730497AF93D6F21D1899E /* TextoWhatsApp.swift */; };
 		0BA3A80F60729B99283CC24F /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99C166FA6BE1FBE9A3BFE98 /* Components.swift */; };
 		0BEB9CB4AE7EF3AF1D7A5579 /* RecNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB40B8E7714F4878A2B4A3F /* RecNotesView.swift */; };
 		0D4AEB785038CC660BC0971E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1789733F05F834AF2551531A /* APIClient.swift */; };
@@ -242,6 +243,7 @@
 		969DDEC8B91D4D2926F0F47B /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
 		979329498713B5025B070857 /* SupportMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportMediaViews.swift; sourceTree = "<group>"; };
 		97AD8214239075ECEC359E66 /* DocumentsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsModels.swift; sourceTree = "<group>"; };
+		980730497AF93D6F21D1899E /* TextoWhatsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextoWhatsApp.swift; sourceTree = "<group>"; };
 		9B9A85FA5D6F9E064E33542E /* MensagemDeErro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MensagemDeErro.swift; sourceTree = "<group>"; };
 		9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayFlowUITests.swift; sourceTree = "<group>"; };
 		A2BB62754D9694D79708E833 /* PatientModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientModels.swift; sourceTree = "<group>"; };
@@ -351,6 +353,7 @@
 			children = (
 				B01A792DAFF9F2B8710DB8FD /* MeuZeloModels.swift */,
 				0FA6852FDB493D335BAA7A02 /* MeuZeloView.swift */,
+				980730497AF93D6F21D1899E /* TextoWhatsApp.swift */,
 				36D0814ED75AAAE6A1FBEF2A /* ZeloChatView.swift */,
 				C97378BB7E1E8B9DCCF4E02C /* ZeloFloatingButton.swift */,
 				D98FFFD5BE634280901E8A77 /* ZeloStore.swift */,
@@ -897,6 +900,7 @@
 				26E4C6CB548422D924DD4FE4 /* SupportModels.swift in Sources */,
 				EB18D74F0A89F15CA014FC4A /* SupportRealtime.swift in Sources */,
 				68F95008DD2D9D159BD00EFC /* TerapiaAcolherApp.swift in Sources */,
+				07BD270F779B1840767FCE70 /* TextoWhatsApp.swift in Sources */,
 				3CCAF35FA2DC109DFB0F5732 /* Theme.swift in Sources */,
 				CB1DD54902A3A2CE337820B3 /* TranscriptPDF.swift in Sources */,
 				A6E4E2F861D965578F25FEC6 /* TranscriptsModels.swift in Sources */,
