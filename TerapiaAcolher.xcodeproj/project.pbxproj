@@ -91,6 +91,7 @@
 		A0AC224F59A930448EB14EA7 /* LeadsOrderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D81CFBFFCBADE67B31028CBD /* LeadsOrderView.swift */; };
 		A15335D536E89C04A92C786D /* FinGatewayComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B0627A9684B931738FFCCA /* FinGatewayComponents.swift */; };
 		A1AAAFD10C8847E502F7239A /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240502A0413DC924044FDCA4 /* PushManager.swift */; };
+		A1EC79BAA5BD8A880545FFF9 /* CampoDinheiro.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F54961BF034D51D4C6086F /* CampoDinheiro.swift */; };
 		A5318F649346084D0A4F1BC2 /* LeadDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0377288FE401272734328942 /* LeadDetailView.swift */; };
 		A624BE0A5B54B0E3A8407E48 /* FinanceShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E0558EBFC4D9F09706052A /* FinanceShared.swift */; };
 		A69A560AA3CD0298FEBCC25D /* VitrineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE819E7AD41C1A53752E9714 /* VitrineModels.swift */; };
@@ -238,6 +239,7 @@
 		97AD8214239075ECEC359E66 /* DocumentsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsModels.swift; sourceTree = "<group>"; };
 		9E5A71282699B8D883416EC5 /* GatewayFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayFlowUITests.swift; sourceTree = "<group>"; };
 		A2BB62754D9694D79708E833 /* PatientModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientModels.swift; sourceTree = "<group>"; };
+		A6F54961BF034D51D4C6086F /* CampoDinheiro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampoDinheiro.swift; sourceTree = "<group>"; };
 		A77D84A9675752117D31F213 /* TerapiaAcolher.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TerapiaAcolher.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A8873019933013DFFFB1133D /* LoginFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginFlowView.swift; sourceTree = "<group>"; };
 		A8A46E22ADA99C6CFC8AEC7E /* BancoLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BancoLogo.swift; sourceTree = "<group>"; };
@@ -666,6 +668,7 @@
 		FE9EDEB78B588408D4BFB5B9 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
+				A6F54961BF034D51D4C6086F /* CampoDinheiro.swift */,
 				F99C166FA6BE1FBE9A3BFE98 /* Components.swift */,
 				D705A4FBA1AF73A5FAEA767A /* RemoteAvatar.swift */,
 				22B1731D2888D6B675ED0C87 /* Skeleton.swift */,
@@ -785,6 +788,7 @@
 				1C9E52655599D5FF6FE6E448 /* BiometricUnlockView.swift in Sources */,
 				84F346F29C5EE2FFA7C84BB2 /* BiometricVault.swift in Sources */,
 				1C6B001E72DAF6500C9A2704 /* CEPLookup.swift in Sources */,
+				A1EC79BAA5BD8A880545FFF9 /* CampoDinheiro.swift in Sources */,
 				0BA3A80F60729B99283CC24F /* Components.swift in Sources */,
 				8107C33634FCAE7F966D4470 /* DashModels.swift in Sources */,
 				F9A95DFA5E8089F59A587DCB /* DashboardView.swift in Sources */,

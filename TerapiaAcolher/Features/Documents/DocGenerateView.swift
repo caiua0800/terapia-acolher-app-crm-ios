@@ -222,15 +222,33 @@ struct DocGenerateView: View {
                                             .padding(.vertical, 2)
                                             .background(DocVariables.purpleSoft, in: Capsule())
                                     }
-                                    TextField(
-                                        DocVariables.label(for: key),
-                                        text: .init(
-                                            get: { extraValues[key] ?? "" },
-                                            set: { extraValues[key] = $0 }
-                                        )
-                                    )
-                                    .font(Theme.body(15))
-                                    .keyboardType(key == "valor" || key.contains("numero") ? .decimalPad : .default)
+                                    Group {
+                                        if key == "valor" {
+                                            // O documento recebe "R$ 150,00" pronto; a
+                                            // máscara cuida só dos dígitos.
+                                            CampoDinheiro(
+                                                texto: .init(
+                                                    get: {
+                                                        (extraValues[key] ?? "")
+                                                            .replacingOccurrences(of: "R$", with: "")
+                                                            .trimmingCharacters(in: .whitespaces)
+                                                    },
+                                                    set: { extraValues[key] = $0.isEmpty ? "" : "R$ \($0)" }
+                                                ),
+                                                fonte: Theme.body(15)
+                                            )
+                                        } else {
+                                            TextField(
+                                                DocVariables.label(for: key),
+                                                text: .init(
+                                                    get: { extraValues[key] ?? "" },
+                                                    set: { extraValues[key] = $0 }
+                                                )
+                                            )
+                                            .font(Theme.body(15))
+                                            .keyboardType(key.contains("numero") ? .decimalPad : .default)
+                                        }
+                                    }
                                     .padding(10)
                                     .background(Theme.background, in: RoundedRectangle(cornerRadius: 10))
                                 }

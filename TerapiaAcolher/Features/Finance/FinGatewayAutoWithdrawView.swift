@@ -194,9 +194,7 @@ struct FinGatewayAutoWithdrawView: View {
 
                     if model.usarMinimo {
                         GwField(label: "Saldo mínimo", hint: "A partir de \(Formatters.brl(minimoDaConta)).") {
-                            TextField("0,00", text: $model.minimoTexto)
-                                .keyboardType(.decimalPad)
-                                .font(Theme.money(18, weight: .bold))
+                            CampoDinheiro(texto: $model.minimoTexto, fonte: Theme.money(18, weight: .bold))
                                 .accessibilityIdentifier("gwAutoMinimo")
                         }
                     }

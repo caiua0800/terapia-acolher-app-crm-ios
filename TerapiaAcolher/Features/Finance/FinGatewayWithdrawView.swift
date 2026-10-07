@@ -273,9 +273,7 @@ struct FinGatewayWithdrawView: View {
         PatientFormSection(icon: "arrow.up.circle", title: "SACAR") {
             VStack(alignment: .leading, spacing: 14) {
                 GwField(label: "Valor") {
-                    TextField("0,00", text: $model.valorTexto)
-                        .keyboardType(.decimalPad)
-                        .font(Theme.money(20, weight: .bold))
+                    CampoDinheiro(texto: $model.valorTexto, fonte: Theme.money(20, weight: .bold))
                         .accessibilityIdentifier("gwValorSaque")
                 }
 

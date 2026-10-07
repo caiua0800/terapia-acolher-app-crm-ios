@@ -44,10 +44,8 @@ struct FinTransactionFormView: View {
                                 .font(Theme.body(15))
                         }
 
-                        fieldCard("Valor (R$)") {
-                            TextField("0,00", text: $amountText)
-                                .font(Theme.money(17))
-                                .keyboardType(.decimalPad)
+                        fieldCard("Valor") {
+                            CampoDinheiro(texto: $amountText, fonte: Theme.money(17))
                         }
 
                         if type == .income {
@@ -60,9 +58,11 @@ struct FinTransactionFormView: View {
                                     }
                                     .tint(Theme.primary)
                                     if partialReceived {
-                                        TextField("Valor recebido (R$)", text: $receivedText)
-                                            .font(Theme.money(16))
-                                            .keyboardType(.decimalPad)
+                                        CampoDinheiro(
+                                            placeholder: "Valor recebido",
+                                            texto: $receivedText,
+                                            fonte: Theme.money(16)
+                                        )
                                     }
                                 }
                             }

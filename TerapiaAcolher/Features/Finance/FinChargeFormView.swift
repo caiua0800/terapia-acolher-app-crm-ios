@@ -141,10 +141,8 @@ struct FinChargeFormView: View {
                                 .font(Theme.body(15))
                         }
 
-                        fieldCard("Valor (R$)") {
-                            TextField("0,00", text: $amountText)
-                                .font(Theme.money(17))
-                                .keyboardType(.decimalPad)
+                        fieldCard("Valor") {
+                            CampoDinheiro(texto: $amountText, fonte: Theme.money(17))
                         }
 
                         formaDeRecebimento

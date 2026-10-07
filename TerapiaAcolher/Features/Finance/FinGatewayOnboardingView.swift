@@ -102,11 +102,9 @@ final class FinGatewayOnboardingModel {
         birthDate = GwFormat.typed(fromCalendarDay: account.birthDate)
         phone = account.phone.map(GwMask.phone) ?? ""
         email = account.email ?? ""
-        incomeText = account.incomeValue.map { valor in
-            valor == valor.rounded()
-                ? String(Int(valor))
-                : String(format: "%.2f", valor).replacingOccurrences(of: ".", with: ",")
-        } ?? ""
+        // Sempre com centavos: a máscara lê os dígitos como centavos, e "3000"
+        // viraria "30,00".
+        incomeText = account.incomeValue.map { GwFormat.amountText($0) } ?? ""
         companyType = account.companyType ?? "MEI"
         if let address = account.address {
             cep = GwMask.cep(address.postalCode)
@@ -704,8 +702,7 @@ struct FinGatewayOnboardingView: View {
                     label: "Renda mensal aproximada",
                     hint: "Informação exigida pelo \(model.provider.name), a instituição de pagamento que opera a conta."
                 ) {
-                    TextField("3.000", text: $model.incomeText)
-                        .keyboardType(.decimalPad)
+                    CampoDinheiro(placeholder: "3.000,00", texto: $model.incomeText, fonte: Theme.body(15))
                         .accessibilityIdentifier("gwIncome")
                 }
             }

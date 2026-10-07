@@ -538,14 +538,10 @@ struct FinGatewayLedgerFilterSheet: View {
         PatientFormSection(icon: "dollarsign.circle", title: "VALOR") {
             HStack(spacing: 12) {
                 GwField(label: "De") {
-                    TextField("0,00", text: $minTexto)
-                        .keyboardType(.decimalPad)
-                        .font(Theme.money(15, weight: .semibold))
+                    CampoDinheiro(texto: $minTexto, fonte: Theme.money(15, weight: .semibold))
                 }
                 GwField(label: "Até") {
-                    TextField("0,00", text: $maxTexto)
-                        .keyboardType(.decimalPad)
-                        .font(Theme.money(15, weight: .semibold))
+                    CampoDinheiro(texto: $maxTexto, fonte: Theme.money(15, weight: .semibold))
                 }
             }
         }

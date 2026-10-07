@@ -386,7 +386,7 @@ struct AgendaNewSessionView: View {
                         .font(Theme.money(15))
                         .foregroundStyle(Theme.textSecondary)
                     TextField("0,00", text: $model.priceText)
-                        .keyboardType(.decimalPad)
+                        .mascaraDinheiro($model.priceText)
                         .font(Theme.money(15, weight: .semibold))
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)

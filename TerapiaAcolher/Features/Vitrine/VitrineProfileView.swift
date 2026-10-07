@@ -197,7 +197,15 @@ struct VitrineProfileView: View {
                 Divider().overlay(Theme.border)
                 campo("WhatsApp", texto: $model.whatsapp, teclado: .phonePad)
                 Divider().overlay(Theme.border)
-                campo("Valor da consulta", texto: $model.priceText, teclado: .decimalPad)
+                HStack {
+                    Text("Valor da consulta")
+                        .font(Theme.body(14))
+                        .foregroundStyle(Theme.textSecondary)
+                    Spacer(minLength: 12)
+                    CampoDinheiro(texto: $model.priceText, fonte: Theme.body(15), alinhamento: .trailing)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
             }
         }
     }

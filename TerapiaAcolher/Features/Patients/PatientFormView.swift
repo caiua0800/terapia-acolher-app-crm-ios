@@ -607,7 +607,7 @@ struct PatientFormView: View {
                         .font(Theme.body(15))
                         .foregroundStyle(Theme.textSecondary)
                     TextField("180,00", text: $model.sessionPriceText)
-                        .keyboardType(.decimalPad)
+                        .mascaraDinheiro($model.sessionPriceText)
                         .multilineTextAlignment(.trailing)
                         .fixedSize()
                 }
