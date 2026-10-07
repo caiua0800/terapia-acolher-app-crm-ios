@@ -262,7 +262,15 @@ enum AgendaAPI {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            throw CancellationError()
+        } catch is URLError {
+            throw APIError(statusCode: 0, message: MensagemDeErro.semConexao)
+        }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
         if status == 401, allowRetry, let refresh = APIClient.shared.refreshHandler {
@@ -273,8 +281,10 @@ enum AgendaAPI {
             APIClient.shared.onSessionExpired()
         }
         guard (200 ..< 300).contains(status) else {
-            let message = (try? JSONDecoder().decode(AgendaErrorBody.self, from: data))?.message
-                ?? "Algo deu errado (código \(status)). Tente de novo."
+            let message = MensagemDeErro.amigavel(
+                status: status,
+                mensagem: (try? JSONDecoder().decode(AgendaErrorBody.self, from: data))?.message
+            )
             throw APIError(statusCode: status, message: message)
         }
         return try decoder.decode(Response.self, from: data)

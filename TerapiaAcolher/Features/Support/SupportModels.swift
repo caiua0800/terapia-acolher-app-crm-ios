@@ -346,15 +346,17 @@ enum SupJSON {
     /// Extrai o `message` do corpo de erro padrão do Nest.
     static func errorMessage(from data: Data, status: Int) -> String {
         if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let text = object["message"] as? String, !text.isEmpty { return text }
-            if let list = object["message"] as? [String], !list.isEmpty { return list.joined(separator: "\n") }
+            if let text = object["message"] as? String, !text.isEmpty, MensagemDeErro.ehNossa(text) { return text }
+            if let list = object["message"] as? [String], !list.isEmpty, MensagemDeErro.ehNossa(list.joined(separator: " ")) {
+                return list.joined(separator: "\n")
+            }
         }
         switch status {
         case 403: return "O prazo desse envio venceu. Tente de novo."
         case 409: return "Esse arquivo já foi enviado."
         case 413: return "Arquivo maior que o permitido."
         case 415: return "Esse tipo de arquivo não é aceito."
-        default: return "Não foi possível enviar o arquivo (código \(status))."
+        default: return MensagemDeErro.amigavel(status: status, mensagem: nil)
         }
     }
 }

@@ -304,7 +304,13 @@ final class APIClient {
         if data.isEmpty, let empty = EmptyResponse() as? Response {
             return empty
         }
-        return try decoder.decode(Response.self, from: data)
+        do {
+            return try decoder.decode(Response.self, from: data)
+        } catch {
+            // Resposta que o app não sabe ler (versão desatualizada, corpo
+            // inesperado): nunca mostrar o erro do decodificador.
+            throw APIError(statusCode: -1, message: MensagemDeErro.generica, body: data)
+        }
     }
 
     /// Faz a chamada, renova a sessão em 401 (uma vez) e devolve o corpo bruto
@@ -346,6 +352,10 @@ final class APIClient {
             // com load em voo) — não é falha real; propaga como cancelamento
             // pros view models ignorarem em vez de mostrar alerta de erro.
             throw CancellationError()
+        } catch is URLError {
+            // Sem rede, timeout, DNS: vira APIError com mensagem em português,
+            // para as telas que leem `(error as? APIError)?.message`.
+            throw APIError(statusCode: 0, message: MensagemDeErro.semConexao)
         }
         let http = response as? HTTPURLResponse
         let status = http?.statusCode ?? 0
@@ -393,10 +403,9 @@ final class APIClient {
                 }
             }
         }
-        if let parsed = try? JSONDecoder().decode(ErrorBody.self, from: data), let message = parsed.message {
-            return message.joined
-        }
-        return "Algo deu errado (código \(status)). Tente de novo."
+        let bruta = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.message?.joined
+            ?? String(data: data, encoding: .utf8).flatMap { $0.count < 200 && !$0.contains("<") ? $0 : nil }
+        return MensagemDeErro.amigavel(status: status, mensagem: bruta)
     }
 }
 
