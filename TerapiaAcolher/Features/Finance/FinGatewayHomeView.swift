@@ -17,7 +17,8 @@ struct FinGatewayHomeView: View {
     /// Movimentação tocada na prévia: abre os detalhes com o comprovante.
     @State private var movimentacaoSelecionada: GwLedgerEntry?
     @State private var chaves: [GwPixKey] = []
-    /// Botão flutuante "Criar cobrança": abre o mesmo fluxo do "Cobrar".
+    /// "Cobrar" e o botão flutuante "Criar cobrança" vão direto ao formulário
+    /// (Paciente | Outra pessoa); a lista de cobranças fica no cartão Cobranças.
     @State private var abrindoCobranca = false
     @State private var zelo = ZeloStore.shared
 
@@ -76,8 +77,10 @@ struct FinGatewayHomeView: View {
                     .padding(.bottom, 16)
             }
         }
-        .navigationDestination(isPresented: $abrindoCobranca) {
-            FinChargesEntryView()
+        .sheet(isPresented: $abrindoCobranca) {
+            FinChargeFormView(patient: nil) {
+                Task { await recarregar() }
+            }
         }
         // O Zelo sobe acima do botão enquanto ele estiver na tela.
         .onChange(of: store.isApproved, initial: true) { _, aprovada in
@@ -606,8 +609,9 @@ struct FinGatewayHomeView: View {
 
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
-                    NavigationLink {
-                        FinChargesEntryView()
+                    Button {
+                        Haptics.tap()
+                        abrindoCobranca = true
                     } label: {
                         acaoDoCartao(icon: "creditcard", title: "Cobrar", destaque: true)
                     }
@@ -668,15 +672,19 @@ struct FinGatewayHomeView: View {
                             Text("Cobranças")
                                 .font(Theme.body(15, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
-                            Text("Cobre seus pacientes por Pix e acompanhe quem pagou.")
+                            Text("Todas as cobranças, de pacientes e avulsas, com filtros.")
                                 .font(Theme.body(12))
                                 .foregroundStyle(Theme.textSecondary)
                                 .lineLimit(2)
                         }
                         Spacer(minLength: 8)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                        HStack(spacing: 4) {
+                            Text("Ver cobranças")
+                                .font(Theme.body(12, weight: .semibold))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.primary)
                     }
 
                     if let resumo = resumoCobrancas {

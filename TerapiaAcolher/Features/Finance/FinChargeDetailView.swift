@@ -19,9 +19,29 @@ final class FinChargeDetailModel {
     var isSendingNow = false
     var editandoLembrete = false
     var reminderResult: FinReminderResult?
+    /// Por onde vai o "Enviar lembrete agora" (2026-10-06). Sem escolher, o
+    /// servidor mandava WhatsApp e e-mail juntos — duas mensagens ao paciente.
+    var canaisAgora: Set<String>
 
     init(charge: FinCharge) {
         self.charge = charge
+        let whats = charge.patient?.whatsappEnabled != false
+        canaisAgora = whats ? ["WHATSAPP"] : ["EMAIL"]
+    }
+
+    /// WhatsApp liberado para este paciente (sem a informação, quem decide é o servidor).
+    var whatsappDisponivel: Bool { charge.patient?.whatsappEnabled != false }
+
+    /// Lembrete agendado sai por um canal só: WhatsApp quando dá, senão e-mail.
+    var canalDoAgendamento: String { whatsappDisponivel ? "WHATSAPP" : "EMAIL" }
+
+    func alternarCanal(_ canal: String) {
+        if canaisAgora.contains(canal) {
+            guard canaisAgora.count > 1 else { return }
+            canaisAgora.remove(canal)
+        } else {
+            canaisAgora.insert(canal)
+        }
     }
 
     /// Link do caminho antigo (conta Asaas própria). Só cobrança criada antes
@@ -54,7 +74,7 @@ final class FinChargeDetailModel {
         isWorkingLembrete = true
         defer { isWorkingLembrete = false }
         do {
-            _ = try await FinanceAPI.scheduleReminder(id: charge.id, at: quando)
+            _ = try await FinanceAPI.scheduleReminder(id: charge.id, at: quando, canais: [canalDoAgendamento])
             Haptics.success()
             await carregar()
         } catch is CancellationError {
@@ -69,7 +89,10 @@ final class FinChargeDetailModel {
         isSendingNow = true
         defer { isSendingNow = false }
         do {
-            reminderResult = try await FinanceAPI.sendReminder(id: charge.id)
+            reminderResult = try await FinanceAPI.sendReminder(
+                id: charge.id,
+                canais: ["WHATSAPP", "EMAIL"].filter { canaisAgora.contains($0) }
+            )
             Haptics.success()
             await carregar()
         } catch is CancellationError {
@@ -391,8 +414,11 @@ struct FinChargeDetailView: View {
                         Text("Lembrete da cobrança")
                             .font(Theme.body(15, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text(model.lembreteAgendado.map { "Agendado para \(FinFormat.diaEHora.string(from: $0))" }
-                             ?? "Nenhum lembrete agendado")
+                        Text(model.lembreteAgendado.map { quando in
+                            let pelo = (model.charge.reminderChannels ?? [model.canalDoAgendamento]).contains("WHATSAPP")
+                                ? "pelo WhatsApp" : "por e-mail"
+                            return "Agendado para \(FinFormat.diaEHora.string(from: quando)) \(pelo)"
+                        } ?? "Nenhum lembrete agendado")
                             .font(Theme.body(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -422,6 +448,24 @@ struct FinChargeDetailView: View {
                         }
                         .buttonStyle(.pressable)
                         .disabled(model.isWorkingLembrete)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("ENVIAR AGORA POR")
+                        .font(Theme.body(10, weight: .semibold))
+                        .tracking(1.1)
+                        .foregroundStyle(Theme.textSecondary)
+                    HStack(spacing: 8) {
+                        if model.whatsappDisponivel {
+                            FilterChip(label: "WhatsApp", isSelected: model.canaisAgora.contains("WHATSAPP")) {
+                                Haptics.tap()
+                                model.alternarCanal("WHATSAPP")
+                            }
+                        }
+                        FilterChip(label: "E-mail", isSelected: model.canaisAgora.contains("EMAIL")) {
+                            Haptics.tap()
+                            model.alternarCanal("EMAIL")
+                        }
                     }
                 }
                 PrimaryButton(

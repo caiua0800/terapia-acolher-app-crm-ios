@@ -1,41 +1,5 @@
 import SwiftUI
 
-// MARK: - Entrada: escolher o paciente das cobranças
-
-struct FinChargesEntryView: View {
-    @State private var selectedPatient: FinPatientRef?
-    /// Paciente | Outra pessoa (2026-10-06): as cobranças avulsas, de quem não
-    /// é paciente, ficam numa lista própria.
-    @State private var deOutraPessoa = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Picker("Cobranças de", selection: $deOutraPessoa.animation(.easeOut(duration: 0.2))) {
-                Text("Paciente").tag(false)
-                Text("Outra pessoa").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, Theme.screenPadding)
-            .padding(.vertical, 10)
-            .onChange(of: deOutraPessoa) { _, _ in Haptics.tap() }
-
-            if deOutraPessoa {
-                FinChargesView(patient: nil)
-            } else {
-                FinPatientPickerView { patient in
-                    selectedPatient = patient
-                }
-            }
-        }
-        .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Cobranças")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $selectedPatient) { patient in
-            FinChargesView(patient: patient)
-        }
-    }
-}
-
 // MARK: - ViewModel
 
 @MainActor

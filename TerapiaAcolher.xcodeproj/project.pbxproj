@@ -122,6 +122,7 @@
 		E3216A2897E6921EB01916E2 /* LeadsCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95223DEAA1F8037947A6B42 /* LeadsCheckoutView.swift */; };
 		E3C8F9E0999F17A12C6FB5EA /* Bancos.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B12419602DB5ED8FAE24F217 /* Bancos.xcassets */; };
 		E5F190A4DD3FD0D07F4FAC27 /* AiFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFB60343805E0A349238A47 /* AiFlowUITests.swift */; };
+		E7B2A14750646503013364C0 /* FinAllChargesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D6361D7508E78A6BBA8AD0 /* FinAllChargesView.swift */; };
 		E95E11420886720B54F77A4F /* SetGoogleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784CFCF124134E8A5792C19D /* SetGoogleView.swift */; };
 		EAD0300C5B8FD645B611E44E /* TranscriptPDFUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F2793F66367C6D80326FF7 /* TranscriptPDFUITests.swift */; };
 		EB18D74F0A89F15CA014FC4A /* SupportRealtime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23276F35823C84FC67B6571A /* SupportRealtime.swift */; };
@@ -276,6 +277,7 @@
 		DBCCD0B1CFAB861492C078E6 /* SetBiometricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetBiometricRow.swift; sourceTree = "<group>"; };
 		DD3AA7ED1CDA52D3C9EE5023 /* SupportHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportHomeView.swift; sourceTree = "<group>"; };
 		DD78CF8F23D51E4DCFA775B7 /* FinCardChargeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinCardChargeSheet.swift; sourceTree = "<group>"; };
+		E6D6361D7508E78A6BBA8AD0 /* FinAllChargesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinAllChargesView.swift; sourceTree = "<group>"; };
 		ECE4E78A4574F19A22DA3542 /* LeadsCheckoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeadsCheckoutUITests.swift; sourceTree = "<group>"; };
 		EEFE7D088B66D2BABCACDAF7 /* RecQuestionEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecQuestionEditorSheet.swift; sourceTree = "<group>"; };
 		EFBB5855CFB70FDC49BEFDDC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -442,6 +444,7 @@
 			isa = PBXGroup;
 			children = (
 				A8A46E22ADA99C6CFC8AEC7E /* BancoLogo.swift */,
+				E6D6361D7508E78A6BBA8AD0 /* FinAllChargesView.swift */,
 				1E13313F1B76B704FD227550 /* FinanceHomeView.swift */,
 				83BAFF89B5616319BE165106 /* FinanceModels.swift */,
 				53E0558EBFC4D9F09706052A /* FinanceShared.swift */,
@@ -797,6 +800,7 @@
 				78A690582F3CBDB882596B8A /* DocumentsModels.swift in Sources */,
 				2B6B48C42A2D06108DC9AC50 /* FilesHomeView.swift in Sources */,
 				A97DFF148E13E2636A17C97B /* FilesModels.swift in Sources */,
+				E7B2A14750646503013364C0 /* FinAllChargesView.swift in Sources */,
 				20AE44176FFFE1562622D40F /* FinCardChargeSheet.swift in Sources */,
 				AF5332356FCCD3E7AEDCF20E /* FinChargeDetailView.swift in Sources */,
 				4EC38F7D17E6BD78A541FA40 /* FinChargeFormView.swift in Sources */,

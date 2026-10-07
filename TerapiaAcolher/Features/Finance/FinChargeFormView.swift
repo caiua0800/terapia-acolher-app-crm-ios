@@ -559,15 +559,20 @@ struct FinChargeFormView: View {
 
     // MARK: - Enviar agora / agendar
 
+    /// Um canal só por lembrete: WhatsApp quando o paciente pode receber, senão e-mail.
+    private var canalDoLembrete: String { motivoSemWhatsApp == nil ? "WHATSAPP" : "EMAIL" }
+
     private func avisar(chargeId: String, whatsAppAgora: Bool, lembreteEm: Date?) async -> FinAvisoDeEnvio? {
         var partes: [String] = []
         var deuCerto = true
         if whatsAppAgora {
             do {
-                let r = try await FinanceAPI.sendReminder(id: chargeId)
+                // Só WhatsApp (2026-10-06): sem os canais o servidor mandava
+                // também o e-mail, e o paciente recebia duas mensagens.
+                let r = try await FinanceAPI.sendReminder(id: chargeId, canais: ["WHATSAPP"])
                 if r.whatsappSent == false {
                     deuCerto = false
-                    partes.append("O WhatsApp não foi enviado (mensagens desligadas ou cota do plano).")
+                    partes.append(r.whatsappReason ?? "O WhatsApp não foi enviado (mensagens desligadas ou cota do plano).")
                 } else {
                     partes.append("Enviado pelo WhatsApp ✓")
                 }
@@ -578,8 +583,8 @@ struct FinChargeFormView: View {
         }
         if let lembreteEm {
             do {
-                _ = try await FinanceAPI.scheduleReminder(id: chargeId, at: lembreteEm)
-                partes.append("Lembrete agendado para \(FinFormat.diaEHora.string(from: lembreteEm)).")
+                _ = try await FinanceAPI.scheduleReminder(id: chargeId, at: lembreteEm, canais: [canalDoLembrete])
+                partes.append("Lembrete agendado para \(FinFormat.diaEHora.string(from: lembreteEm)) \(canalDoLembrete == "WHATSAPP" ? "pelo WhatsApp" : "por e-mail").")
             } catch {
                 deuCerto = false
                 partes.append((error as? APIError)?.message ?? "Não foi possível agendar o lembrete.")
@@ -712,7 +717,7 @@ struct FinChargeFormView: View {
                             Text("Agendar lembrete")
                                 .font(Theme.body(15, weight: .semibold))
                                 .foregroundStyle(Theme.textPrimary)
-                            Text("Mandamos o lembrete com o link no horário escolhido.")
+                            Text("Mandamos o lembrete com o link no horário escolhido, \(canalDoLembrete == "WHATSAPP" ? "pelo WhatsApp" : "por e-mail").")
                                 .font(Theme.body(12))
                                 .foregroundStyle(Theme.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)

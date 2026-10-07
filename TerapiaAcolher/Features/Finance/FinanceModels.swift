@@ -92,6 +92,8 @@ struct FinCharge: Decodable, Identifiable {
     let payer: FinPayer?
     /// Lembrete agendado (só cobrança de paciente). Opcional: campo novo.
     let reminderScheduledAt: Date?
+    /// Por onde o lembrete agendado sai: "WHATSAPP" e/ou "EMAIL" (2026-10-06).
+    let reminderChannels: [String]?
     let description: String
     let referenceMonth: String?
     let amount: Double
@@ -120,6 +122,115 @@ struct FinCharge: Decodable, Identifiable {
         case "MANUAL": "Recebido por fora"
         default: nil
         }
+    }
+}
+
+// MARK: - Todas as cobranças (paginado, 2026-10-06)
+
+struct FinChargesPage: Decodable {
+    struct Totais: Decodable {
+        let aReceber: Double
+        let recebido: Double
+        let atrasado: Double
+        let quantidade: [String: Int]?
+    }
+
+    let itens: [FinCharge]
+    let total: Int
+    let page: Int
+    let perPage: Int
+    let totais: Totais?
+}
+
+enum FinChargesPeriodo: String, CaseIterable, Identifiable {
+    case todos, esteMes, mesPassado, ultimos30, personalizado
+    var id: String { rawValue }
+    var rotulo: String {
+        switch self {
+        case .todos: "Qualquer data"
+        case .esteMes: "Este mês"
+        case .mesPassado: "Mês passado"
+        case .ultimos30: "Últimos 30 dias"
+        case .personalizado: "Escolher datas"
+        }
+    }
+}
+
+enum FinChargesOrdem: String, CaseIterable, Identifiable {
+    case vencimentoDesc = "vencimento_desc"
+    case vencimentoAsc = "vencimento_asc"
+    case criacaoDesc = "criacao_desc"
+    case valorDesc = "valor_desc"
+    var id: String { rawValue }
+    var rotulo: String {
+        switch self {
+        case .vencimentoDesc: "Vencimento (mais recentes)"
+        case .vencimentoAsc: "Vencimento (mais antigas)"
+        case .criacaoDesc: "Criadas por último"
+        case .valorDesc: "Maior valor"
+        }
+    }
+}
+
+/// Filtros da tela "Todas as cobranças" — viram a query de `finance/charges/pagina`.
+struct FinChargesPageFilter: Equatable {
+    var status: FinChargeStatus? = nil
+    /// nil = todas · "PATIENT" · "STANDALONE"
+    var kind: String? = nil
+    /// nil = qualquer · "PIX" · "CARD" · "NENHUM"
+    var metodo: String? = nil
+    var periodo: FinChargesPeriodo = .todos
+    var de: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+    var ate: Date = Date()
+    var busca: String = ""
+    var ordem: FinChargesOrdem = .vencimentoDesc
+
+    var temFiltro: Bool {
+        status != nil || kind != nil || metodo != nil || periodo != .todos
+            || !busca.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private static let dia: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// Intervalo do período escolhido (pelo vencimento).
+    var intervalo: (de: Date, ate: Date)? {
+        let cal = Calendar.current
+        let hoje = Date()
+        switch periodo {
+        case .todos: return nil
+        case .esteMes:
+            let inicio = cal.date(from: cal.dateComponents([.year, .month], from: hoje)) ?? hoje
+            let fim = cal.date(byAdding: DateComponents(month: 1, day: -1), to: inicio) ?? hoje
+            return (inicio, fim)
+        case .mesPassado:
+            let inicioEste = cal.date(from: cal.dateComponents([.year, .month], from: hoje)) ?? hoje
+            let inicio = cal.date(byAdding: .month, value: -1, to: inicioEste) ?? hoje
+            let fim = cal.date(byAdding: .day, value: -1, to: inicioEste) ?? hoje
+            return (inicio, fim)
+        case .ultimos30:
+            return (cal.date(byAdding: .day, value: -30, to: hoje) ?? hoje, hoje)
+        case .personalizado:
+            return (min(de, ate), max(de, ate))
+        }
+    }
+
+    var query: [String: String?] {
+        let busca = busca.trimmingCharacters(in: .whitespaces)
+        return [
+            "status": status?.rawValue,
+            "kind": kind,
+            "metodo": metodo,
+            "de": intervalo.map { Self.dia.string(from: $0.de) },
+            "ate": intervalo.map { Self.dia.string(from: $0.ate) },
+            "busca": busca.isEmpty ? nil : busca,
+            "ordenar": ordem.rawValue,
+        ]
     }
 }
 
@@ -174,6 +285,8 @@ struct FinReminderResult: Decodable {
     /// Se o WhatsApp saiu (preferências, cota e número permitindo). Opcional:
     /// backend antigo não manda.
     let whatsappSent: Bool?
+    /// Por que o WhatsApp não saiu (preferências, cota, sem número…).
+    let whatsappReason: String?
 }
 
 /// O que aconteceu com o envio/agendamento do lembrete ao criar a cobrança.
@@ -190,11 +303,19 @@ struct FinReminderSchedule: Decodable {
 /// omitiria a chave e o servidor não saberia que é para cancelar.
 private struct FinReminderScheduleBody: Encodable {
     let at: String?
+    /// Canais do lembrete agendado; ausente = o servidor escolhe.
+    let canais: [String]?
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(at, forKey: .at)
+        try c.encodeIfPresent(canais, forKey: .canais)
     }
-    enum CodingKeys: String, CodingKey { case at }
+    enum CodingKeys: String, CodingKey { case at, canais }
+}
+
+/// Canais do envio na hora: sem corpo, o servidor manda pelos dois (apps antigos).
+private struct FinReminderBody: Encodable {
+    let canais: [String]
 }
 
 struct FinDeleted: Decodable {
@@ -259,16 +380,33 @@ enum FinanceAPI {
         try await APIClient.shared.patch("finance/charges/\(id)/cancel")
     }
 
-    static func sendReminder(id: String) async throws -> FinReminderResult {
-        try await APIClient.shared.post("finance/charges/\(id)/reminder")
+    /// `canais`: ["WHATSAPP"], ["EMAIL"] ou os dois (2026-10-06). Sem canais,
+    /// o servidor manda pelos dois — era o que fazia "Enviar agora pelo
+    /// WhatsApp" mandar também um e-mail.
+    static func sendReminder(id: String, canais: [String]? = nil) async throws -> FinReminderResult {
+        if let canais {
+            return try await APIClient.shared.post(
+                "finance/charges/\(id)/reminder",
+                body: FinReminderBody(canais: canais)
+            )
+        }
+        return try await APIClient.shared.post("finance/charges/\(id)/reminder")
     }
 
     /// Agenda (ou, com `nil`, cancela) o lembrete da cobrança.
-    static func scheduleReminder(id: String, at: Date?) async throws -> FinReminderSchedule {
+    static func scheduleReminder(id: String, at: Date?, canais: [String]? = nil) async throws -> FinReminderSchedule {
         try await APIClient.shared.put(
             "finance/charges/\(id)/reminder-schedule",
-            body: FinReminderScheduleBody(at: at.map(FinFormat.isoComFuso))
+            body: FinReminderScheduleBody(at: at.map(FinFormat.isoComFuso), canais: at == nil ? nil : canais)
         )
+    }
+
+    /// Todas as cobranças, paginado e filtrado (`GET finance/charges/pagina`).
+    static func chargesPage(_ filtro: FinChargesPageFilter, page: Int, perPage: Int = 20) async throws -> FinChargesPage {
+        try await APIClient.shared.get("finance/charges/pagina", query: filtro.query.merging([
+            "page": String(page),
+            "perPage": String(perPage),
+        ]) { _, novo in novo })
     }
 
     static func patients(search: String?) async throws -> [FinPatientRef] {
