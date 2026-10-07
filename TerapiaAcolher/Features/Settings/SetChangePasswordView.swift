@@ -24,7 +24,7 @@ struct SetChangePasswordView: View {
                         SetSectionHeader(title: "Nova senha")
                         ThemeCard {
                             VStack(spacing: 14) {
-                                SecureField("Nova senha (mínimo 8 caracteres)", text: $viewModel.nova)
+                                SecureField("Nova senha (mínimo 10 caracteres)", text: $viewModel.nova)
                                     .font(Theme.body(16))
                                     .textContentType(.newPassword)
                                 Divider()
@@ -81,12 +81,12 @@ final class SetChangePasswordViewModel {
     var showSuccess = false
 
     var canSubmit: Bool {
-        !current.isEmpty && nova.count >= 8 && nova == confirmacao
+        !current.isEmpty && nova.count >= 10 && nova == confirmacao
     }
 
     var validationHint: String? {
-        if !nova.isEmpty, nova.count < 8 {
-            return "A nova senha deve ter pelo menos 8 caracteres."
+        if !nova.isEmpty, nova.count < 10 {
+            return "A nova senha deve ter pelo menos 10 caracteres."
         }
         if !confirmacao.isEmpty, nova != confirmacao {
             return "A confirmação não confere com a nova senha."

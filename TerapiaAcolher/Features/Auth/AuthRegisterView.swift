@@ -26,7 +26,7 @@ final class AuthRegisterModel {
     var canSubmit: Bool {
         name.trimmingCharacters(in: .whitespaces).count >= 2
             && email.contains("@")
-            && password.count >= 8
+            && password.count >= 10
             && phoneCheck.isValid
     }
 
@@ -89,7 +89,7 @@ struct AuthRegisterView: View {
 
                     AuthField(label: "Nome completo", text: $model.name, placeholder: "Maria Silva", contentType: .name, autocapitalize: true)
                     AuthField(label: "E-mail", text: $model.email, placeholder: "seu@email.com.br", keyboard: .emailAddress, contentType: .username)
-                    AuthField(label: "Senha", text: $model.password, placeholder: "Mínimo 8 caracteres", isSecure: true, contentType: .newPassword)
+                    AuthField(label: "Senha", text: $model.password, placeholder: "Mínimo 10 caracteres", isSecure: true, contentType: .newPassword)
                     AuthField(label: "Especialidade · opcional", text: $model.specialty, placeholder: "Psicologia", autocapitalize: true)
                     AuthField(label: "Registro profissional · opcional", text: $model.professionalRegistration, placeholder: "CRP 06/54321")
                     VStack(alignment: .leading, spacing: 6) {

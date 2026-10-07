@@ -125,7 +125,7 @@ final class AuthResetModel {
 
     var canSubmit: Bool {
         token.trimmingCharacters(in: .whitespaces).count >= 10
-            && newPassword.count >= 8
+            && newPassword.count >= 10
             && newPassword == confirmPassword
     }
 
@@ -186,7 +186,7 @@ struct AuthResetPasswordView: View {
                         AuthField(
                             label: "Nova senha",
                             text: $model.newPassword,
-                            placeholder: "Mínimo 8 caracteres",
+                            placeholder: "Mínimo 10 caracteres",
                             isSecure: true,
                             contentType: .newPassword
                         )
