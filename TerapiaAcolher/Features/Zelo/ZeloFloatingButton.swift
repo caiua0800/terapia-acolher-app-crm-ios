@@ -9,6 +9,11 @@ struct ZeloFloatingButton: View {
 
     private let tamanho: CGFloat = 58
     private let margem: CGFloat = 16
+    /// Espaço sempre livre acima do rodapé (2026-10-07): as telas têm botão
+    /// flutuante no canto ("+ Novo prontuário", "+" de pacientes, "Criar
+    /// cobrança"…) e o Zelo ficava por cima deles. Como no web, o Zelo mora
+    /// acima dessa faixa.
+    private let folgaDosBotoesDaTela: CGFloat = 76
 
     var body: some View {
         GeometryReader { geo in
@@ -16,7 +21,7 @@ struct ZeloFloatingButton: View {
                 x: margem,
                 y: margem + 60,
                 width: max(1, geo.size.width - tamanho - margem * 2),
-                height: max(1, geo.size.height - tamanho - margem * 2 - 60 - zelo.folgaInferior)
+                height: max(1, geo.size.height - tamanho - margem * 2 - 60 - folgaDosBotoesDaTela - zelo.folgaInferior)
             )
             let base = CGPoint(
                 x: area.minX + area.width * zelo.posicao.x,

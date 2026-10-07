@@ -84,7 +84,7 @@ struct FinGatewayHomeView: View {
         }
         // O Zelo sobe acima do botão enquanto ele estiver na tela.
         .onChange(of: store.isApproved, initial: true) { _, aprovada in
-            zelo.folgaInferior = aprovada ? 68 : 0
+            zelo.folgaInferior = 0 // a faixa dos botões da tela já é reservada sempre
         }
         .onDisappear { zelo.folgaInferior = 0 }
         .setToolbarTitle("Acolher Financeiro")
