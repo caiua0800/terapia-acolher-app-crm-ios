@@ -122,6 +122,9 @@ final class SessionStore {
     @MainActor
     func boot() async {
         defer { isBooting = false }
+        Keychain.migrarAcessibilidade([accessKey, refreshKey])
+        // Sobra de uma execução anterior (app encerrado com arquivo aberto).
+        ArquivosTemporarios.limparTudo()
         if BiometricVault.isEnabled {
             // Nada de token em texto no disco com a biometria ligada.
             Keychain.delete(accessKey)
@@ -351,6 +354,35 @@ final class SessionStore {
         user = (try? await APIClient.shared.get("auth/me")) ?? user
     }
 
+    // MARK: - Bloqueio por inatividade (auditoria de segurança, 2026-10-07)
+
+    /// Com a biometria ligada, voltar ao app depois de mais que isto em segundo
+    /// plano pede o rosto/digital de novo — antes só a abertura do zero pedia.
+    static let segundosParaRebloquear: TimeInterval = 5 * 60
+    private var foiParaSegundoPlanoEm: Date?
+
+    @MainActor
+    func appFoiParaSegundoPlano() {
+        if isAuthenticated { foiParaSegundoPlanoEm = Date() }
+    }
+
+    @MainActor
+    func appVoltouAoPrimeiroPlano() {
+        defer { foiParaSegundoPlanoEm = nil }
+        guard BiometricVault.isEnabled, isAuthenticated,
+              let desde = foiParaSegundoPlanoEm,
+              Date().timeIntervalSince(desde) > Self.segundosParaRebloquear
+        else { return }
+        // Tokens só em memória somem; o cofre continua com o refresh e o
+        // desbloqueio refaz a sessão. Os dados em memória também vão embora:
+        // quem entrar com senha pode ser outra pessoa.
+        memAccess = nil
+        memRefresh = nil
+        user = nil
+        SessionScope.reset()
+        travadoPorBiometria = true
+    }
+
     @MainActor
     private func clearSession() {
         accessToken = nil
@@ -367,5 +399,7 @@ final class SessionStore {
         PushOptIn.shared.encerrarSessao()
         // E os pacientes, a agenda e o financeiro dele (ver SessionScope).
         SessionScope.reset()
+        // Comprovantes, extratos e anexos baixados não ficam no aparelho.
+        ArquivosTemporarios.limparTudo()
     }
 }

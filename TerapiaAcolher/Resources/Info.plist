@@ -30,11 +30,13 @@
 	<string>O Face ID é usado para você entrar no Acolher Gestão sem digitar a senha, se ligar essa opção em Configurações.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>A câmera é usada para fotografar seus documentos e a selfie na abertura da sua conta de recebimentos.</string>
+#if ACOLHER_DEBUG
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+#endif
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

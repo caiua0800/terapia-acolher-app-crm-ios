@@ -225,12 +225,8 @@ struct GwArquivoBaixado: Identifiable {
     /// Grava em um diretório temporário próprio pra o nome do arquivo ser o
     /// que o servidor sugeriu (a folha de compartilhar mostra esse nome).
     init(_ arquivo: APIClient.DownloadedFile) throws {
-        let pasta = FileManager.default.temporaryDirectory
-            .appendingPathComponent("gateway-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
-        let nome = arquivo.fileName.isEmpty ? "arquivo" : arquivo.fileName
-        url = pasta.appendingPathComponent(nome)
-        try arquivo.data.write(to: url, options: .atomic)
+        // Protegido e apagado ao sair (ver ArquivosTemporarios).
+        url = try ArquivosTemporarios.gravar(arquivo.data, nome: arquivo.fileName, prefixo: "gateway")
     }
 }
 

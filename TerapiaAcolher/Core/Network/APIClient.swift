@@ -10,6 +10,11 @@ enum AppConfig {
     /// nenhum dos dois, produção — o default nunca muda por engano.
     static let apiBaseURL: URL = {
         let producao = URL(string: "https://crm-api.terapiaacolher.com.br")!
+        // A troca de backend só existe em Debug (auditoria, 2026-10-07): no
+        // app da loja a URL é fixa, sem argumento nem variável que a desvie.
+        #if !DEBUG
+        return producao
+        #else
         let info = ProcessInfo.processInfo
         let argumentos = info.arguments
         if let indice = argumentos.firstIndex(of: "--api-base-url"),
@@ -24,6 +29,7 @@ enum AppConfig {
             return url
         }
         return producao
+        #endif
     }()
 }
 
@@ -70,7 +76,12 @@ final class APIClient {
     var onSessionExpired: () -> Void = {}
 
     private init() {
-        session = URLSession(configuration: .default)
+        // Sem cache em disco (auditoria, 2026-10-07): respostas com prontuário
+        // e dados de pacientes não podem ficar no Cache.db do aparelho.
+        let config = URLSessionConfiguration.default
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        session = URLSession(configuration: config)
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         decoder = JSONDecoder()

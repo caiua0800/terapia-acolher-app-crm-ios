@@ -29,8 +29,30 @@ struct TerapiaAcolherApp: App {
 /// Raiz: splash de boot → login ou shell autenticado.
 struct RootView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(\.scenePhase) private var fase
 
     var body: some View {
+        ZStack {
+            conteudo
+            // Tela de privacidade (auditoria de segurança, 2026-10-07): fora de
+            // `.active`, o iOS tira o "retrato" do app para o seletor de apps e
+            // o guarda em disco. Com isto ele mostra só a marca, nunca um
+            // prontuário ou o saldo.
+            if fase != .active {
+                TelaDePrivacidade()
+                    .transition(.opacity)
+            }
+        }
+        .onChange(of: fase) { _, nova in
+            switch nova {
+            case .background: session.appFoiParaSegundoPlano()
+            case .active: session.appVoltouAoPrimeiroPlano()
+            default: break
+            }
+        }
+    }
+
+    private var conteudo: some View {
         Group {
             if session.isBooting {
                 BootSplashView()
@@ -43,6 +65,21 @@ struct RootView: View {
             }
         }
         .task { await session.boot() }
+    }
+}
+
+/// Cobre o app quando ele sai de foco (ver RootView).
+struct TelaDePrivacidade: View {
+    var body: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            VStack(spacing: 14) {
+                AuthLogoView(size: 88)
+                Text("Acolher Gestão")
+                    .font(Theme.serifTitle(26))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+        }
     }
 }
 

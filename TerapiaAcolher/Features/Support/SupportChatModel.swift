@@ -393,9 +393,8 @@ struct SupMovie: Transferable {
 
 enum SupMediaPrep {
     static func tempURL(ext: String) throws -> URL {
-        let pasta = FileManager.default.temporaryDirectory.appendingPathComponent("suporte", isDirectory: true)
-        try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
-        return pasta.appendingPathComponent("\(UUID().uuidString).\(ext)")
+        // Pasta protegida e apagada ao sair (ver ArquivosTemporarios).
+        try ArquivosTemporarios.novaPasta("suporte-envio").appendingPathComponent("\(UUID().uuidString).\(ext)")
     }
 
     static let documentTypes: [UTType] = {

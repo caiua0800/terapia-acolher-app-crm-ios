@@ -463,11 +463,7 @@ struct SupFileAttachment: View {
             return
         }
         do {
-            let pasta = FileManager.default.temporaryDirectory
-                .appendingPathComponent("suporte-\(messageId)", isDirectory: true)
-            try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
-            let destino = pasta.appendingPathComponent(nome.replacingOccurrences(of: "/", with: "-"))
-            try dados.write(to: destino, options: .atomic)
+            let destino = try ArquivosTemporarios.gravar(dados, nome: nome, prefixo: "suporte")
             preview = SupPreviewFile(url: destino, name: nome)
         } catch {
             failed = true

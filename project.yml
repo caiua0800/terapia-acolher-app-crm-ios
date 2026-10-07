@@ -12,7 +12,13 @@ settings:
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_KEY_UILaunchScreen_Generation: true
     INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-    INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: true
+    # HTTP para a rede local (backend do Mac) só em Debug (auditoria,
+    # 2026-10-07): o Info.plist passa pelo pré-processador e a chave do ATS
+    # fica dentro de `#if ACOLHER_DEBUG`.
+    INFOPLIST_PREPROCESS: YES
+  configs:
+    Debug:
+      INFOPLIST_PREPROCESSOR_DEFINITIONS: ACOLHER_DEBUG=1
 targets:
   TerapiaAcolher:
     type: application
