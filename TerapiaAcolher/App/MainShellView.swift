@@ -9,7 +9,7 @@ import SwiftUI
 enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses, transcricoes
-    case gateway, financeiro, vitrine, leads, creditos
+    case gateway, financeiro, vitrine, meuZelo, leads, creditos
     case suporte, uso, assinatura, configuracoes
 
     var id: String { rawValue }
@@ -25,6 +25,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .gateway: "Acolher Financeiro"
         case .financeiro: "Fluxo de caixa"
         case .vitrine: "Minha Vitrine"
+        case .meuZelo: "Meu Zelo AI"
         case .leads: "Meus leads"
         case .creditos: "Créditos"
         case .suporte: "Suporte"
@@ -45,6 +46,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .gateway: "building.columns"
         case .financeiro: "dollarsign"
         case .vitrine: "storefront"
+        case .meuZelo: "sparkles"
         case .leads: "tray.full"
         case .creditos: "sparkles"
         case .suporte: "bubble.left.and.bubble.right"
@@ -55,7 +57,11 @@ enum MenuDestination: String, CaseIterable, Identifiable {
     }
 
     /// Seções do menu como no MVP.
-    static var sections: [(header: String, items: [MenuDestination])] {
+    static var sections: [(header: String, items: [MenuDestination])] { sections(zeloAtivo: false) }
+
+    /// "Meu Zelo AI" só aparece com o Zelo liberado para a conta — o mesmo
+    /// critério do botão flutuante (2026-10-06).
+    static func sections(zeloAtivo: Bool) -> [(header: String, items: [MenuDestination])] {
         var todas: [(header: String, items: [MenuDestination])] = [
             ("PRINCIPAL", [.inicio, .agenda]),
         ]
@@ -64,7 +70,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         todas.append((header: "GESTÃO", items: [.gateway, .financeiro]))
         // Ecossistema: os outros produtos da Terapia Acolher dentro do app (leads,
         // créditos e Vitrine) — pedido do Caiuã em 2026-09-27.
-        todas.append((header: "ECOSSISTEMA", items: [.leads, .creditos, .vitrine]))
+        todas.append((header: "ECOSSISTEMA", items: [.leads, .creditos, .vitrine] + (zeloAtivo ? [.meuZelo] : [])))
         // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
         // que era terapeuta↔paciente pelo WhatsApp).
         todas.append((header: "CONTA", items: [.suporte, .uso, .assinatura, .configuracoes]))
@@ -230,6 +236,7 @@ struct MainShellView: View {
         case .gateway: FinGatewayHomeView()
         case .financeiro: FinanceHomeView()
         case .vitrine: VitrineView()
+        case .meuZelo: MeuZeloView()
         case .leads: LeadsListView()
         case .creditos: LeadsCreditsView()
         case .suporte: SupportHomeView()
@@ -246,6 +253,7 @@ struct SideMenuView: View {
     @Binding var isOpen: Bool
     /// O backend diz se o Acolher Financeiro está liberado para esta conta.
     @State private var gateway = FinGatewayStore.shared
+    @State private var zelo = ZeloStore.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -280,7 +288,7 @@ struct SideMenuView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(MenuDestination.sections, id: \.header) { section in
+                    ForEach(MenuDestination.sections(zeloAtivo: zelo.ativo), id: \.header) { section in
                         Text(section.header)
                             .font(Theme.body(11, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.45))
