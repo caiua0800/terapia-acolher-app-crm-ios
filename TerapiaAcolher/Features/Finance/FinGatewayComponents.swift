@@ -725,7 +725,9 @@ enum AcolherFinanceiro {
     /// Sem resposta (carregando, ou backend anterior ao campo) conta como em
     /// desenvolvimento: liberar por engano abriria telas que o backend recusa.
     static func emDesenvolvimento(_ overview: GwOverview?) -> Bool {
-        overview?.emDesenvolvimento != false
+        // Sem resposta ainda: menu normal; só vira "em desenvolvimento" se o
+        // backend disser (2026-10-07 — antes piscava ao abrir o app).
+        overview?.emDesenvolvimento == true
     }
 }
 
