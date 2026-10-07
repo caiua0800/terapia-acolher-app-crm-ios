@@ -5,6 +5,11 @@ import Foundation
 struct FinPatientRef: Codable, Identifiable, Hashable {
     let id: String
     let name: String
+    /// Para a opção "Enviar agora pelo WhatsApp" ao cobrar (2026-10-06).
+    /// Opcionais: nem toda tela de origem tem esses dados.
+    var whatsapp: String? = nil
+    /// WhatsApp ligado para este paciente (ausente = ligado, o padrão).
+    var whatsappEnabled: Bool? = nil
 }
 
 // MARK: - Transações
@@ -69,10 +74,24 @@ enum FinChargeStatus: String, Decodable {
     case canceled = "CANCELED"
 }
 
+/// Quem paga uma cobrança avulsa (2026-10-06): não é paciente, não ocupa
+/// vaga no plano e não tem ficha. O documento vem mascarado do servidor.
+struct FinPayer: Decodable, Hashable {
+    let name: String
+    let documentMasked: String?
+    let email: String?
+}
+
 struct FinCharge: Decodable, Identifiable {
     let id: String
-    let patientId: String
+    /// Nil na cobrança avulsa (`kind == "STANDALONE"`).
+    let patientId: String?
     let patient: FinPatientRef?
+    /// PATIENT | STANDALONE. Opcional: backend antigo não manda (= paciente).
+    let kind: String?
+    let payer: FinPayer?
+    /// Lembrete agendado (só cobrança de paciente). Opcional: campo novo.
+    let reminderScheduledAt: Date?
     let description: String
     let referenceMonth: String?
     let amount: Double
@@ -87,6 +106,11 @@ struct FinCharge: Decodable, Identifiable {
     let gatewayInvoiceUrl: String?
     let splitFeeApplied: Double?
     let reminderSentAt: Date?
+
+    var ehAvulsa: Bool { kind == "STANDALONE" || (patientId == nil && payer != nil) }
+
+    /// Nome de quem paga: o paciente ou o pagador avulso.
+    var nomeDoPagador: String? { patient?.name ?? payer?.name }
 
     var paymentMethodLabel: String? {
         switch paymentMethod {
@@ -123,8 +147,18 @@ struct FinChargeSummary: Decodable {
     var total: Int { counts.pending + counts.overdue + counts.paid + counts.canceled }
 }
 
+/// Pagador da cobrança avulsa: só o mínimo que o Asaas exige.
+struct FinPayerBody: Encodable {
+    var name: String
+    /// CPF ou CNPJ, só dígitos.
+    var document: String
+    var email: String?
+}
+
+/// Exatamente um de `patientId` ou `payer` (o servidor recusa os dois ou nenhum).
 struct FinChargeBody: Encodable {
-    var patientId: String
+    var patientId: String?
+    var payer: FinPayerBody?
     var description: String
     var amount: Double
     var dueDate: String // yyyy-MM-dd
@@ -137,6 +171,30 @@ struct FinReminderResult: Decodable {
     let emailSent: Bool
     let messageText: String
     let reminderSentAt: Date?
+    /// Se o WhatsApp saiu (preferências, cota e número permitindo). Opcional:
+    /// backend antigo não manda.
+    let whatsappSent: Bool?
+}
+
+/// O que aconteceu com o envio/agendamento do lembrete ao criar a cobrança.
+struct FinAvisoDeEnvio: Hashable {
+    let texto: String
+    let ok: Bool
+}
+
+struct FinReminderSchedule: Decodable {
+    let reminderScheduledAt: Date?
+}
+
+/// `{"at": null}` cancela — por isso o `encode` explícito: o sintetizado
+/// omitiria a chave e o servidor não saberia que é para cancelar.
+private struct FinReminderScheduleBody: Encodable {
+    let at: String?
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(at, forKey: .at)
+    }
+    enum CodingKeys: String, CodingKey { case at }
 }
 
 struct FinDeleted: Decodable {
@@ -176,10 +234,16 @@ enum FinanceAPI {
         try await APIClient.shared.delete("finance/transactions/\(id)")
     }
 
-    static func charges(patientId: String?, status: FinChargeStatus? = nil) async throws -> [FinCharge] {
+    /// `kind`: "STANDALONE" lista só as avulsas; nil traz todas (backend antigo ignora).
+    static func charges(
+        patientId: String?,
+        status: FinChargeStatus? = nil,
+        kind: String? = nil
+    ) async throws -> [FinCharge] {
         try await APIClient.shared.get("finance/charges", query: [
             "patientId": patientId,
             "status": status?.rawValue,
+            "kind": kind,
         ])
     }
 
@@ -197,6 +261,14 @@ enum FinanceAPI {
 
     static func sendReminder(id: String) async throws -> FinReminderResult {
         try await APIClient.shared.post("finance/charges/\(id)/reminder")
+    }
+
+    /// Agenda (ou, com `nil`, cancela) o lembrete da cobrança.
+    static func scheduleReminder(id: String, at: Date?) async throws -> FinReminderSchedule {
+        try await APIClient.shared.put(
+            "finance/charges/\(id)/reminder-schedule",
+            body: FinReminderScheduleBody(at: at.map(FinFormat.isoComFuso))
+        )
     }
 
     static func patients(search: String?) async throws -> [FinPatientRef] {
@@ -231,6 +303,23 @@ enum FinFormat {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd/MM"
         formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter
+    }()
+
+    /// "2026-10-10T09:00:00-03:00": momento com o fuso do aparelho, para o
+    /// servidor agendar no horário que o terapeuta escolheu.
+    static func isoComFuso(_ date: Date) -> String {
+        let f = ISO8601DateFormatter()
+        f.timeZone = .current
+        f.formatOptions = [.withInternetDateTime]
+        return f.string(from: date)
+    }
+
+    /// "10/10 às 09:00".
+    static let diaEHora: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.dateFormat = "dd/MM 'às' HH:mm"
         return formatter
     }()
 

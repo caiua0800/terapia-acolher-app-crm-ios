@@ -13,6 +13,8 @@ struct FinGatewayChargePixSheet: View {
     let charge: GwCharge
     var simulation: Bool
     var provider: GwProvider?
+    /// Resultado do "Enviar agora pelo WhatsApp" / agendamento feitos ao criar.
+    var aviso: FinAvisoDeEnvio?
     /// Chamado quando o pagamento cai (real ou simulado), pra a tela de trás recarregar.
     var onPaid: () -> Void
 
@@ -25,11 +27,13 @@ struct FinGatewayChargePixSheet: View {
         charge: GwCharge,
         simulation: Bool,
         provider: GwProvider?,
+        aviso: FinAvisoDeEnvio? = nil,
         onPaid: @escaping () -> Void
     ) {
         self.charge = charge
         self.simulation = simulation
         self.provider = provider
+        self.aviso = aviso
         self.onPaid = onPaid
         _atual = State(initialValue: charge)
     }
@@ -41,6 +45,7 @@ struct FinGatewayChargePixSheet: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         cabecalho
+                        if let aviso { avisoDoEnvio(aviso) }
                         if atual.status == .paid {
                             pago
                         } else if atual.isCartao {
@@ -111,6 +116,20 @@ struct FinGatewayChargePixSheet: View {
     }
 
     // MARK: Blocos
+
+    private func avisoDoEnvio(_ aviso: FinAvisoDeEnvio) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: aviso.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                .foregroundStyle(aviso.ok ? Theme.success : Theme.warning)
+            Text(aviso.texto)
+                .font(Theme.body(13))
+                .foregroundStyle(Theme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(aviso.ok ? Theme.successSoft : Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
+    }
 
     private var cabecalho: some View {
         VStack(spacing: 6) {

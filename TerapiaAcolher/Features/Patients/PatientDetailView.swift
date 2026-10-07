@@ -500,7 +500,12 @@ struct PatientDetailView: View {
                 // já existia completa (resumo, filtros, pagar, lembrete, Pix do gateway).
                 NavigationLink {
                     FinChargesView(
-                        patient: FinPatientRef(id: detail.id, name: detail.name)
+                        patient: FinPatientRef(
+                            id: detail.id,
+                            name: detail.name,
+                            whatsapp: detail.whatsapp,
+                            whatsappEnabled: detail.whatsappEnabled
+                        )
                     )
                 } label: {
                     sectionRow(

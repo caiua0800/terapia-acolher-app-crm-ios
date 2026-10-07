@@ -14,6 +14,11 @@ final class FinChargeDetailModel {
     /// só abre depois que a prévia fecha — duas folhas juntas se derrubam.
     var cobrandoNoCartao = false
     var cartaoGerado: GwCharge?
+    // Lembrete (2026-10-06): agendar, alterar, cancelar e enviar agora.
+    var isWorkingLembrete = false
+    var isSendingNow = false
+    var editandoLembrete = false
+    var reminderResult: FinReminderResult?
 
     init(charge: FinCharge) {
         self.charge = charge
@@ -30,9 +35,48 @@ final class FinChargeDetailModel {
     var emAberto: Bool { charge.status == .pending || charge.status == .overdue }
 
     func carregar() async {
-        if let atual = try? await FinanceAPI.charges(patientId: charge.patientId)
-            .first(where: { $0.id == charge.id }) {
+        // Avulsa não tem paciente: busca na lista das avulsas.
+        let lista = charge.patientId == nil
+            ? try? await FinanceAPI.charges(patientId: nil, kind: "STANDALONE")
+            : try? await FinanceAPI.charges(patientId: charge.patientId)
+        if let atual = lista?.first(where: { $0.id == charge.id }) {
             charge = atual
+        }
+    }
+
+    /// Lembrete agendado e ainda por vir.
+    var lembreteAgendado: Date? {
+        guard let quando = charge.reminderScheduledAt, quando > Date() else { return nil }
+        return quando
+    }
+
+    func agendar(_ quando: Date?) async {
+        isWorkingLembrete = true
+        defer { isWorkingLembrete = false }
+        do {
+            _ = try await FinanceAPI.scheduleReminder(id: charge.id, at: quando)
+            Haptics.success()
+            await carregar()
+        } catch is CancellationError {
+        } catch let error as APIError {
+            present(error.message)
+        } catch {
+            present("Não foi possível agendar o lembrete.")
+        }
+    }
+
+    func enviarAgora() async {
+        isSendingNow = true
+        defer { isSendingNow = false }
+        do {
+            reminderResult = try await FinanceAPI.sendReminder(id: charge.id)
+            Haptics.success()
+            await carregar()
+        } catch is CancellationError {
+        } catch let error as APIError {
+            present(error.message)
+        } catch {
+            present("Não foi possível enviar o lembrete.")
         }
     }
 
@@ -84,6 +128,9 @@ struct FinChargeDetailView: View {
                     cabecalho
                     dados
                     if model.emAberto { acoes }
+                    // Lembrete só para paciente: o número oficial não fala com
+                    // quem não está cadastrado.
+                    if model.emAberto, !model.charge.ehAvulsa { lembrete }
 
                     // O selo não pode depender de conta aprovada: a tela mostra
                     // valor e status de cobrança de qualquer jeito.
@@ -118,6 +165,25 @@ struct FinChargeDetailView: View {
                 model.cartaoGerado = criada
                 Task { await model.carregar() }
                 onChange()
+            }
+        }
+        .sheet(isPresented: $model.editandoLembrete) {
+            FinAgendarLembreteSheet(
+                inicial: model.lembreteAgendado
+                    ?? Calendar.current.date(
+                        bySettingHour: 9, minute: 0, second: 0,
+                        of: max(FinFormat.localDate(fromCalendarDay: model.charge.dueDate), Date())
+                    ) ?? Date()
+            ) { quando in
+                Task { await model.agendar(quando) }
+            }
+        }
+        .sheet(isPresented: .init(
+            get: { model.reminderResult != nil },
+            set: { if !$0 { model.reminderResult = nil } }
+        )) {
+            if let result = model.reminderResult {
+                FinReminderSheet(result: result)
             }
         }
         .sheet(item: $model.gatewayPix) { pix in
@@ -155,10 +221,13 @@ struct FinChargeDetailView: View {
                 }
             }
 
-            if let nome = model.charge.patient?.name {
+            if let nome = model.charge.nomeDoPagador {
                 Text(nome)
                     .font(Theme.body(15, weight: .medium))
                     .foregroundStyle(Theme.textSecondary)
+            }
+            if model.charge.ehAvulsa {
+                StatusBadge(label: "AVULSA", color: Theme.textSecondary, background: Theme.border.opacity(0.5))
             }
         }
         .padding(.top, 6)
@@ -186,6 +255,16 @@ struct FinChargeDetailView: View {
         ThemeCard(padding: 0) {
             VStack(spacing: 0) {
                 linha("Descrição", model.charge.description)
+                if let payer = model.charge.payer {
+                    if let doc = payer.documentMasked {
+                        Divider().overlay(Theme.border)
+                        linha("CPF/CNPJ", doc)
+                    }
+                    if let email = payer.email, !email.isEmpty {
+                        Divider().overlay(Theme.border)
+                        linha("E-mail", email)
+                    }
+                }
                 Divider().overlay(Theme.border)
                 linha("Vencimento", PatientFormat.fullDate.string(from: model.charge.dueDate))
                 if let m = model.charge.paymentMethodLabel {
@@ -296,4 +375,121 @@ struct FinChargeDetailView: View {
             .buttonStyle(.pressable)
         }
     }
+
+    // MARK: - Lembrete da cobrança
+
+    private var lembrete: some View {
+        ThemeCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: model.lembreteAgendado == nil ? "bell" : "clock.badge")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 32, height: 32)
+                        .background(Theme.primarySoft, in: RoundedRectangle(cornerRadius: 9))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Lembrete da cobrança")
+                            .font(Theme.body(15, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(model.lembreteAgendado.map { "Agendado para \(FinFormat.diaEHora.string(from: $0))" }
+                             ?? "Nenhum lembrete agendado")
+                            .font(Theme.body(12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    if model.isWorkingLembrete {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+                HStack(spacing: 8) {
+                    SecondaryButton(
+                        title: model.lembreteAgendado == nil ? "Agendar" : "Alterar",
+                        icon: "calendar.badge.clock"
+                    ) {
+                        Haptics.tap()
+                        model.editandoLembrete = true
+                    }
+                    if model.lembreteAgendado != nil {
+                        Button {
+                            Haptics.tap()
+                            Task { await model.agendar(nil) }
+                        } label: {
+                            Text("Cancelar")
+                                .font(Theme.body(14, weight: .semibold))
+                                .foregroundStyle(Theme.danger)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.pressable)
+                        .disabled(model.isWorkingLembrete)
+                    }
+                }
+                PrimaryButton(
+                    title: "Enviar lembrete agora",
+                    icon: "paperplane",
+                    isLoading: model.isSendingNow
+                ) {
+                    Haptics.tap()
+                    Task { await model.enviarAgora() }
+                }
+            }
+        }
+    }
+}
+
+/// Escolher data e hora do lembrete (não aceita passado).
+struct FinAgendarLembreteSheet: View {
+    var inicial: Date
+    var onSalvar: (Date) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var quando: Date
+
+    init(inicial: Date, onSalvar: @escaping (Date) -> Void) {
+        self.inicial = inicial
+        self.onSalvar = onSalvar
+        _quando = State(initialValue: max(inicial, Date().addingTimeInterval(60)))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("O paciente recebe o lembrete com o link de pagamento no horário escolhido.")
+                        .font(Theme.body(14))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ThemeCard {
+                        DatePicker(
+                            "Quando",
+                            selection: $quando,
+                            in: Date()...Date().addingTimeInterval(90 * 86_400),
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .font(Theme.body(15, weight: .semibold))
+                        .tint(Theme.primary)
+                        .environment(\.locale, Locale(identifier: "pt_BR"))
+                    }
+                    PrimaryButton(title: "Agendar lembrete", icon: "checkmark", isEnabled: quando > Date()) {
+                        Haptics.tap()
+                        onSalvar(quando)
+                        dismiss()
+                    }
+                    Spacer()
+                }
+                .padding(Theme.screenPadding)
+            }
+            .navigationTitle("Agendar lembrete")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancelar") { dismiss() }
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
 }

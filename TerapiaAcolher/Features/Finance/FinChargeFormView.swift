@@ -1,11 +1,40 @@
 import SwiftUI
 
-/// Sheet de nova cobrança pro paciente.
+/// Sheet de nova cobrança: para um paciente ou, desde 2026-10-06, para outra
+/// pessoa (cobrança avulsa — supervisão, curso, sala; não vira paciente).
 struct FinChargeFormView: View {
-    let patient: FinPatientRef
     var onSaved: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+
+    /// Paciente | Outra pessoa. Começa em paciente quando a tela de origem já
+    /// tem um (ficha, cobranças do paciente).
+    @State private var paraPaciente: Bool
+    @State private var paciente: FinPatientRef?
+    @State private var escolhendoPaciente = false
+
+    // Pagador avulso: só o mínimo que o Asaas exige para gerar Pix/cartão.
+    @State private var nomePagador = ""
+    @State private var documentoPagador = ""
+    @State private var emailPagador = ""
+
+    // Avisar o paciente (só paciente: o número oficial só fala com quem está
+    // cadastrado, o que protege a reputação dele para todos os terapeutas).
+    @State private var enviarAgora = false
+    @State private var agendarLembrete = false
+    @State private var dataDoLembrete: Date
+    /// Enquanto o terapeuta não mexer na hora do lembrete, ela acompanha o
+    /// vencimento (dia do vencimento às 9h).
+    @State private var lembreteTocado = false
+    /// O que aconteceu com o envio/agendamento, mostrado na folha do Pix.
+    @State private var avisoDoEnvio: FinAvisoDeEnvio?
+
+    init(patient: FinPatientRef?, onSaved: @escaping () -> Void) {
+        self.onSaved = onSaved
+        _paraPaciente = State(initialValue: patient != nil)
+        _paciente = State(initialValue: patient)
+        _dataDoLembrete = State(initialValue: Self.noveDaManha(de: Date()))
+    }
 
     @State private var descriptionText = ""
     @State private var amountText = ""
@@ -49,14 +78,54 @@ struct FinChargeFormView: View {
         return valor > 0 && valor < minimo
     }
 
+    private var digitosDoDocumento: String { documentoPagador.filter(\.isNumber) }
+
+    private var documentoValido: Bool {
+        let d = digitosDoDocumento
+        return d.count == 11 ? GwDocumentoValido.cpf(d) : GwDocumentoValido.cnpj(d)
+    }
+
+    private var emailPagadorValido: Bool {
+        let e = emailPagador.trimmingCharacters(in: .whitespaces)
+        return e.isEmpty || (e.contains("@") && e.contains(".") && !e.contains(" "))
+    }
+
+    private var destinatarioValido: Bool {
+        if paraPaciente { return paciente != nil }
+        return nomePagador.trimmingCharacters(in: .whitespaces).count >= 2
+            && documentoValido && emailPagadorValido
+    }
+
+    /// Por que o WhatsApp não pode sair para este paciente (nil = pode).
+    private var motivoSemWhatsApp: String? {
+        guard let paciente else { return nil }
+        if (paciente.whatsapp ?? "").filter(\.isNumber).isEmpty {
+            return "\(primeiroNome(paciente.name)) não tem WhatsApp cadastrado."
+        }
+        if paciente.whatsappEnabled == false {
+            return "As mensagens por WhatsApp estão desligadas para \(primeiroNome(paciente.name))."
+        }
+        return nil
+    }
+
     /// Desde 2026-09-23 não existe cobrança "por fora": sem conta aprovada no
     /// Acolher Financeiro não dá pra criar cobrança.
     private var isValid: Bool {
-        guard podeCobrarPorPix, !abaixoDoMinimo,
+        guard podeCobrarPorPix, !abaixoDoMinimo, destinatarioValido,
               !descriptionText.trimmingCharacters(in: .whitespaces).isEmpty,
               let amount = FinFormat.parseAmount(amountText), amount > 0
         else { return false }
+        if paraPaciente, agendarLembrete, dataDoLembrete <= Date() { return false }
         return true
+    }
+
+    private func primeiroNome(_ nome: String) -> String {
+        nome.split(separator: " ").first.map(String.init) ?? nome
+    }
+
+    /// Dia `data` às 9h (hora local).
+    private static func noveDaManha(de data: Date) -> Date {
+        Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: data) ?? data
     }
 
     var body: some View {
@@ -65,13 +134,7 @@ struct FinChargeFormView: View {
                 Theme.background.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 12) {
-                            InitialAvatar(name: patient.name, size: 40)
-                            Text(patient.name)
-                                .font(Theme.body(16, weight: .semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                            Spacer()
-                        }
+                        destinatario
 
                         fieldCard("Descrição") {
                             TextField("Ex.: Cobrança de julho", text: $descriptionText)
@@ -93,6 +156,18 @@ struct FinChargeFormView: View {
                                 .font(Theme.body(15, weight: .semibold))
                                 .tint(Theme.primary)
                                 .environment(\.locale, Locale(identifier: "pt_BR"))
+                        }
+                        .onChange(of: dueDate) { _, novo in
+                            if !lembreteTocado { dataDoLembrete = Self.noveDaManha(de: novo) }
+                        }
+
+                        if paraPaciente {
+                            avisarPaciente
+                        } else {
+                            Text("Você envia o link de pagamento por onde quiser.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .padding(.leading, 2)
                         }
 
                         ThemeCard {
@@ -141,10 +216,19 @@ struct FinChargeFormView: View {
                 FinGatewayChargePixSheet(
                     charge: pix,
                     simulation: store.simulation,
-                    provider: store.overview?.provider
+                    provider: store.overview?.provider,
+                    aviso: avisoDoEnvio
                 ) {
                     onSaved()
                 }
+            }
+            .navigationDestination(isPresented: $escolhendoPaciente) {
+                FinPatientPickerView { escolhido in
+                    paciente = escolhido
+                    escolhendoPaciente = false
+                }
+                .navigationTitle("Paciente")
+                .navigationBarTitleDisplayMode(.inline)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -419,8 +503,17 @@ struct FinChargeFormView: View {
         guard let amount = FinFormat.parseAmount(amountText) else { return }
         isSaving = true
         defer { isSaving = false }
+        let avulsa = !paraPaciente
         let body = FinChargeBody(
-            patientId: patient.id,
+            patientId: avulsa ? nil : paciente?.id,
+            payer: avulsa
+                ? FinPayerBody(
+                    name: nomePagador.trimmingCharacters(in: .whitespaces),
+                    document: digitosDoDocumento,
+                    email: emailPagador.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? nil : emailPagador.trimmingCharacters(in: .whitespaces)
+                )
+                : nil,
             description: descriptionText.trimmingCharacters(in: .whitespaces),
             amount: amount,
             dueDate: FinFormat.isoDay.string(from: dueDate),
@@ -429,6 +522,8 @@ struct FinChargeFormView: View {
         )
         let cartaoAgora = usandoCartao
         let repassarAgora = repassar
+        let enviarWhatsAppAgora = !avulsa && enviarAgora && motivoSemWhatsApp == nil
+        let lembreteEm: Date? = !avulsa && agendarLembrete ? dataDoLembrete : nil
         do {
             let criada = try await FinanceAPI.createCharge(body)
             onSaved()
@@ -436,9 +531,17 @@ struct FinChargeFormView: View {
             // ao paciente deixava o terapeuta no meio do caminho: ele tinha que
             // achar a cobrança na lista e só então pedir o Pix.
             do {
-                pixCriado = cartaoAgora
+                let gerada = cartaoAgora
                     ? try await FinGatewayAPI.createCard(chargeId: criada.id, passFees: repassarAgora)
                     : try await FinGatewayAPI.createPix(chargeId: criada.id)
+                // Avisar o paciente DEPOIS do link existir: o lembrete leva o
+                // botão de pagar. Falha aqui não desfaz a cobrança — vira aviso.
+                avisoDoEnvio = await avisar(
+                    chargeId: criada.id,
+                    whatsAppAgora: enviarWhatsAppAgora,
+                    lembreteEm: lembreteEm
+                )
+                pixCriado = gerada
                 fecharAoFecharPix = true
                 Haptics.success()
             } catch {
@@ -455,4 +558,193 @@ struct FinChargeFormView: View {
             errorMessage = (error as? APIError)?.message ?? "Não foi possível criar a cobrança."
         }
     }
+
+    // MARK: - Enviar agora / agendar
+
+    private func avisar(chargeId: String, whatsAppAgora: Bool, lembreteEm: Date?) async -> FinAvisoDeEnvio? {
+        var partes: [String] = []
+        var deuCerto = true
+        if whatsAppAgora {
+            do {
+                let r = try await FinanceAPI.sendReminder(id: chargeId)
+                if r.whatsappSent == false {
+                    deuCerto = false
+                    partes.append("O WhatsApp não foi enviado (mensagens desligadas ou cota do plano).")
+                } else {
+                    partes.append("Enviado pelo WhatsApp ✓")
+                }
+            } catch {
+                deuCerto = false
+                partes.append((error as? APIError)?.message ?? "Não foi possível enviar pelo WhatsApp.")
+            }
+        }
+        if let lembreteEm {
+            do {
+                _ = try await FinanceAPI.scheduleReminder(id: chargeId, at: lembreteEm)
+                partes.append("Lembrete agendado para \(FinFormat.diaEHora.string(from: lembreteEm)).")
+            } catch {
+                deuCerto = false
+                partes.append((error as? APIError)?.message ?? "Não foi possível agendar o lembrete.")
+            }
+        }
+        guard !partes.isEmpty else { return nil }
+        return FinAvisoDeEnvio(texto: partes.joined(separator: " "), ok: deuCerto)
+    }
+
+    // MARK: - Para quem é a cobrança
+
+    private var destinatario: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Picker("Para quem", selection: $paraPaciente.animation(.easeOut(duration: 0.2))) {
+                Text("Paciente").tag(true)
+                Text("Outra pessoa").tag(false)
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: paraPaciente) { _, _ in Haptics.tap() }
+
+            if paraPaciente {
+                Button {
+                    Haptics.tap()
+                    escolhendoPaciente = true
+                } label: {
+                    ThemeCard {
+                        HStack(spacing: 12) {
+                            if let paciente {
+                                InitialAvatar(name: paciente.name, size: 40)
+                                Text(paciente.name)
+                                    .font(Theme.body(16, weight: .semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                            } else {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(Theme.primary)
+                                Text("Escolher paciente")
+                                    .font(Theme.body(15, weight: .semibold))
+                                    .foregroundStyle(Theme.primary)
+                            }
+                            Spacer()
+                            Text(paciente == nil ? "" : "Trocar")
+                                .font(Theme.body(13, weight: .semibold))
+                                .foregroundStyle(Theme.textSecondary)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.textSecondary.opacity(0.6))
+                        }
+                    }
+                }
+                .buttonStyle(.pressableSubtle)
+            } else {
+                fieldCard("Nome") {
+                    TextField("Nome de quem vai pagar", text: $nomePagador)
+                        .font(Theme.body(15))
+                        .textContentType(.name)
+                        .textInputAutocapitalization(.words)
+                }
+                fieldCard("CPF ou CNPJ") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        TextField("000.000.000-00", text: Binding(
+                            get: { documentoPagador },
+                            set: { novo in
+                                let d = String(novo.filter(\.isNumber).prefix(14))
+                                documentoPagador = d.count <= 11 ? GwMask.cpf(d) : GwMask.cnpj(d)
+                            }
+                        ))
+                        .font(Theme.body(15))
+                        .keyboardType(.numberPad)
+                        if digitosDoDocumento.count >= 11, !documentoValido {
+                            Text(digitosDoDocumento.count == 11 ? "CPF inválido." : "CNPJ inválido.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.danger)
+                        } else {
+                            Text("O Asaas exige o documento de quem paga.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                }
+                fieldCard("E-mail (opcional)") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        TextField("email@exemplo.com", text: $emailPagador)
+                            .font(Theme.body(15))
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        if !emailPagadorValido {
+                            Text("E-mail inválido.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.danger)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Avisar o paciente
+
+    private var avisarPaciente: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("AVISAR O PACIENTE")
+                .font(Theme.body(10, weight: .semibold))
+                .tracking(1.2)
+                .foregroundStyle(Theme.textSecondary)
+                .padding(.leading, 2)
+            ThemeCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle(isOn: $enviarAgora) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Enviar agora pelo WhatsApp")
+                                .font(Theme.body(15, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(motivoSemWhatsApp ?? "Vai com o link de pagamento, pelo número oficial.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .tint(Theme.primary)
+                    .disabled(motivoSemWhatsApp != nil)
+                    .onChange(of: enviarAgora) { _, _ in Haptics.tap() }
+
+                    Divider().overlay(Theme.border)
+
+                    Toggle(isOn: $agendarLembrete.animation(.easeOut(duration: 0.2))) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Agendar lembrete")
+                                .font(Theme.body(15, weight: .semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("Mandamos o lembrete com o link no horário escolhido.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .tint(Theme.primary)
+                    .onChange(of: agendarLembrete) { _, _ in Haptics.tap() }
+
+                    if agendarLembrete {
+                        DatePicker(
+                            "Quando",
+                            selection: Binding(
+                                get: { dataDoLembrete },
+                                set: { dataDoLembrete = $0; lembreteTocado = true }
+                            ),
+                            in: Date()...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .font(Theme.body(15, weight: .semibold))
+                        .tint(Theme.primary)
+                        .environment(\.locale, Locale(identifier: "pt_BR"))
+                        if dataDoLembrete <= Date() {
+                            Text("Escolha um horário no futuro.")
+                                .font(Theme.body(12))
+                                .foregroundStyle(Theme.danger)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }

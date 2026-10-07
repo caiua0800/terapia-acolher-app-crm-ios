@@ -4,11 +4,30 @@ import SwiftUI
 
 struct FinChargesEntryView: View {
     @State private var selectedPatient: FinPatientRef?
+    /// Paciente | Outra pessoa (2026-10-06): as cobranças avulsas, de quem não
+    /// é paciente, ficam numa lista própria.
+    @State private var deOutraPessoa = false
 
     var body: some View {
-        FinPatientPickerView { patient in
-            selectedPatient = patient
+        VStack(spacing: 0) {
+            Picker("Cobranças de", selection: $deOutraPessoa.animation(.easeOut(duration: 0.2))) {
+                Text("Paciente").tag(false)
+                Text("Outra pessoa").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, Theme.screenPadding)
+            .padding(.vertical, 10)
+            .onChange(of: deOutraPessoa) { _, _ in Haptics.tap() }
+
+            if deOutraPessoa {
+                FinChargesView(patient: nil)
+            } else {
+                FinPatientPickerView { patient in
+                    selectedPatient = patient
+                }
+            }
         }
+        .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Cobranças")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $selectedPatient) { patient in
@@ -44,7 +63,8 @@ final class FinChargesViewModel {
         }
     }
 
-    let patient: FinPatientRef
+    /// Nil = cobranças avulsas (de quem não é paciente).
+    let patient: FinPatientRef?
     var filter: Filter = .all
     var charges: [FinCharge] = []
     var summary: FinChargeSummary?
@@ -58,18 +78,34 @@ final class FinChargesViewModel {
     /// Pix da cobrança gerado pelo Acolher Financeiro (sheet com QR).
     var gatewayPix: GwCharge?
 
-    init(patient: FinPatientRef) {
+    init(patient: FinPatientRef?) {
         self.patient = patient
+    }
+
+    /// Totais das avulsas, calculados da lista: o resumo do servidor é por
+    /// paciente (sem paciente ele somaria tudo).
+    var totaisAvulsas: (aReceber: Double, emAtraso: Double, abertas: Int) {
+        let abertas = charges.filter { $0.status == .pending || $0.status == .overdue }
+        return (
+            abertas.reduce(0) { $0 + $1.amount },
+            charges.filter { $0.status == .overdue }.reduce(0) { $0 + $1.amount },
+            abertas.count
+        )
     }
 
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let summaryTask = FinanceAPI.chargesSummary(patientId: patient.id)
-            async let listTask = FinanceAPI.charges(patientId: patient.id, status: filter.status)
-            summary = try await summaryTask
-            charges = try await listTask
+            if let patient {
+                async let summaryTask = FinanceAPI.chargesSummary(patientId: patient.id)
+                async let listTask = FinanceAPI.charges(patientId: patient.id, status: filter.status)
+                summary = try await summaryTask
+                charges = try await listTask
+            } else {
+                charges = try await FinanceAPI.charges(patientId: nil, status: filter.status, kind: "STANDALONE")
+                    .filter(\.ehAvulsa)
+            }
         } catch is CancellationError {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch {
@@ -131,6 +167,8 @@ final class FinChargesViewModel {
 
     /// Cobrança mais urgente pro botão largo "Enviar lembrete de cobrança".
     var reminderTarget: FinCharge? {
+        // Avulsa não recebe lembrete pelo número oficial (só paciente).
+        guard patient != nil else { return nil }
         let open = charges.filter { $0.status == .overdue || $0.status == .pending }
         return open.min { $0.dueDate < $1.dueDate }
     }
@@ -165,7 +203,7 @@ struct FinChargesView: View {
     @State private var cobrandoNoCartao: FinCharge?
     @State private var cartaoGerado: GwCharge?
 
-    init(patient: FinPatientRef) {
+    init(patient: FinPatientRef?) {
         _model = State(initialValue: FinChargesViewModel(patient: patient))
     }
 
@@ -186,9 +224,10 @@ struct FinChargesView: View {
                         EmptyStateView(
                             icon: "creditcard",
                             title: "Nenhuma cobrança",
-                            message: store.isApproved
-                                ? "Crie uma cobrança para \(model.patient.name) tocando em +."
-                                : "Com a conta aprovada, você cria cobranças e manda o Pix ao paciente."
+                            message: !store.isApproved
+                                ? "Com a conta aprovada, você cria cobranças e manda o Pix ao paciente."
+                                : model.patient.map { "Crie uma cobrança para \($0.name) tocando em +." }
+                                    ?? "Cobre quem não é paciente (supervisão, curso, sala) tocando em +."
                         )
                     } else {
                         chargeList
@@ -293,12 +332,24 @@ struct FinChargesView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            InitialAvatar(name: model.patient.name, size: 44)
+            if let patient = model.patient {
+                InitialAvatar(name: patient.name, size: 44)
+            } else {
+                Image(systemName: "person.crop.circle.badge.questionmark")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 44, height: 44)
+                    .background(Theme.primarySoft, in: Circle())
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.patient.name)
+                Text(model.patient?.name ?? "Cobranças avulsas")
                     .font(Theme.body(16, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
-                if let summary = model.summary {
+                if model.patient == nil {
+                    Text("Para quem não é paciente")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                } else if let summary = model.summary {
                     Text("\(summary.total) cobrança\(summary.total == 1 ? "" : "s") no total")
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
@@ -350,14 +401,15 @@ struct FinChargesView: View {
     private var summaryCard: some View {
         ThemeCard {
             VStack(alignment: .leading, spacing: 4) {
-                let overdue = model.summary?.overdue ?? 0
+                let avulsas = model.patient == nil ? model.totaisAvulsas : nil
+                let overdue = avulsas?.emAtraso ?? model.summary?.overdue ?? 0
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("A RECEBER")
                             .font(Theme.body(10, weight: .semibold))
                             .tracking(1.2)
                             .foregroundStyle(Theme.textSecondary)
-                        Text(Formatters.brl(model.summary?.toReceive ?? 0))
+                        Text(Formatters.brl(avulsas?.aReceber ?? model.summary?.toReceive ?? 0))
                             .font(Theme.moneyDisplay(28))
                             .monospacedDigit()
                             .foregroundStyle(Theme.textPrimary)
@@ -379,7 +431,12 @@ struct FinChargesView: View {
                             .lineLimit(1)
                     }
                 }
-                if let summary = model.summary {
+                if let avulsas {
+                    Text("\(avulsas.abertas) cobrança\(avulsas.abertas == 1 ? "" : "s") em aberto")
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .padding(.top, 4)
+                } else if let summary = model.summary {
                     let open = summary.counts.pending + summary.counts.overdue
                     Text("\(open) cobrança\(open == 1 ? "" : "s") em aberto")
                         .font(Theme.body(12))
@@ -482,8 +539,26 @@ struct FinChargesView: View {
                     .font(Theme.body(15, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
+                if charge.ehAvulsa, let nome = charge.nomeDoPagador {
+                    Text(nome)
+                        .font(Theme.body(12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
                 HStack(spacing: 6) {
                     statusBadge(charge.status)
+                    if charge.ehAvulsa {
+                        StatusBadge(label: "AVULSA", color: Theme.textSecondary, background: Theme.border.opacity(0.5))
+                    }
+                    // Lembrete agendado e ainda por vir: o relógio diz que
+                    // não precisa mandar à mão.
+                    if let quando = charge.reminderScheduledAt, quando > Date(),
+                       charge.status == .pending || charge.status == .overdue {
+                        Image(systemName: "clock.badge")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                            .accessibilityLabel("Lembrete agendado para \(FinFormat.diaEHora.string(from: quando))")
+                    }
                     // Já existe Pix desta cobrança: sem o selo, a única forma
                     // de saber era abrir a cobrança e esperar carregar.
                     if charge.gatewayName == "ACOLHER", charge.status != .paid, charge.status != .canceled {
@@ -591,11 +666,13 @@ struct FinChargesView: View {
                         )
                     }
                 }
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    Task { await model.sendReminder(charge) }
-                } label: {
-                    Label("Enviar lembrete de cobrança", systemImage: "bell")
+                if !charge.ehAvulsa {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Task { await model.sendReminder(charge) }
+                    } label: {
+                        Label("Enviar lembrete de cobrança", systemImage: "bell")
+                    }
                 }
                 // Cartão só antes de existir cobrança online para ela.
                 if store.isApproved, charge.gatewayName != "ACOLHER",
@@ -719,6 +796,21 @@ struct FinReminderSheet: View {
                         ) {
                             UIPasteboard.general.string = result.messageText
                             withAnimation { copied = true }
+                        }
+
+                        if let whats = result.whatsappSent {
+                            HStack(spacing: 8) {
+                                Image(systemName: whats ? "checkmark.circle.fill" : "info.circle")
+                                    .foregroundStyle(whats ? Theme.success : Theme.warning)
+                                Text(whats
+                                    ? "Lembrete enviado pelo WhatsApp, com o link de pagamento."
+                                    : "O WhatsApp não foi enviado (sem número, mensagens desligadas ou cota do plano).")
+                                    .font(Theme.body(13))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(whats ? Theme.successSoft : Theme.warningSoft, in: RoundedRectangle(cornerRadius: 12))
                         }
 
                         HStack(spacing: 8) {
