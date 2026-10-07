@@ -519,8 +519,7 @@ struct VitrineView: View {
 
     private func comoAtende(_ p: VitrineProfile) -> some View {
         let abordagens = (p.approaches ?? []) + (p.approachOther.map { [$0] } ?? [])
-        let idiomas = (p.languages ?? "").split(whereSeparator: { $0 == "," || $0 == ";" })
-            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let idiomas = p.languages?.itens ?? []
         return bloco("Como você atende") {
             VStack(alignment: .leading, spacing: 16) {
                 etiquetas("Especialidades", p.specialties, destaque: true)

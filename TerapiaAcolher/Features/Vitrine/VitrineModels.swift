@@ -61,7 +61,7 @@ struct VitrineProfile: Codable {
     var shifts: [String]?
     var approaches: [String]?
     var approachOther: String?
-    var languages: String?
+    var languages: ListaOuTexto?
     var consultationPrice: Double?
     var isActive: Bool?
     let slug: String?
@@ -81,8 +81,33 @@ struct VitrineProfilePatch: Encodable {
     var targetAudience: [String]?
     var shifts: [String]?
     var approaches: [String]?
-    var languages: String?
+    /// Lista (até 20) — a API da Vitrine aceita array.
+    var languages: [String]?
     var consultationPrice: Double?
+}
+
+/// Idiomas chegam como lista na API nova e como texto separado por vírgula nos
+/// perfis antigos: aceita os dois, sempre expõe lista.
+struct ListaOuTexto: Codable, Equatable {
+    var itens: [String]
+
+    init(_ itens: [String]) { self.itens = itens }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if let lista = try? c.decode([String].self) {
+            itens = lista
+        } else if let texto = try? c.decode(String.self) {
+            itens = texto.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        } else {
+            itens = []
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        try c.encode(itens)
+    }
 }
 
 // MARK: - Listas de domínio
