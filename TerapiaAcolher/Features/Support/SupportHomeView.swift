@@ -238,7 +238,7 @@ struct SupportHomeView: View {
                     .tracking(1.1)
                     .foregroundStyle(Theme.textSecondary)
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                    ForEach(SupCategory.allCases) { item in
+                    ForEach(SupCategory.escolhiveis) { item in
                         botaoCategoria(item)
                     }
                 }

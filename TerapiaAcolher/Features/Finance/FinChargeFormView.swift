@@ -572,7 +572,7 @@ struct FinChargeFormView: View {
                 let r = try await FinanceAPI.sendReminder(id: chargeId, canais: ["WHATSAPP"])
                 if r.whatsappSent == false {
                     deuCerto = false
-                    partes.append(r.whatsappReason ?? "O WhatsApp não foi enviado (mensagens desligadas ou cota do plano).")
+                    partes.append(r.whatsappReason.map { MensagemDeConta.neutra($0, code: nil) } ?? "O WhatsApp não foi enviado (mensagens desligadas ou cota da sua conta).")
                 } else {
                     partes.append("Enviado pelo WhatsApp ✓")
                 }

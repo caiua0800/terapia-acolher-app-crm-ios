@@ -105,7 +105,7 @@ enum SupCategory: String, CaseIterable, Identifiable, Encodable {
         case .prontuarios: "Prontuários"
         case .financeiro: "Fluxo de caixa"
         case .gateway: "Acolher Financeiro"
-        case .assinatura: "Assinatura"
+        case .assinatura: "Conta"
         case .aplicativo: "Aplicativo"
         case .outro: "Outro assunto"
         }
@@ -124,6 +124,11 @@ enum SupCategory: String, CaseIterable, Identifiable, Encodable {
         case .outro: "ellipsis.bubble"
         }
     }
+
+    /// Assuntos oferecidos ao abrir conversa. "Assinatura" fica fora no iOS
+    /// (App Store 3.1.3(f): o app não trata de compra); o caso continua para
+    /// exibir conversas antigas abertas pelo web.
+    static var escolhiveis: [SupCategory] { allCases.filter { $0 != .assinatura } }
 
     static func label(for raw: String?) -> String? {
         raw.flatMap { SupCategory(rawValue: $0)?.label }

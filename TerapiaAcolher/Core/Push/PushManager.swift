@@ -24,6 +24,21 @@ final class DeepLink {
     var supportTicketId: String?
 }
 
+/// Endereços do CRM web ligados a assinatura/compra. O app iOS é acompanhante
+/// gratuito da ferramenta web (App Store 3.1.3(f)): não vende e não chama para
+/// comprar fora — nem por um link vindo de notificação.
+enum LinkDeVenda {
+    private static let caminhos = [
+        "/assinar", "/assinatura", "/planos", "/pre-venda", "/entrar", "/cadastro", "/home",
+    ]
+
+    static func ehLinkDeVenda(_ url: URL) -> Bool {
+        let path = url.path.lowercased()
+        if path.isEmpty || path == "/" { return url.host?.contains("terapiaacolher") == true }
+        return caminhos.contains { path == $0 || path.hasPrefix($0 + "/") || path.hasSuffix($0) }
+    }
+}
+
 /// Registro de push e tratamento do toque.
 ///
 /// Sem SDK de terceiro: `UNUserNotificationCenter` e `registerForRemoteNotifications`
@@ -184,7 +199,9 @@ extension PushManager: UNUserNotificationCenterDelegate {
         // uma notificação escrita com destino "Minha Vitrine" caía no default e
         // o app só abria na tela inicial.
         if let url = userInfo["url"] as? String, let destino = URL(string: url) {
-            DeepLink.shared.externalURL = destino
+            // Link de venda (assinar, planos, pré-venda, entrar no web) não abre
+            // pelo app: App Store 3.1.3(f). A notificação cai na tela inicial.
+            if !LinkDeVenda.ehLinkDeVenda(destino) { DeepLink.shared.externalURL = destino }
             return
         }
         if let secao = userInfo["section"] as? String {

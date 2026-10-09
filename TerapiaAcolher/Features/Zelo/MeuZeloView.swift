@@ -400,9 +400,9 @@ struct MeuZeloView: View {
                             itemBomDia("Sessões do dia", "Horário, primeiro nome e se é online.", disponivel: store.rascunho.disponiveis.sessoes, motivo: "", valor: $store.rascunho.bomDia.itens.sessoes)
                             itemBomDia("Compromissos da agenda", "Do Google Agenda, sem repetir as sessões.", disponivel: store.rascunho.disponiveis.agenda, motivo: "Conecte o Google Agenda", valor: $store.rascunho.bomDia.itens.agenda)
                             itemBomDia("Saldo na conta", "Disponível no Acolher Financeiro.", disponivel: store.rascunho.disponiveis.saldo, motivo: "Abra a sua conta no Acolher Financeiro", valor: $store.rascunho.bomDia.itens.saldo)
-                            itemBomDia("A receber no mês", "Cobranças em aberto deste mês.", disponivel: store.rascunho.disponiveis.aReceberMes, motivo: "Indisponível no seu plano", valor: $store.rascunho.bomDia.itens.aReceberMes)
+                            itemBomDia("A receber no mês", "Cobranças em aberto deste mês.", disponivel: store.rascunho.disponiveis.aReceberMes, motivo: "Não incluído na sua conta", valor: $store.rascunho.bomDia.itens.aReceberMes)
                             itemBomDia("Leads esperando contato", "Quantos ainda estão sem atendimento.", disponivel: store.rascunho.disponiveis.leadsPendentes, motivo: "Conecte seus leads", valor: $store.rascunho.bomDia.itens.leadsPendentes)
-                            itemBomDia("Visualizações da Vitrine", "Ontem e nos últimos 7 dias.", disponivel: store.rascunho.disponiveis.vitrineVisualizacoes, motivo: "Disponível no plano Pró com a Vitrine conectada", valor: $store.rascunho.bomDia.itens.vitrineVisualizacoes)
+                            itemBomDia("Visualizações da Vitrine", "Ontem e nos últimos 7 dias.", disponivel: store.rascunho.disponiveis.vitrineVisualizacoes, motivo: "Precisa da Vitrine conectada e incluída na sua conta", valor: $store.rascunho.bomDia.itens.vitrineVisualizacoes)
                         }
 
                         botaoTeste

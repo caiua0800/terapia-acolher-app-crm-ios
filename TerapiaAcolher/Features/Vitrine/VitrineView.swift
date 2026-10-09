@@ -182,8 +182,8 @@ struct VitrineView: View {
                     } else if model.notInPlan {
                         NotInPlanView(
                             icon: "storefront",
-                            title: "Vitrine fora do seu plano",
-                            message: "A integração com a Vitrine não faz parte do seu plano atual. Seu perfil continua no ar normalmente na Vitrine — só não aparece aqui no app."
+                            title: "Vitrine no app",
+                            message: "A integração com a Vitrine não está incluída na sua conta. Seu perfil continua no ar normalmente na Vitrine — só não aparece aqui no app."
                         )
                     } else if status.connected {
                         conectado(status)
@@ -330,12 +330,6 @@ struct VitrineView: View {
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
                     .background(.white, in: Capsule())
-                    Text(status.plano?.tipo == "FREE" ? "Plano gratuito" : "Plano \(status.planoLegivel)")
-                        .font(Theme.body(10.5, weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(.white.opacity(0.85), in: Capsule())
                 }
                 .padding(12)
             }

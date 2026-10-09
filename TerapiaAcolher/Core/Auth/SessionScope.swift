@@ -27,7 +27,7 @@ enum SessionScope {
         NotificationsViewModel.shared = NotificationsViewModel()
         VitrineViewModel.shared = VitrineViewModel()
         LeadsStore.shared = LeadsStore()
-        SubscriptionViewModel.shared = SubscriptionViewModel()
+        AccountStatusModel.shared = AccountStatusModel()
         SettingsHomeViewModel.shared = SettingsHomeViewModel()
         SetGroupsViewModel.shared = SetGroupsViewModel()
         SetTemplatesViewModel.shared = SetTemplatesViewModel()

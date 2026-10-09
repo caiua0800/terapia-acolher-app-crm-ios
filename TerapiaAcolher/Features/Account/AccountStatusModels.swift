@@ -1,12 +1,11 @@
 import Foundation
 
-// MARK: - Assinatura (GET subscription/me)
+// MARK: - Estado da conta (GET subscription/me)
 //
-// O app mostra o ESTADO da assinatura; não vende nada. Preço, lista de planos e
-// contratação ficam no CRM web de propósito — é o que mantém a cobrança fora do
-// aplicativo e, com isso, fora da regra de compra in-app da Apple (ver
-// subscriptions.controller.ts e memoria/publicacao-app-store.md). Por isso esta
-// camada nem chega a chamar `subscription/plans`.
+// O app iOS é acompanhante gratuito da ferramenta web (App Store 3.1.3(f),
+// decisão de 2026-10-09): não vende, não mostra plano, preço nem teste, e não
+// chama para comprar fora. Estes modelos só servem para o app SABER o que está
+// liberado (cotas, recursos, conta ativa) e esconder ou desabilitar o resto.
 
 enum SubscriptionStatus: String, Decodable {
     case trialing = "TRIALING"
@@ -24,16 +23,6 @@ enum SubscriptionStatus: String, Decodable {
         self = SubscriptionStatus(rawValue: raw) ?? .none
     }
 
-    var label: String {
-        switch self {
-        case .trialing: "Em teste"
-        case .active: "Ativa"
-        case .expired: "Expirada"
-        case .canceled: "Cancelada"
-        case .presale: "Pré-venda"
-        case .none: "Sem assinatura"
-        }
-    }
 }
 
 enum SubscriptionPeriodicity: String, Decodable {
@@ -42,15 +31,6 @@ enum SubscriptionPeriodicity: String, Decodable {
     case semiannual = "SEMIANNUAL"
     case annual = "ANNUAL"
 
-    /// "Renova todo mês" lê melhor que "periodicidade: MONTHLY".
-    var renovacao: String {
-        switch self {
-        case .monthly: "Renova todo mês"
-        case .quarterly: "Renova a cada três meses"
-        case .semiannual: "Renova a cada seis meses"
-        case .annual: "Renova todo ano"
-        }
-    }
 }
 
 struct SubscriptionPlanRef: Decodable, Hashable {
@@ -165,40 +145,6 @@ struct SubscriptionEntitlements: Decodable, Hashable {
         platformFeeDiscountPercent = Int(desconto.rounded())
     }
 
-    /// O que vale mostrar como "incluído no seu plano", na ordem em que o
-    /// terapeuta pensa: primeiro o que ele usa, depois o comercial.
-    var destaques: [(rotulo: String, valor: String)] {
-        var itens: [(String, String)] = [
-            ("Pacientes ativos", Self.quantidade(patients)),
-            ("Mensagens de WhatsApp por ciclo", Self.quantidade(whatsappPerCycle)),
-        ]
-        // Cota zero é "não incluído": some da lista em vez de mostrar "0".
-        if aiRecordsPerCycle != 0 {
-            itens.append(("Prontuários com o Zelo por ciclo", Self.quantidade(aiRecordsPerCycle)))
-        }
-        if aiAnamnesesPerCycle != 0 {
-            itens.append(("Anamneses com o Zelo por ciclo", Self.quantidade(aiAnamnesesPerCycle)))
-        }
-        if aiSummariesPerCycle != 0 {
-            itens.append(("Resumos do Zelo por ciclo", Self.quantidade(aiSummariesPerCycle)))
-        }
-        if transcription { itens.append(("Transcrição das sessões online", "Incluída")) }
-        if billingAutomation { itens.append(("Automação de cobrança", "Incluída")) }
-        if onlineCharges { itens.append(("Cobrança online", "Incluída")) }
-        if acolherFinanceiro { itens.append(("Acolher Financeiro", "Incluído")) }
-        if bulkImport { itens.append(("Importar pacientes de planilha", "Incluída")) }
-        if vitrine { itens.append(("Vitrine no app", "Incluída")) }
-        if vitrineMetrics { itens.append(("Números da Vitrine", "Incluídos")) }
-        if leads { itens.append(("Leads e créditos no app", "Incluídos")) }
-        if platformFeeDiscountPercent > 0 {
-            itens.append(("Desconto na taxa da plataforma", "\(platformFeeDiscountPercent)%"))
-        }
-        return itens
-    }
-
-    private static func quantidade(_ value: Int) -> String {
-        value == UsageLimits.ilimitado ? "Ilimitado" : String(value)
-    }
 }
 
 /// GET subscription/me
@@ -229,18 +175,7 @@ struct MySubscription: Decodable {
         return max(0, Int(ceil(segundos / 86_400)))
     }
 
-    /// Só chama atenção quando falta pouco — aviso constante vira paisagem.
-    var testeUrgente: Bool {
-        guard emTeste, let dias = diasRestantes else { return false }
-        return dias <= 5
-    }
 
-    var tituloDoPlano: String {
-        if cortesia { return "Cortesia" }
-        if emTeste { return "Teste grátis" }
-        if preVenda { return plano?.nome ?? SubscriptionStatus.presale.label }
-        return plano?.nome ?? "Sem plano"
-    }
 }
 
 enum SubscriptionAPI {

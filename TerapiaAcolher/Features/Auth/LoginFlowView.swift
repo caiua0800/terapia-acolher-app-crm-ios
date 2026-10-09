@@ -4,8 +4,6 @@ import Observation
 // MARK: - Rotas do fluxo de autenticação
 
 enum AuthRoute: Hashable {
-    case register
-    case checkEmail(email: String)
     case forgotPassword
     case resetPassword
     /// Senha certa de um local novo: código por e-mail ou WhatsApp.
@@ -23,8 +21,6 @@ final class AuthLoginModel {
     var errorMessage: String?
     /// 403 de e-mail pendente → oferece reenvio da confirmação.
     var canResendVerification = false
-    /// 403 `SUBSCRIPTION_INACTIVE` → oferece "Gerenciar conta" (link por e-mail).
-    var subscriptionInactive = false
     var infoMessage: String?
 
     var canSubmit: Bool {
@@ -38,7 +34,6 @@ final class AuthLoginModel {
         errorMessage = nil
         infoMessage = nil
         canResendVerification = false
-        subscriptionInactive = false
         isLoading = true
         defer { isLoading = false }
         do {
@@ -51,9 +46,6 @@ final class AuthLoginModel {
             // requisição cancelada (refresh/troca de tela) — silencioso
         } catch let error as APIError {
             errorMessage = error.message
-            if error.statusCode == 403, error.code == "SUBSCRIPTION_INACTIVE" {
-                subscriptionInactive = true
-            }
             if error.statusCode == 403, error.message.localizedCaseInsensitiveContains("confirme seu e-mail") {
                 canResendVerification = true
             }
@@ -164,14 +156,6 @@ struct LoginFlowView: View {
                                 .buttonStyle(.pressable)
                                 .disabled(model.isResending)
                             }
-                            if model.subscriptionInactive {
-                                // Só o link por e-mail: nada de preço ou
-                                // compra dentro do app (App Store 3.1.3).
-                                ManageAccountButton(
-                                    destination: .email(model.email),
-                                    style: .secondary
-                                )
-                            }
 
                             PrimaryButton(
                                 title: "Entrar",
@@ -198,20 +182,15 @@ struct LoginFlowView: View {
                         }
                         .padding(.top, 40)
 
-                        HStack(spacing: 4) {
-                            Text("Ainda não tem conta?")
-                                .font(Theme.body(14))
-                                .foregroundStyle(Theme.textSecondary)
-                            Button {
-                                path.append(.register)
-                            } label: {
-                                Text("Criar conta")
-                                    .font(Theme.body(14, weight: .bold))
-                                    .foregroundStyle(Theme.primary)
-                            }
-                        }
-                        .padding(.top, 36)
-                        .padding(.bottom, 32)
+                        // App iOS é acompanhante da ferramenta web (App Store
+                        // 3.1.3(f)): só entra quem já tem conta. Sem cadastro,
+                        // sem endereço do site e sem convite para assinar.
+                        Text("Entre com a sua conta do Acolher Gestão.")
+                            .font(Theme.body(13.5))
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 36)
+                            .padding(.bottom, 32)
                     }
                     .padding(.horizontal, 28)
                     .frame(maxWidth: 480)
@@ -220,10 +199,6 @@ struct LoginFlowView: View {
             }
             .navigationDestination(for: AuthRoute.self) { route in
                 switch route {
-                case .register:
-                    AuthRegisterView(path: $path)
-                case let .checkEmail(email):
-                    AuthCheckEmailView(email: email, path: $path)
                 case .forgotPassword:
                     AuthForgotPasswordView(path: $path)
                 case .resetPassword:

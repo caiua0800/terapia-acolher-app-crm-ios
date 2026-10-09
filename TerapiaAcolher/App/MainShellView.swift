@@ -10,7 +10,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses, transcricoes
     case gateway, financeiro, vitrine, meuZelo, leads, creditos
-    case suporte, uso, assinatura, configuracoes
+    case suporte, uso, configuracoes
 
     var id: String { rawValue }
 
@@ -30,7 +30,6 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .creditos: "Créditos"
         case .suporte: "Suporte"
         case .uso: "Uso"
-        case .assinatura: "Assinatura"
         case .configuracoes: "Configurações"
         }
     }
@@ -51,7 +50,6 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .creditos: "sparkles"
         case .suporte: "bubble.left.and.bubble.right"
         case .uso: "chart.bar"
-        case .assinatura: "creditcard"
         case .configuracoes: "gearshape"
         }
     }
@@ -73,7 +71,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         todas.append((header: "ECOSSISTEMA", items: [.leads, .creditos, .vitrine] + (zeloAtivo ? [.meuZelo] : [])))
         // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
         // que era terapeuta↔paciente pelo WhatsApp).
-        todas.append((header: "CONTA", items: [.suporte, .uso, .assinatura, .configuracoes]))
+        todas.append((header: "CONTA", items: [.suporte, .uso, .configuracoes]))
         return todas
     }
 }
@@ -93,9 +91,9 @@ struct MainShellView: View {
         ZStack(alignment: .leading) {
             NavigationStack {
                 VStack(spacing: 0) {
-                    // Estado da assinatura: fato da conta, então fica na casca
-                    // como o aviso de conexão — e some sozinha quem está em dia.
-                    SubscriptionBanner(selection: $selection)
+                    // Conta inativa: só informa (App Store 3.1.3(f) — sem
+                    // chamada para comprar). Quem está em dia não vê nada.
+                    AccountStatusBanner()
                     destinationView
                 }
                     // Sem isto a barra fica em modo "large title" com o título
@@ -241,7 +239,6 @@ struct MainShellView: View {
         case .creditos: LeadsCreditsView()
         case .suporte: SupportHomeView()
         case .uso: UsageView()
-        case .assinatura: SubscriptionView()
         case .configuracoes: SettingsHomeView()
         }
     }

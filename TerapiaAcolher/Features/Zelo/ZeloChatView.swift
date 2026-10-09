@@ -161,7 +161,7 @@ struct ZeloChatView: View {
             Text("Agendo, remarco e cancelo sessões, vejo cobranças e mensagens dos pacientes, anoto e anexo arquivos na ficha.")
                 .font(Theme.body(14))
                 .foregroundStyle(Theme.textSecondary)
-            ForEach(["Como está minha agenda hoje?", "Quem está com cobrança em aberto?", "Quanto já usei do plano?"], id: \.self) { s in
+            ForEach(["Como está minha agenda hoje?", "Quem está com cobrança em aberto?", "Quanto já usei neste ciclo?"], id: \.self) { s in
                 Button {
                     Task { await mandar(s) }
                 } label: {
@@ -189,10 +189,6 @@ struct ZeloChatView: View {
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.danger)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    if zelo.noLimite {
-                        ManageAccountButton(style: .compact, tint: Zelo.cor)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
                 }
             }
             if !arquivos.isEmpty {

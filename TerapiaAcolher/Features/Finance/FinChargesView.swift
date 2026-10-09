@@ -768,7 +768,7 @@ struct FinReminderSheet: View {
                                     .foregroundStyle(whats ? Theme.success : Theme.warning)
                                 Text(whats
                                     ? "Lembrete enviado pelo WhatsApp, com o link de pagamento."
-                                    : "O WhatsApp não foi enviado (sem número, mensagens desligadas ou cota do plano).")
+                                    : "O WhatsApp não foi enviado (sem número, mensagens desligadas ou cota da sua conta).")
                                     .font(Theme.body(13))
                                     .foregroundStyle(Theme.textSecondary)
                             }

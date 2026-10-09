@@ -4,6 +4,16 @@ import SwiftUI
 // MARK: - Modelo (prefixo Notif* — reservado a este módulo)
 
 /// GET notifications — item da central de notificações.
+extension NotifItem {
+    /// Notificação sobre a assinatura do app (não sobre cobrança de paciente).
+    var ehDeAssinatura: Bool {
+        guard type == "SYSTEM" else { return false }
+        let texto = (title + " " + (body ?? "")).lowercased()
+        return ["assinatura", "seu plano", "teste grátis", "período de teste", "pré-venda", "renovar seu plano"]
+            .contains { texto.contains($0) }
+    }
+}
+
 struct NotifItem: Decodable, Identifiable {
     let id: String
     let type: String
@@ -384,7 +394,10 @@ final class NotificationsViewModel {
     @MainActor
     func load() async {
         do {
-            items = try await APIClient.shared.get("notifications")
+            let todas: [NotifItem] = try await APIClient.shared.get("notifications")
+            // Avisos de cobrança do PLANO (renovação, teste, atraso) são do CRM
+            // web; no app iOS viram convite de compra (App Store 3.1.3(f)).
+            items = todas.filter { !$0.ehDeAssinatura }
             isLoading = false
         } catch {
             isLoading = false
