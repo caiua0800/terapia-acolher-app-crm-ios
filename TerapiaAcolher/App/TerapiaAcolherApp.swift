@@ -15,6 +15,9 @@ struct TerapiaAcolherApp: App {
             BiometricVault.apagar()
             BiometricVault.isEnabled = false
         }
+        // Renovações e compras aprovadas depois chegam a qualquer momento:
+        // o ouvinte do StoreKit nasce com o app (ver StoreKitStore).
+        StoreKitStore.shared.iniciar()
     }
 
     var body: some Scene {

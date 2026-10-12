@@ -150,7 +150,10 @@ final class SessionStore {
     @MainActor
     @discardableResult
     func login(email: String, password: String) async throws -> LoginOutcome {
-        struct Body: Encodable { let email: String, password: String }
+        /// `permitirInativa`: com a assinatura pela App Store, conta vencida
+        /// entra para poder assinar no app (sem isto o backend recusa com
+        /// SUBSCRIPTION_INACTIVE). Cada recurso continua conferindo o plano.
+        struct Body: Encodable { let email: String, password: String, permitirInativa = true }
         /// O mesmo 200 traz os tokens OU o desafio do IP novo.
         struct Resposta: Decodable {
             let accessToken: String?

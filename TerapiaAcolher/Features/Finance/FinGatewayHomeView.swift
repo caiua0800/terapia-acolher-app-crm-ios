@@ -243,14 +243,17 @@ struct FinGatewayHomeView: View {
                 }
                 .accessibilityIdentifier("gwAtivar")
             } else {
-                // Fora do que a conta inclui: só informa (App Store 3.1.3(f)).
+                // Fora do plano: caminho para os planos (assinatura no app).
                 ThemeCard {
-                    Text("O Acolher Financeiro não está incluído na sua conta.")
-                        .font(Theme.body(14))
-                        .foregroundStyle(Theme.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 12) {
+                        Text("O Acolher Financeiro não está incluído no seu plano.")
+                            .font(Theme.body(14))
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                        VerPlanosButton()
+                    }
+                    .frame(maxWidth: .infinity)
                 }
             }
 

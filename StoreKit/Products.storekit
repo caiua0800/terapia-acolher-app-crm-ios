@@ -1,0 +1,89 @@
+{
+  "identifier" : "4C1B7E2A",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_developerTeamID" : "4JAK4K7U7G",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "pt_BR",
+    "_storefront" : "BRA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21800001",
+      "localizations" : [
+
+      ],
+      "name" : "Acolher Gestão",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "89.90",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6800000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Pacientes ilimitados e tudo do Acolher Gestão.",
+              "displayName" : "Pró",
+              "locale" : "pt_BR"
+            }
+          ],
+          "productID" : "com.ccypher.terapiaacolher.pro.mensal",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pró mensal",
+          "subscriptionGroupID" : "21800001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.90",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6800000001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Até 20 pacientes e o essencial do consultório.",
+              "displayName" : "Básico",
+              "locale" : "pt_BR"
+            }
+          ],
+          "productID" : "com.ccypher.terapiaacolher.basico.mensal",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Básico mensal",
+          "subscriptionGroupID" : "21800001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

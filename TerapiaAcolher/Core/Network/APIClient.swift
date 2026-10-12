@@ -422,30 +422,21 @@ final class APIClient {
     }
 }
 
-/// Mensagens do servidor sobre plano/assinatura reescritas para o tom do app
-/// iOS: informa, não vende (App Store 3.1.3(f)). O backend é o mesmo do CRM
-/// web, onde falar de plano faz sentido — aqui não pode aparecer nome de
-/// plano, teste, "assine" nem "upgrade".
+/// Mensagens do servidor sobre plano/assinatura, filtradas para o app iOS.
+/// O backend é o mesmo do CRM web; desde a 1.3.0 o app vende pela App Store,
+/// então falar de plano e limite é normal — o que não pode passar é texto que
+/// aponte para pagar fora do app (site, link, Pix/boleto, preço em reais).
 enum MensagemDeConta {
     private static let trocas: [(String, String)] = [
         ("O sistema ainda não está disponível. Sua assinatura da pré-venda está garantida: avisaremos por e-mail quando o acesso for liberado.",
          "O acesso à sua conta ainda não foi liberado. Avisaremos por e-mail."),
-        ("Seu período de teste terminou.", "Sua conta não está ativa."),
-        ("Sua assinatura não está ativa.", "Sua conta não está ativa."),
-        (" do seu plano atual", " da sua conta"),
-        (" no seu plano atual", " na sua conta"),
-        (" do seu plano", " da sua conta"),
-        (" no seu plano", " na sua conta"),
-        (" seu plano", " sua conta"),
-        ("Seu plano", "Sua conta"),
     ]
 
-    /// Termos que denunciam convite de compra; sobrando algum, a mensagem
-    /// inteira vira a versão neutra.
-    private static let termosDeVenda = [
-        "upgrade", "assine", "assinar o plano", "da assinatura", "sua assinatura", "plano pró", "plano pro",
-        "plano básico", "plano basico", "meu plano", "teste grátis", "período de teste",
-    ]
+    /// Apontam para fora do app em qualquer mensagem.
+    private static let termosDeSite = ["crm web", "no site", "pelo site", "pelo computador"]
+    /// Em mensagem de conta (plano/assinatura), meio de pagamento é de fora
+    /// do app. Em outras (cobrança de paciente) Pix e link são do negócio.
+    private static let termosDePagamento = ["link", "pix", "boleto", "r$"]
 
     private static let codigosDeConta: Set<String> = ["LIMITE_DO_PLANO", "SUBSCRIPTION_INACTIVE"]
 
@@ -454,9 +445,9 @@ enum MensagemDeConta {
         for (de, para) in trocas { texto = texto.replacingOccurrences(of: de, with: para) }
         let minusculo = texto.lowercased()
         let ehDeConta = code.map(codigosDeConta.contains) ?? false
-        let vende = termosDeVenda.contains { minusculo.contains($0) }
-            || (ehDeConta && (minusculo.contains("r$") || minusculo.contains("plano")))
-        guard vende else { return texto }
+        let foraDoApp = termosDeSite.contains { minusculo.contains($0) }
+            || (ehDeConta && termosDePagamento.contains { minusculo.contains($0) })
+        guard foraDoApp else { return texto }
         switch code {
         case "SUBSCRIPTION_INACTIVE": return AccountCopy.contaInativa
         case "LIMITE_DO_PLANO": return AccountCopy.limiteAtingido

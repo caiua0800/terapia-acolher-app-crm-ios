@@ -183,7 +183,7 @@ struct VitrineView: View {
                         NotInPlanView(
                             icon: "storefront",
                             title: "Vitrine no app",
-                            message: "A integração com a Vitrine não está incluída na sua conta. Seu perfil continua no ar normalmente na Vitrine — só não aparece aqui no app."
+                            message: "A integração com a Vitrine não está incluída no seu plano. Seu perfil continua no ar normalmente na Vitrine — só não aparece aqui no app."
                         )
                     } else if status.connected {
                         conectado(status)

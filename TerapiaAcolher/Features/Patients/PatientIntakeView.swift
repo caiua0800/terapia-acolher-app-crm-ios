@@ -153,6 +153,9 @@ struct PatientIntakeCard: View {
                     .font(Theme.body(13, weight: .medium))
                     .foregroundStyle(Theme.danger)
                     .fixedSize(horizontal: false, vertical: true)
+                if model.intakeLimitReached {
+                    VerPlanosButton(style: .compact, tint: Theme.primary)
+                }
             }
 
             if !model.intakeImages.isEmpty {

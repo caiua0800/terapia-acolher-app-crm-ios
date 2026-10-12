@@ -900,7 +900,7 @@ struct RecEntryFormView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                     Text(model.zeloNotInPlan
-                         ? "Não incluído na sua conta. Você pode continuar preenchendo os campos à mão."
+                         ? "Não incluído no seu plano. Você pode continuar preenchendo os campos à mão."
                          : "A cota renova no próximo ciclo. Enquanto isso, preencha os campos à mão.")
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.textSecondary)
@@ -908,6 +908,8 @@ struct RecEntryFormView: View {
                 }
                 Spacer(minLength: 0)
             }
+            VerPlanosButton(style: .compact, tint: RecAi.accent)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1082,6 +1084,9 @@ struct RecEntryFormView: View {
                     .font(Theme.body(12.5, weight: .medium))
                     .foregroundStyle(Theme.danger)
                     .fixedSize(horizontal: false, vertical: true)
+                if model.notesLimitReached {
+                    VerPlanosButton(style: .compact, tint: RecAi.accent)
+                }
             }
         }
     }

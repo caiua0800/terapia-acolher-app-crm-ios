@@ -67,7 +67,7 @@ struct LeadsCreditsView: View {
                 NotInPlanView(
                     icon: "sparkles",
                     title: "Créditos no app",
-                    message: "Ver o saldo de créditos pelo app depende da integração com o sistema de leads, que não está incluída na sua conta."
+                    message: "Ver o saldo de créditos pelo app depende da integração com o sistema de leads, que não está incluída no seu plano."
                 )
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 12)

@@ -4,6 +4,8 @@ import Observation
 // MARK: - Rotas do fluxo de autenticação
 
 enum AuthRoute: Hashable {
+    case register
+    case checkEmail(email: String)
     case forgotPassword
     case resetPassword
     /// Senha certa de um local novo: código por e-mail ou WhatsApp.
@@ -182,15 +184,20 @@ struct LoginFlowView: View {
                         }
                         .padding(.top, 40)
 
-                        // App iOS é acompanhante da ferramenta web (App Store
-                        // 3.1.3(f)): só entra quem já tem conta. Sem cadastro,
-                        // sem endereço do site e sem convite para assinar.
-                        Text("Entre com a sua conta do Acolher Gestão.")
-                            .font(Theme.body(13.5))
-                            .foregroundStyle(Theme.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.top, 36)
-                            .padding(.bottom, 32)
+                        HStack(spacing: 4) {
+                            Text("Ainda não tem conta?")
+                                .font(Theme.body(14))
+                                .foregroundStyle(Theme.textSecondary)
+                            Button {
+                                path.append(.register)
+                            } label: {
+                                Text("Criar conta")
+                                    .font(Theme.body(14, weight: .bold))
+                                    .foregroundStyle(Theme.primary)
+                            }
+                        }
+                        .padding(.top, 36)
+                        .padding(.bottom, 32)
                     }
                     .padding(.horizontal, 28)
                     .frame(maxWidth: 480)
@@ -199,6 +206,10 @@ struct LoginFlowView: View {
             }
             .navigationDestination(for: AuthRoute.self) { route in
                 switch route {
+                case .register:
+                    AuthRegisterView(path: $path)
+                case let .checkEmail(email):
+                    AuthCheckEmailView(email: email, path: $path)
                 case .forgotPassword:
                     AuthForgotPasswordView(path: $path)
                 case .resetPassword:

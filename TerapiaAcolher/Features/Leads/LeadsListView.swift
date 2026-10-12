@@ -139,7 +139,7 @@ struct LeadsListView: View {
                 NotInPlanView(
                     icon: "tray.full",
                     title: "Leads no app",
-                    message: "A integração com o sistema de leads não está incluída na sua conta. Você continua recebendo e atendendo seus contatos pelo portal da Terapia Acolher."
+                    message: "A integração com o sistema de leads não está incluída no seu plano. Você continua recebendo e atendendo seus contatos pelo portal da Terapia Acolher."
                 )
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.top, 12)

@@ -189,6 +189,10 @@ struct ZeloChatView: View {
                         .font(Theme.body(12))
                         .foregroundStyle(Theme.danger)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    if zelo.noLimite {
+                        VerPlanosButton(style: .compact, tint: Zelo.cor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
             if !arquivos.isEmpty {

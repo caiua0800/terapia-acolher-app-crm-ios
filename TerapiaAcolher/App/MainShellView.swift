@@ -10,7 +10,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
     case inicio, agenda
     case pacientes, prontuarios, anamneses, transcricoes
     case gateway, financeiro, vitrine, meuZelo, leads, creditos
-    case suporte, uso, configuracoes
+    case suporte, uso, assinatura, configuracoes
 
     var id: String { rawValue }
 
@@ -30,6 +30,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .creditos: "Créditos"
         case .suporte: "Suporte"
         case .uso: "Uso"
+        case .assinatura: "Assinatura"
         case .configuracoes: "Configurações"
         }
     }
@@ -50,6 +51,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         case .creditos: "sparkles"
         case .suporte: "bubble.left.and.bubble.right"
         case .uso: "chart.bar"
+        case .assinatura: "creditcard"
         case .configuracoes: "gearshape"
         }
     }
@@ -71,7 +73,7 @@ enum MenuDestination: String, CaseIterable, Identifiable {
         todas.append((header: "ECOSSISTEMA", items: [.leads, .creditos, .vitrine] + (zeloAtivo ? [.meuZelo] : [])))
         // Suporte: chat com o time da Terapia Acolher (não é o Atendimento vetado,
         // que era terapeuta↔paciente pelo WhatsApp).
-        todas.append((header: "CONTA", items: [.suporte, .uso, .configuracoes]))
+        todas.append((header: "CONTA", items: [.suporte, .uso, .assinatura, .configuracoes]))
         return todas
     }
 }
@@ -91,9 +93,9 @@ struct MainShellView: View {
         ZStack(alignment: .leading) {
             NavigationStack {
                 VStack(spacing: 0) {
-                    // Conta inativa: só informa (App Store 3.1.3(f) — sem
-                    // chamada para comprar). Quem está em dia não vê nada.
-                    AccountStatusBanner()
+                    // Teste correndo ou assinatura inativa: leva à tela
+                    // Assinatura (compra pela App Store). Em dia, não aparece.
+                    AccountStatusBanner(selection: $selection)
                     destinationView
                 }
                     // Sem isto a barra fica em modo "large title" com o título
@@ -182,6 +184,7 @@ struct MainShellView: View {
             case "configuracoes": selection = .configuracoes
             case "suporte": selection = .suporte
             case "uso": selection = .uso
+            case "assinatura": selection = .assinatura
             default: break
             }
             deepLink.pendingSection = nil
@@ -194,6 +197,9 @@ struct MainShellView: View {
         // Suporte em tempo real: conecta com a casca autenticada, derruba no
         // logout, e reconecta ao voltar do background ou quando a rede volta.
         .onAppear { support.start() }
+        // Reenvia ao servidor as assinaturas que o aparelho tem (cobre aviso
+        // da Apple perdido ou compra feita antes de logar).
+        .task { await StoreKitStore.shared.sincronizar() }
         .onDisappear { support.stop() }
         .onChange(of: scenePhase) { _, fase in
             switch fase {
@@ -239,6 +245,7 @@ struct MainShellView: View {
         case .creditos: LeadsCreditsView()
         case .suporte: SupportHomeView()
         case .uso: UsageView()
+        case .assinatura: SubscriptionView()
         case .configuracoes: SettingsHomeView()
         }
     }
