@@ -56,8 +56,8 @@ struct SettingsHomeView: View {
     // MARK: - Perfil
 
     private var displayName: String {
-        let name = session.user?.name ?? ""
-        return name.lowercased().hasPrefix("dr") ? name : "Dra. \(name)"
+        // Só o nome: sem "Dra."/"Dr." (o sistema não sabe o gênero; decisão de 12/10).
+        session.user?.name ?? ""
     }
 
     private var profileSubtitle: String {
