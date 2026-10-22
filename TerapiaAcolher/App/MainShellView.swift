@@ -181,6 +181,7 @@ struct MainShellView: View {
             case "gateway": selection = .gateway
             case "financeiro": selection = .financeiro
             case "vitrine": selection = .vitrine
+            case "leads": selection = .leads
             case "configuracoes": selection = .configuracoes
             case "suporte": selection = .suporte
             case "uso": selection = .uso

@@ -61,6 +61,7 @@ struct NotifItem: Decodable, Identifiable {
         case "SESSION_ATTENDED": "checkmark"
         case "SESSION_MISSED": "exclamationmark.circle"
         case "TEMPLATE_UPDATED": "asterisk"
+        case "LEAD_RECEIVED": "tray.full"
         default: "bell"
         }
     }
@@ -72,6 +73,7 @@ struct NotifItem: Decodable, Identifiable {
         case "SESSION_ATTENDED": Theme.success
         case "SESSION_MISSED": Theme.danger
         case "TEMPLATE_UPDATED": Color(hex: 0xB9A6D9)
+        case "LEAD_RECEIVED": Theme.primary
         default: Color(hex: 0x7FA8C9)
         }
     }
@@ -116,6 +118,7 @@ struct NotificationsView: View {
     @State private var push = PushManager.shared
     @State private var supportRoute: SupChatRoute?
     @State private var isAskingPush = false
+    @Environment(\.dismiss) private var dismiss
 
     /// Convite pra ligar as notificações. Pedir permissão aqui, e não na
     /// primeira abertura do app, é deliberado: o iOS só mostra o alerta do
@@ -250,6 +253,10 @@ struct NotificationsView: View {
                     Button {
                         if item.isSupport, let ticketId = item.data?.ticketId {
                             supportRoute = SupChatRoute(id: ticketId)
+                        } else if item.type == "LEAD_RECEIVED" {
+                            // Lead novo: volta pro menu já em "Meus leads".
+                            DeepLink.shared.pendingSection = "leads"
+                            dismiss()
                         }
                         Task { await viewModel.markRead(item) }
                     } label: {

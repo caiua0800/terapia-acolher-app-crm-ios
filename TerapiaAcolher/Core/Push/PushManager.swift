@@ -218,6 +218,8 @@ extension PushManager: UNUserNotificationCenterDelegate {
             DeepLink.shared.pendingSection = "agenda"
         case "CHARGE_DUE":
             DeepLink.shared.pendingSection = "financeiro"
+        case "LEAD_RECEIVED":
+            DeepLink.shared.pendingSection = "leads"
         default:
             break
         }
