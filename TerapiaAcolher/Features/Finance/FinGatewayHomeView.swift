@@ -618,6 +618,18 @@ struct FinGatewayHomeView: View {
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("gwCobrar")
 
+                    // Cobrança automática (2026-10-23): ao lado de Cobrar, como
+                    // no web. Nos apps não há interruptor; o painel já é só da
+                    // conta aprovada.
+                    NavigationLink {
+                        FinGatewayAutomacoesView()
+                    } label: {
+                        acaoDoCartao(icon: "repeat", title: "Automações", destaque: false)
+                    }
+                    .buttonStyle(.pressable)
+                    .accessibilityIdentifier("gwAutomacoes")
+                }
+                HStack(spacing: 10) {
                     NavigationLink {
                         FinGatewayWithdrawView()
                     } label: {
@@ -625,8 +637,7 @@ struct FinGatewayHomeView: View {
                     }
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("gwSacar")
-                }
-                HStack(spacing: 10) {
+
                     NavigationLink {
                         FinGatewayLedgerView()
                     } label: {
@@ -634,15 +645,14 @@ struct FinGatewayHomeView: View {
                     }
                     .buttonStyle(.pressable)
                     .accessibilityIdentifier("gwExtrato")
-
-                    NavigationLink {
-                        FinGatewayPixKeysView()
-                    } label: {
-                        acaoDoCartao(icon: "building.columns", title: "Contas para saque", destaque: false)
-                    }
-                    .buttonStyle(.pressable)
-                    .accessibilityIdentifier("gwChaves")
                 }
+                NavigationLink {
+                    FinGatewayPixKeysView()
+                } label: {
+                    acaoDoCartao(icon: "building.columns", title: "Contas para saque", destaque: false)
+                }
+                .buttonStyle(.pressable)
+                .accessibilityIdentifier("gwChaves")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
