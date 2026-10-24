@@ -30,8 +30,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ccypher.terapiaacolher
-        MARKETING_VERSION: '1.3.0'
-        CURRENT_PROJECT_VERSION: '16'
+        MARKETING_VERSION: '1.4.0'
+        CURRENT_PROJECT_VERSION: '17'
         INFOPLIST_FILE: TerapiaAcolher/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: '1'
