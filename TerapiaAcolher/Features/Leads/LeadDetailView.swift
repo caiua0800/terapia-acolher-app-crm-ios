@@ -80,7 +80,7 @@ struct LeadDetailView: View {
                     secao("Sobre quem vai ser atendido") {
                         grade([
                             ("Nome", lead.relativeName ?? "", nil),
-                            ("Contato", lead.relativeContact.map(PatientMask.whatsapp) ?? "", lead.relativeContact),
+                            ("Contato", lead.relativeContact.map(PhoneRules.display) ?? "", lead.relativeContact),
                         ])
                     }
                 }

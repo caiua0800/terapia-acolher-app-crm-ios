@@ -50,7 +50,7 @@ struct SetProfileView: View {
             await profileStatus.refresh()
         }
         .sheet(isPresented: $showVerifyPhone) {
-            SetVerifyPhoneView(numeroAtual: viewModel.whatsapp) {
+            SetVerifyPhoneView(numeroAtual: TelefoneInternacional.paraSalvar(viewModel.whatsappPais, viewModel.whatsapp)) {
                 Task { await viewModel.load() }
             }
         }
@@ -312,15 +312,23 @@ struct SetProfileView: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             VStack(alignment: .leading, spacing: 6) {
-                campo("WhatsApp", "+55 (11) 91234-5678", $viewModel.whatsapp)
-                    .keyboardType(.phonePad)
-                    // Mesma máscara do cadastro de paciente: o número do
-                    // terapeuta ia cru para o banco e era a última porta por
-                    // onde entrava telefone sem DDI.
-                    .onChange(of: viewModel.whatsapp) { _, novo in
-                        let m = PatientMask.whatsapp(novo)
-                        if m != novo { viewModel.whatsapp = m }
-                    }
+                // Mesma máscara do cadastro de paciente, agora com o país ao
+                // lado: o número do terapeuta ia cru para o banco e era a
+                // última porta por onde entrava telefone sem DDI.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("WhatsApp")
+                        .font(Theme.body(12.5, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    CampoTelefoneInternacional(
+                        pais: $viewModel.whatsappPais,
+                        numero: $viewModel.whatsapp,
+                        fonte: Theme.body(15)
+                    )
+                    .padding(.horizontal, 12)
+                    .frame(height: 44)
+                    .background(Theme.background, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border, lineWidth: 1))
+                }
                 if profileStatus.status?.whatsappEnabled == true {
                     HStack(spacing: 8) {
                         if numeroVerificado {
@@ -523,7 +531,9 @@ final class SetProfileViewModel {
     var name = ""
     var specialty = ""
     var registration = ""
+    /// Número mascarado, sem o DDI; o país fica em `whatsappPais`.
     var whatsapp = ""
+    var whatsappPais = TelefoneInternacional.brasil
     var email = ""
     var avatarURL: URL?
     var signatureURL: URL?
@@ -553,12 +563,13 @@ final class SetProfileViewModel {
     }
 
     /// O que veio do servidor: base para "tem alteração?" e para Descartar.
-    private var original = (name: "", specialty: "", registration: "", whatsapp: "")
+    private var original = (name: "", specialty: "", registration: "", whatsapp: "", whatsappPais: TelefoneInternacional.brasil)
 
     var alterado: Bool {
         !email.isEmpty
             && (name != original.name || specialty != original.specialty
-                || registration != original.registration || whatsapp != original.whatsapp)
+                || registration != original.registration || whatsapp != original.whatsapp
+                || whatsappPais != original.whatsappPais)
     }
 
     func descartar() {
@@ -566,6 +577,7 @@ final class SetProfileViewModel {
         specialty = original.specialty
         registration = original.registration
         whatsapp = original.whatsapp
+        whatsappPais = original.whatsappPais
     }
 
     @MainActor
@@ -574,10 +586,11 @@ final class SetProfileViewModel {
             name = user.name
             specialty = user.specialty ?? ""
             registration = user.professionalRegistration ?? ""
-            // O banco guarda "5517992562727"; a tela mostra formatado.
-            whatsapp = PatientMask.whatsapp(user.whatsapp ?? "")
+            // O banco guarda "5517992562727" (ou "351912345678"); a tela
+            // mostra o país no seletor e o número formatado.
+            (whatsappPais, whatsapp) = TelefoneInternacional.ler(user.whatsapp)
             email = user.email
-            original = (name, specialty, registration, whatsapp)
+            original = (name, specialty, registration, whatsapp, whatsappPais)
         }
         if let avatar: SetImageURL = try? await APIClient.shared.get("settings/avatar"),
            let urlString = avatar.url {
@@ -613,11 +626,13 @@ final class SetProfileViewModel {
                     name: trimmedName,
                     specialty: specialty.trimmingCharacters(in: .whitespacesAndNewlines),
                     professionalRegistration: registration.trimmingCharacters(in: .whitespacesAndNewlines),
-                    whatsapp: PatientMask.whatsappPayload(whatsapp) ?? ""
+                    // "55…" no Brasil, "+DDI…" fora: sem o "+" o backend
+                    // valida como brasileiro e recusa.
+                    whatsapp: TelefoneInternacional.paraSalvar(whatsappPais, whatsapp) ?? ""
                 )
             )
             await SessionStore.shared.reloadProfile()
-            original = (name, specialty, registration, whatsapp)
+            original = (name, specialty, registration, whatsapp, whatsappPais)
             Haptics.success()
             showSaved = true
         } catch {

@@ -140,10 +140,8 @@ struct Lead: Identifiable, Hashable, Decodable {
         case convertedPatientId = "pacienteConvertidoId"
     }
 
-    /// Telefone legível na ficha ("+55 (11) 99999-0000").
-    var whatsappLegivel: String {
-        whatsapp.isEmpty ? "—" : PatientMask.whatsapp(whatsapp)
-    }
+    /// Telefone legível na ficha ("+55 (11) 99999-0000", "+351 912 345 678").
+    var whatsappLegivel: String { PhoneRules.display(whatsapp) }
 
     var preferredTherapistLabel: String {
         switch preferredTherapistGender {

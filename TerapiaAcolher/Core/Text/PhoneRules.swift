@@ -81,9 +81,10 @@ enum PhoneRules {
         return Result(isValid: true, payload: "55\(nacional)", error: nil)
     }
 
-    /// `5511987654321` → `+55 (11) 98765-4321`, para exibir.
+    /// `5511987654321` → `+55 (11) 98765-4321`; `351912345678` →
+    /// `+351 912 345 678`, para exibir.
     static func display(_ raw: String?) -> String {
-        guard let raw, !raw.isEmpty else { return "—" }
-        return PatientMask.whatsapp(raw)
+        let formatado = TelefoneInternacional.formatar(raw)
+        return formatado.isEmpty ? "—" : formatado
     }
 }

@@ -5,8 +5,9 @@ import SwiftUI
 
 @Observable
 final class VerifyPhoneViewModel {
-    /// Número em máscara, editável antes do envio.
+    /// Número em máscara (sem o DDI), editável antes do envio.
     var whatsapp = ""
+    var whatsappPais = TelefoneInternacional.brasil
     var code = ""
     var etapa: Etapa = .numero
     var isSending = false
@@ -18,7 +19,8 @@ final class VerifyPhoneViewModel {
 
     enum Etapa { case numero, codigo, pronto }
 
-    var phoneCheck: PhoneRules.Result { PhoneRules.validate(whatsapp) }
+    /// O `payload` já sai no formato da API: "55…" no Brasil, "+DDI…" fora.
+    var phoneCheck: PhoneRules.Result { TelefoneInternacional.validarWhatsapp(whatsappPais, whatsapp) }
     var podeEnviar: Bool { phoneCheck.isValid && !isSending }
     var podeVerificar: Bool { code.count == 6 && !isVerifying }
 
@@ -133,7 +135,7 @@ struct SetVerifyPhoneView: View {
             }
             .onAppear {
                 if model.whatsapp.isEmpty, let numeroAtual, !numeroAtual.isEmpty {
-                    model.whatsapp = PatientMask.whatsapp(numeroAtual)
+                    (model.whatsappPais, model.whatsapp) = TelefoneInternacional.ler(numeroAtual)
                 }
             }
         }
@@ -174,14 +176,11 @@ struct SetVerifyPhoneView: View {
                         .font(Theme.body(11, weight: .semibold))
                         .foregroundStyle(Theme.textSecondary)
                         .tracking(0.8)
-                    TextField("+55 (11) 91234-5678", text: $model.whatsapp)
-                        .font(Theme.body(17))
-                        .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
-                        .onChange(of: model.whatsapp) { _, novo in
-                            let m = PatientMask.whatsapp(novo)
-                            if m != novo { model.whatsapp = m }
-                        }
+                    CampoTelefoneInternacional(
+                        pais: $model.whatsappPais,
+                        numero: $model.whatsapp,
+                        fonte: Theme.body(17)
+                    )
                     if let erro = model.whatsapp.isEmpty ? nil : model.phoneCheck.error {
                         Text(erro)
                             .font(Theme.body(12))

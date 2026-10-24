@@ -10,12 +10,15 @@ final class AuthRegisterModel {
     var password = ""
     var specialty = ""
     var professionalRegistration = ""
+    /// Número mascarado, sem o DDI; o país fica ao lado (Brasil por padrão).
     var whatsapp = ""
+    var whatsappPais = TelefoneInternacional.brasil
     var isLoading = false
     var errorMessage: String?
 
     /// Validação do número reaproveitada pelo botão e pela mensagem do campo.
-    var phoneCheck: PhoneRules.Result { PhoneRules.validate(whatsapp) }
+    /// O `payload` já sai no formato da API: "55…" no Brasil, "+DDI…" fora.
+    var phoneCheck: PhoneRules.Result { TelefoneInternacional.validarWhatsapp(whatsappPais, whatsapp) }
 
     /// Só aparece depois que a pessoa digitou algo: erro em campo vazio antes
     /// de qualquer digitação é regra sendo esfregada na cara de quem chegou.
@@ -53,7 +56,8 @@ final class AuthRegisterModel {
                     password: password,
                     specialty: specialty.isEmpty ? nil : specialty,
                     professionalRegistration: professionalRegistration.isEmpty ? nil : professionalRegistration,
-                    // Manda os dígitos com DDI, nunca a máscara.
+                    // Manda os dígitos com DDI, nunca a máscara ("+" na
+                    // frente se for de fora do Brasil).
                     whatsapp: phoneCheck.payload ?? whatsapp
                 )
             )
@@ -93,16 +97,21 @@ struct AuthRegisterView: View {
                     AuthField(label: "Especialidade · opcional", text: $model.specialty, placeholder: "Psicologia", autocapitalize: true)
                     AuthField(label: "Registro profissional · opcional", text: $model.professionalRegistration, placeholder: "CRP 06/54321")
                     VStack(alignment: .leading, spacing: 6) {
-                        AuthField(
-                            label: "WhatsApp",
-                            text: $model.whatsapp,
-                            placeholder: "+55 (11) 91234-5678",
-                            keyboard: .phonePad,
-                            contentType: .telephoneNumber
-                        )
-                        .onChange(of: model.whatsapp) { _, novo in
-                            let m = PatientMask.whatsapp(novo)
-                            if m != novo { model.whatsapp = m }
+                        // Mesma moldura do `AuthField`, com o país ao lado do número.
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("WHATSAPP")
+                                .font(Theme.body(11, weight: .semibold))
+                                .foregroundStyle(Theme.textSecondary)
+                                .tracking(1.4)
+                            CampoTelefoneInternacional(pais: $model.whatsappPais, numero: $model.whatsapp)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 13)
+                                .background(Theme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(model.phoneError == nil ? Theme.border : Theme.danger, lineWidth: 1)
+                                )
                         }
                         // Obrigatório desde 2026-09: é por ele que sai o código
                         // de verificação e todo aviso de cobrança e sessão.

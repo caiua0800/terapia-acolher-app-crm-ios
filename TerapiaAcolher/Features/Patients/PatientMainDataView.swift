@@ -132,7 +132,7 @@ struct PatientMainDataView: View {
             Divider().overlay(Theme.border)
             readRow("Grupo", detail.group?.name ?? "—")
             Divider().overlay(Theme.border)
-            readRow("WhatsApp", detail.whatsapp ?? "—")
+            readRow("WhatsApp", PhoneRules.display(detail.whatsapp))
             Divider().overlay(Theme.border)
             readRow("E-mail", detail.email ?? "—")
             Divider().overlay(Theme.border)

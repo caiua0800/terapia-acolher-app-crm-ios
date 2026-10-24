@@ -361,7 +361,7 @@ struct VitrineView: View {
                     }
                     ForEach(p?.modalities ?? [], id: \.self) { pilula(legivel($0)) }
                     if let zap = p?.whatsapp, !zap.isEmpty {
-                        pilula(PatientMask.whatsapp(zap), icone: "phone.fill")
+                        pilula(PhoneRules.display(zap), icone: "phone.fill")
                     }
                 }
 

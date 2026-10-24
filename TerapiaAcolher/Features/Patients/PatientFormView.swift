@@ -28,7 +28,9 @@ final class PatientFormViewModel {
     // Campos
     var groupId: String? = nil
     var name = ""
+    /// Número mascarado, sem o DDI; o país fica em `whatsappPais`.
     var whatsapp = ""
+    var whatsappPais = TelefoneInternacional.brasil
     var email = ""
     var cpf = ""
     var hasBirthDate = false
@@ -73,12 +75,12 @@ final class PatientFormViewModel {
         self.mode = mode
         if case let .fromLead(leadName, leadWhatsapp) = mode {
             name = leadName
-            whatsapp = leadWhatsapp.isEmpty ? "" : PatientMask.whatsapp(leadWhatsapp)
+            (whatsappPais, whatsapp) = TelefoneInternacional.ler(leadWhatsapp)
         }
         if case let .edit(detail) = mode {
             groupId = detail.group?.id
             name = detail.name
-            whatsapp = detail.whatsapp.map(PatientMask.whatsapp) ?? ""
+            (whatsappPais, whatsapp) = TelefoneInternacional.ler(detail.whatsapp)
             email = detail.email ?? ""
             cpf = "" // nunca pré-preenche CPF; só reenvia se digitado de novo
             if let birth = detail.birthDate {
@@ -195,7 +197,7 @@ final class PatientFormViewModel {
         if name.trimmingCharacters(in: .whitespaces).isEmpty, let v = filled(c.nome) { name = v }
         if cpf.isEmpty, let v = filled(c.cpf) { cpf = PatientMask.cpf(v) }
         if email.isEmpty, let v = filled(c.email) { email = v.lowercased() }
-        if whatsapp.isEmpty, let v = filled(c.whatsapp) { whatsapp = PatientMask.whatsapp(v) }
+        if whatsapp.isEmpty, let v = filled(c.whatsapp) { (whatsappPais, whatsapp) = TelefoneInternacional.ler(v) }
         if !hasBirthDate, let v = filled(c.dataNascimento), let date = Self.intakeDate(v) {
             hasBirthDate = true
             birthDate = date
@@ -274,7 +276,8 @@ final class PatientFormViewModel {
         payload.groupId = groupId
         payload.cpf = cpfDigits.isEmpty ? nil : cpfDigits
         payload.email = email.isEmpty ? nil : email.trimmingCharacters(in: .whitespaces)
-        payload.whatsapp = PatientMask.whatsappPayload(whatsapp)
+        // "55…" no Brasil, "+DDI…" fora (o "+" marca o estrangeiro para o backend).
+        payload.whatsapp = TelefoneInternacional.paraSalvar(whatsappPais, whatsapp)
         payload.birthDate = hasBirthDate ? birthDate : nil
         if hasGuardian {
             payload.guardianName = guardianName.isEmpty ? nil : guardianName
@@ -492,13 +495,12 @@ struct PatientFormView: View {
                 }
                 Divider().overlay(Theme.border)
                 PatientFieldRow(label: "WhatsApp", check: model.needsCheck("whatsapp")) {
-                    TextField("+55 (11) 91234-5678", text: $model.whatsapp)
-                        .keyboardType(.phonePad)
-                        .multilineTextAlignment(.trailing)
-                        .onChange(of: model.whatsapp) { _, newValue in
-                            let masked = PatientMask.whatsapp(newValue)
-                            if masked != newValue { model.whatsapp = masked }
-                        }
+                    CampoTelefoneInternacional(
+                        pais: $model.whatsappPais,
+                        numero: $model.whatsapp,
+                        fonte: Theme.body(15),
+                        alinhamento: .trailing
+                    )
                 }
                 Divider().overlay(Theme.border)
                 PatientFieldRow(label: "E-mail", check: model.needsCheck("email")) {
