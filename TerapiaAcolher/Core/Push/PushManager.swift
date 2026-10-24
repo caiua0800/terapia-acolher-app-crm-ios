@@ -22,6 +22,9 @@ final class DeepLink {
     var abrirPerfil = false
     /// Conversa do suporte a abrir (notificação com `kind == "SUPPORT"`).
     var supportTicketId: String?
+    /// Tela a empilhar por cima da seção (cobrança, automações, extrato,
+    /// sessão…). A casca observa e abre — ver `NotifDestination`.
+    var screen: NotifDestination?
 }
 
 /// Endereços do CRM web ligados a assinatura/compra. O app iOS é acompanhante
@@ -184,44 +187,33 @@ extension PushManager: UNUserNotificationCenterDelegate {
             }
         }
 
-        // Resposta ou finalização no chat de suporte: abre a conversa.
-        if (userInfo["kind"] as? String) == "SUPPORT"
-            || ((userInfo["data"] as? [String: Any])?["kind"] as? String) == "SUPPORT" {
-            let ticketId = (userInfo["ticketId"] as? String)
-                ?? ((userInfo["data"] as? [String: Any])?["ticketId"] as? String)
-            if let ticketId { DeepLink.shared.supportTicketId = ticketId }
-            DeepLink.shared.pendingSection = "suporte"
+        // Mesma regra da lista do sininho e do web (`NotifDestination`): o
+        // `data` da notificação vem junto no push e diz o destino. Antes só
+        // `section`, `url` e três tipos eram lidos — cobrança, automação,
+        // saque e lembrete do mês abriam o app e paravam no Início.
+        guard let destino = NotifDestination.resolve(pushUserInfo: userInfo) else {
+            // Suporte sem o id da conversa: ao menos abre a tela de Suporte.
+            let kind = (userInfo["kind"] as? String)
+                ?? ((userInfo["data"] as? [String: Any])?["kind"] as? String)
+            if kind == "SUPPORT" { DeepLink.shared.pendingSection = "suporte" }
             return
         }
-
-        // `section` e `url` vêm do painel de suporte e valem para QUALQUER
-        // tipo. Vinham sendo ignorados: o switch abaixo só olhava `type`, então
-        // uma notificação escrita com destino "Minha Vitrine" caía no default e
-        // o app só abria na tela inicial.
-        if let url = userInfo["url"] as? String, let destino = URL(string: url) {
+        switch destino {
+        case .supportChat(let ticketId):
+            // A tela de Suporte já abre a conversa pedida (SupportHomeView).
+            DeepLink.shared.supportTicketId = ticketId
+            DeepLink.shared.pendingSection = "suporte"
+        case .section(let secao):
+            DeepLink.shared.pendingSection = secao
+        case .external(let url):
             // Link de venda (assinar, planos, pré-venda, entrar no web) não abre
             // pelo app: App Store 3.1.3(f). A notificação cai na tela inicial.
-            if !LinkDeVenda.ehLinkDeVenda(destino) { DeepLink.shared.externalURL = destino }
-            return
-        }
-        if let secao = userInfo["section"] as? String {
-            DeepLink.shared.pendingSection = secao
-            return
-        }
-
-        // Destino derivado do tipo, para as notificações automáticas.
-        switch userInfo["type"] as? String {
-        case "SESSION_SOON", "SESSION_ATTENDED", "SESSION_MISSED":
-            if let sessionId = userInfo["sessionId"] as? String {
-                DeepLink.shared.sessionId = sessionId
-            }
-            DeepLink.shared.pendingSection = "agenda"
-        case "CHARGE_DUE":
-            DeepLink.shared.pendingSection = "financeiro"
-        case "LEAD_RECEIVED":
-            DeepLink.shared.pendingSection = "leads"
+            if !LinkDeVenda.ehLinkDeVenda(url) { DeepLink.shared.externalURL = url }
         default:
-            break
+            // Leva o menu até a seção de origem e empilha a tela por cima:
+            // o Voltar cai num lugar que faz sentido.
+            if let secao = destino.homeSection { DeepLink.shared.pendingSection = secao }
+            DeepLink.shared.screen = destino
         }
     }
 }

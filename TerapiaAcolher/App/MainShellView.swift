@@ -98,6 +98,11 @@ struct MainShellView: View {
                     AccountStatusBanner(selection: $selection)
                     destinationView
                 }
+                    // Push tocado com destino próprio (cobrança, automações,
+                    // extrato, sessão): empilha por cima da seção.
+                    .navigationDestination(item: $deepLink.screen) { destino in
+                        NotifDestinationView(destination: destino)
+                    }
                     // Sem isto a barra fica em modo "large title" com o título
                     // VAZIO (o título real vai no item .principal) e reserva ~52pt
                     // de espaço morto no topo de todas as seções.

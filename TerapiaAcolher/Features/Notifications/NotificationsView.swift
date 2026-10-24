@@ -39,6 +39,11 @@ struct NotifItem: Decodable, Identifiable {
 
     var isUnread: Bool { readAt == nil }
 
+    /// Para onde o toque leva (mesma regra do web e do push).
+    var destination: NotifDestination? {
+        NotifDestination.resolve(type: type, data: data?.values ?? [:])
+    }
+
     /// Ícone e cor por tipo, fiéis ao MVP: calendário verde (sessão),
     /// cifrão âmbar (cobrança), check verde (atendida), alerta vermelho
     /// (falta), asterisco lilás (modelo atualizado).
@@ -79,14 +84,32 @@ struct NotifItem: Decodable, Identifiable {
     }
 }
 
-/// Payload contextual da notificação (chaves conhecidas, todas opcionais).
+/// Payload contextual da notificação. JSON livre: guarda só os valores
+/// texto, que é o que a regra de destino usa (ids, `section`, `url`…).
 struct NotifData: Decodable {
-    let sessionId: String?
-    let chargeId: String?
-    let templateId: String?
+    let values: [String: String]
+
+    private struct AnyKey: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: AnyKey.self)
+        var values: [String: String] = [:]
+        for key in container.allKeys {
+            if let text = try? container.decode(String.self, forKey: key) {
+                values[key.stringValue] = text
+            }
+        }
+        self.values = values
+    }
+
     /// `SUPPORT` quando veio do chat de suporte.
-    let kind: String?
-    let ticketId: String?
+    var kind: String? { values["kind"] }
+    var ticketId: String? { values["ticketId"] }
 }
 
 /// Filtros locais (chips) — Sessões = SESSION_*; Financeiro = CHARGE_*.
@@ -116,7 +139,9 @@ struct NotificationsView: View {
     @State private var viewModel = NotificationsViewModel.shared
 
     @State private var push = PushManager.shared
-    @State private var supportRoute: SupChatRoute?
+    /// Tela aberta pelo toque (sessão, cobrança, automações, suporte…).
+    @State private var openedDestination: NotifDestination?
+    @Environment(\.openURL) private var openURL
     @State private var isAskingPush = false
     @Environment(\.dismiss) private var dismiss
 
@@ -222,8 +247,8 @@ struct NotificationsView: View {
             }
         }
         .task { await viewModel.load() }
-        .navigationDestination(item: $supportRoute) { rota in
-            SupportChatView(ticketId: rota.id)
+        .navigationDestination(item: $openedDestination) { destino in
+            NotifDestinationView(destination: destino)
         }
         .alert("Ops", isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
@@ -251,13 +276,9 @@ struct NotificationsView: View {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.filtered) { item in
                     Button {
-                        if item.isSupport, let ticketId = item.data?.ticketId {
-                            supportRoute = SupChatRoute(id: ticketId)
-                        } else if item.type == "LEAD_RECEIVED" {
-                            // Lead novo: volta pro menu já em "Meus leads".
-                            DeepLink.shared.pendingSection = "leads"
-                            dismiss()
-                        }
+                        Haptics.tap()
+                        open(item.destination)
+                        // Sempre marca como lida, tenha destino ou não.
                         Task { await viewModel.markRead(item) }
                     } label: {
                         NotifCell(item: item)
@@ -271,6 +292,21 @@ struct NotificationsView: View {
             }
         }
         .refreshable { await viewModel.load() }
+    }
+
+    /// Tela própria: empilha aqui (Voltar devolve à lista). Seção: volta ao
+    /// menu já nela. Link: navegador — menos link de venda (App Store 3.1.3(f)).
+    private func open(_ destination: NotifDestination?) {
+        guard let destination else { return }
+        switch destination {
+        case .section(let secao):
+            DeepLink.shared.pendingSection = secao
+            dismiss()
+        case .external(let url):
+            if !LinkDeVenda.ehLinkDeVenda(url) { openURL(url) }
+        default:
+            openedDestination = destination
+        }
     }
 
     private var emptyState: some View {
