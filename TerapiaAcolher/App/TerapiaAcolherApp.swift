@@ -33,10 +33,15 @@ struct TerapiaAcolherApp: App {
 struct RootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.scenePhase) private var fase
+    @State private var atualizacao = AtualizacaoDoApp.shared
 
     var body: some View {
         ZStack {
             conteudo
+            // Versão nova na loja: aparece a cada abertura até atualizar.
+            if let aviso = atualizacao.aviso {
+                AvisoDeAtualizacaoView(aviso: aviso)
+            }
             // Tela de privacidade (auditoria de segurança, 2026-10-07): fora de
             // `.active`, o iOS tira o "retrato" do app para o seletor de apps e
             // o guarda em disco. Com isto ele mostra só a marca, nunca um
@@ -48,11 +53,18 @@ struct RootView: View {
         }
         .onChange(of: fase) { _, nova in
             switch nova {
-            case .background: session.appFoiParaSegundoPlano()
-            case .active: session.appVoltouAoPrimeiroPlano()
+            case .background:
+                session.appFoiParaSegundoPlano()
+                atualizacao.appFoiParaSegundoPlano()
+            case .active:
+                session.appVoltouAoPrimeiroPlano()
+                Task { await atualizacao.verificar() }
             default: break
             }
         }
+        .animation(.easeOut(duration: 0.2), value: atualizacao.aviso)
+        // Abertura a frio: a fase já nasce `.active` e o onChange não dispara.
+        .task { await atualizacao.verificar() }
     }
 
     private var conteudo: some View {
