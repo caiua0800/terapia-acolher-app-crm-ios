@@ -9,6 +9,13 @@ struct AgendaWeekView: View {
     private let hourHeight: CGFloat = 56
     private let gutterWidth: CGFloat = 34
 
+    /// Sessões que a origem mostra ("Minha Agenda" esconde as do CRM).
+    private var sessions: [AgendaSession] { model.visibleWeekSessions }
+    /// Compromissos do Google com horário: entram na grade.
+    private var timedEvents: [GoogleAgendaEvent] { model.visibleWeekEvents.filter { !$0.allDay } }
+    /// Dia inteiro: faixa própria acima da grade.
+    private var allDayEvents: [GoogleAgendaEvent] { model.visibleWeekEvents.filter(\.allDay) }
+
     private var days: [Date] {
         (0 ..< 7).compactMap { calendar.date(byAdding: .day, value: $0, to: model.weekStart) }
     }
@@ -17,10 +24,13 @@ struct AgendaWeekView: View {
     private var hourRange: ClosedRange<Int> {
         var lower = 8
         var upper = 19
-        for session in model.weekSessions {
-            lower = min(lower, calendar.component(.hour, from: session.startsAt))
-            let endHour = calendar.component(.hour, from: session.endsAt)
-            let endMinute = calendar.component(.minute, from: session.endsAt)
+        let spans = sessions.map { ($0.startsAt, $0.endsAt) } + timedEvents.map { ($0.startsAt, $0.endsAt) }
+        for (start, end) in spans {
+            // Compromisso que vira o dia não estica a grade até a meia-noite.
+            guard calendar.isDate(start, inSameDayAs: end) else { continue }
+            lower = min(lower, calendar.component(.hour, from: start))
+            let endHour = calendar.component(.hour, from: end)
+            let endMinute = calendar.component(.minute, from: end)
             upper = max(upper, endMinute > 0 ? endHour + 1 : endHour)
         }
         return lower ... max(upper, lower + 1)
@@ -32,10 +42,22 @@ struct AgendaWeekView: View {
                 .padding(.horizontal, Theme.screenPadding)
                 .padding(.bottom, 10)
 
+            if model.showsGoogleWarning {
+                GoogleAgendaWarning()
+                    .padding(.horizontal, Theme.screenPadding)
+                    .padding(.bottom, 10)
+            }
+
             dayHeaderRow
                 .padding(.horizontal, Theme.screenPadding)
 
             ScrollView {
+                if !allDayEvents.isEmpty {
+                    allDayRow
+                        .padding(.horizontal, Theme.screenPadding)
+                        .padding(.top, 6)
+                }
+
                 grid
                     .padding(.horizontal, Theme.screenPadding)
                     .padding(.bottom, 16)
@@ -140,7 +162,7 @@ struct AgendaWeekView: View {
                 }
 
                 // Blocos de sessão
-                ForEach(model.weekSessions) { session in
+                ForEach(sessions) { session in
                     if let frame = blockFrame(for: session, columnWidth: columnWidth) {
                         NavigationLink {
                             AgendaSessionDetailView(sessionId: session.id, preloaded: session)
@@ -150,6 +172,15 @@ struct AgendaWeekView: View {
                         .buttonStyle(.pressableSubtle)
                         .frame(width: columnWidth - 5, height: frame.height)
                         .offset(x: frame.x, y: frame.y)
+                    }
+                }
+
+                // Compromissos do Google (só leitura: abrem no Google Agenda)
+                ForEach(timedEvents) { event in
+                    if let frame = eventFrame(for: event, columnWidth: columnWidth) {
+                        googleBlock(event, height: frame.height)
+                            .frame(width: columnWidth - 5, height: frame.height)
+                            .offset(x: frame.x, y: frame.y)
                     }
                 }
             }
@@ -174,6 +205,80 @@ struct AgendaWeekView: View {
         let height = max(CGFloat(durationHours) * hourHeight - 3, 30)
         let x = gutterWidth + CGFloat(dayIndex) * columnWidth + 2.5
         return (x, y, height)
+    }
+
+    private func eventFrame(
+        for event: GoogleAgendaEvent,
+        columnWidth: CGFloat
+    ) -> (x: CGFloat, y: CGFloat, height: CGFloat)? {
+        guard let dayIndex = days.firstIndex(where: { calendar.isDate($0, inSameDayAs: event.startsAt) }) else {
+            return nil
+        }
+        let startHour = CGFloat(calendar.component(.hour, from: event.startsAt))
+            + CGFloat(calendar.component(.minute, from: event.startsAt)) / 60
+        // Virou o dia: o bloco vai até o fim da grade.
+        let endHour = calendar.isDate(event.startsAt, inSameDayAs: event.endsAt)
+            ? CGFloat(calendar.component(.hour, from: event.endsAt))
+                + CGFloat(calendar.component(.minute, from: event.endsAt)) / 60
+            : CGFloat(hourRange.upperBound)
+        let duration = max(endHour - startHour, 0.5)
+
+        let y = (startHour - CGFloat(hourRange.lowerBound)) * hourHeight
+        let height = max(duration * hourHeight - 3, 30)
+        let x = gutterWidth + CGFloat(dayIndex) * columnWidth + 2.5
+        return (x, y, height)
+    }
+
+    private func googleBlock(_ event: GoogleAgendaEvent, height: CGFloat) -> some View {
+        GoogleWeekBlockLink(event: event) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(event.title)
+                    .font(Theme.body(9, weight: .bold))
+                    .lineLimit(1)
+                if height > 40 {
+                    Text(shortTime(event.startsAt))
+                        .font(Theme.body(8, weight: .medium))
+                        .lineLimit(1)
+                        .opacity(0.9)
+                }
+            }
+            .foregroundStyle(GoogleAgendaStyle.blockText)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(GoogleAgendaStyle.blockFill)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(GoogleAgendaStyle.color, lineWidth: 1))
+        }
+    }
+
+    // MARK: Dia inteiro (Google), alinhado às colunas
+
+    private var allDayRow: some View {
+        HStack(alignment: .top, spacing: 0) {
+            Color.clear.frame(width: gutterWidth, height: 1)
+            ForEach(days, id: \.self) { day in
+                let events = AgendaTimeline.events(on: day, in: allDayEvents, calendar: calendar)
+                VStack(spacing: 2) {
+                    ForEach(events) { event in
+                        GoogleWeekBlockLink(event: event) {
+                            Text(event.title)
+                                .font(Theme.body(9, weight: .semibold))
+                                .lineLimit(1)
+                                .foregroundStyle(GoogleAgendaStyle.text)
+                                .padding(.horizontal, 3)
+                                .padding(.vertical, 2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(GoogleAgendaStyle.color.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                                .overlay(RoundedRectangle(cornerRadius: 5).stroke(GoogleAgendaStyle.color, lineWidth: 1))
+                        }
+                    }
+                }
+                .padding(.horizontal, 2)
+                .frame(maxWidth: .infinity)
+            }
+        }
     }
 
     private func sessionBlock(_ session: AgendaSession, height: CGFloat) -> some View {
@@ -230,33 +335,65 @@ struct AgendaWeekView: View {
 
     private var legend: some View {
         let entries = legendEntries()
-        return HStack(spacing: 14) {
-            ForEach(entries, id: \.name) { entry in
-                HStack(spacing: 5) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(entry.color)
-                        .frame(width: 10, height: 10)
-                    Text(entry.name)
-                        .font(Theme.body(11, weight: .medium))
-                        .foregroundStyle(Theme.textSecondary)
-                }
+        // Centralizada quando cabe numa linha; com muitos grupos (ou o Google
+        // junto) quebra em vez de vazar da tela.
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) { legendItems(entries) }
+                .frame(maxWidth: .infinity)
+            FlowLayout(spacing: 10) { legendItems(entries) }
+        }
+    }
+
+    @ViewBuilder
+    private func legendItems(_ entries: [(name: String, color: Color)]) -> some View {
+        ForEach(entries, id: \.name) { entry in
+            HStack(spacing: 5) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(entry.color)
+                    .frame(width: 10, height: 10)
+                Text(entry.name)
+                    .font(Theme.body(11, weight: .medium))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize()
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func legendEntries() -> [(name: String, color: Color)] {
         var seen = Set<String>()
         var entries: [(String, Color)] = []
-        for session in model.weekSessions {
+        for session in sessions {
             if let group = session.patient.group, !seen.contains(group.name) {
                 seen.insert(group.name)
                 entries.append((group.name, Theme.groupColor(group.color)))
             }
         }
-        if model.weekSessions.contains(where: { $0.isOnline && $0.patient.group == nil }) {
+        if sessions.contains(where: { $0.isOnline && $0.patient.group == nil }) {
             entries.append(("Online", Color(hex: 0x46656F)))
         }
+        if !model.visibleWeekEvents.isEmpty {
+            entries.append(("Minha Agenda (Google)", GoogleAgendaStyle.color))
+        }
         return entries
+    }
+}
+
+/// Bloco do Google na semana: toque abre no Google Agenda (sem detalhe de sessão).
+private struct GoogleWeekBlockLink<Label: View>: View {
+    let event: GoogleAgendaEvent
+    @ViewBuilder let label: () -> Label
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Button {
+            guard let url = event.url else { return }
+            Haptics.tap()
+            openURL(url)
+        } label: {
+            label()
+        }
+        .buttonStyle(.pressableSubtle)
+        .accessibilityLabel("\(event.title), \(event.timeLabel), Minha Agenda do Google")
     }
 }

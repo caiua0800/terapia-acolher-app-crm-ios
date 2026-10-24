@@ -35,6 +35,11 @@ struct AgendaSession: Decodable, Identifiable, Hashable {
     /// Quando a chamada foi encerrada para todos. O link do Meet continua
     /// valendo depois disso — quem tiver o endereço começa uma chamada NOVA.
     let meetEndedAt: Date?
+    /// "Quero o Zelo na reunião". nil = sessão de antes da chave: o robô
+    /// segue a regra antiga (entra se houver crédito).
+    let zeloNaReuniao: Bool?
+    /// Zelo tirado da reunião em andamento: não volta nesta sessão.
+    let zeloRetiradoEm: Date?
     /// Só vem no detalhe da sessão.
     let transcricaoPronta: Bool?
     let observations: String?
@@ -430,6 +435,8 @@ extension AgendaSessionCardRow {
 struct AgendaDayHeader: View {
     let day: Date
     let count: Int
+    /// Compromissos da agenda do Google no dia ("Minha Agenda"/"Todos").
+    var googleCount: Int = 0
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -445,14 +452,27 @@ struct AgendaDayHeader: View {
             .font(Theme.body(13))
             .foregroundStyle(Theme.textSecondary)
             Spacer()
-            Text(count == 1 ? "1 SESSÃO" : "\(count) SESSÕES")
-                .font(Theme.body(10, weight: .bold))
-                .tracking(0.6)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Theme.primarySoft)
-                .foregroundStyle(Theme.success)
-                .clipShape(Capsule())
+            // Dia só com Google não mostra "0 SESSÕES".
+            if count > 0 || googleCount == 0 {
+                Text(count == 1 ? "1 SESSÃO" : "\(count) SESSÕES")
+                    .font(Theme.body(10, weight: .bold))
+                    .tracking(0.6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Theme.primarySoft)
+                    .foregroundStyle(Theme.success)
+                    .clipShape(Capsule())
+            }
+            if googleCount > 0 {
+                Text("\(googleCount) NO GOOGLE")
+                    .font(Theme.body(10, weight: .bold))
+                    .tracking(0.6)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(GoogleAgendaStyle.soft)
+                    .foregroundStyle(GoogleAgendaStyle.text)
+                    .clipShape(Capsule())
+            }
         }
     }
 }

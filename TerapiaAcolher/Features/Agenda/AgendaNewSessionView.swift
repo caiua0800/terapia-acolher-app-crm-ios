@@ -17,6 +17,13 @@ final class AgendaNewSessionModel {
     var priceText = ""
     var isOnline = false
     var generateMeet = false
+    /// "Quero o Zelo na reunião": desligado por padrão — o Zelo só entra
+    /// quando o terapeuta pede.
+    var zeloNaReuniao = false
+    /// Plano e cota do Zelo. Buscado quando a chave aparece.
+    var zelo: ZeloAvailability?
+    var isLoadingZelo = false
+    private(set) var zeloLoaded = false
     var manualLink = ""
     var sendEmail = false
     var patientEmailInput = ""
@@ -133,6 +140,28 @@ final class AgendaNewSessionModel {
         return calendar.date(from: components)
     }
 
+    /// A chave só existe com sala gerada pelo CRM (Online + Gerar link).
+    var showsZelo: Bool { isOnline && generateMeet }
+    var zeloAvailable: Bool { zelo?.disponivel == true }
+
+    /// Uma vez por tela; falha vira texto na chave ("não foi possível
+    /// conferir"), com a chave desabilitada.
+    @MainActor
+    func loadZeloIfNeeded() async {
+        guard showsZelo, !zeloLoaded, !isLoadingZelo else { return }
+        isLoadingZelo = true
+        defer { isLoadingZelo = false }
+        do {
+            zelo = try await APIClient.shared.get("sessions/zelo")
+            zeloLoaded = true
+        } catch is CancellationError {
+            // troca de tela — tenta de novo na próxima vez
+        } catch {
+            zelo = nil
+            zeloLoaded = true
+        }
+    }
+
     @MainActor
     func save() async -> Bool {
         struct Body: Encodable {
@@ -147,6 +176,8 @@ final class AgendaNewSessionModel {
             let meetLink: String?
             let sendEmailToPatient: Bool?
             let patientEmail: String?
+            /// Só vai com sala gerada; ausente = regra antiga no backend.
+            let zeloNaReuniao: Bool?
         }
 
         guard let patient, let startsAt else { return false }
@@ -168,7 +199,8 @@ final class AgendaNewSessionModel {
                 generateMeetLink: (isOnline && generateMeet) ? true : nil,
                 meetLink: (isOnline && !generateMeet && !trimmedLink.isEmpty) ? trimmedLink : nil,
                 sendEmailToPatient: sendEmail ? true : nil,
-                patientEmail: needsEmailField ? patientEmailInput.trimmingCharacters(in: .whitespaces) : nil
+                patientEmail: needsEmailField ? patientEmailInput.trimmingCharacters(in: .whitespaces) : nil,
+                zeloNaReuniao: showsZelo ? (zeloNaReuniao && zeloAvailable) : nil
             ))
             return true
         } catch let error as APIError where error.statusCode == 409 {
@@ -486,6 +518,18 @@ struct AgendaNewSessionView: View {
                 Text("O link será criado no seu Google Calendar e enviado junto do convite.")
                     .font(Theme.body(12))
                     .foregroundStyle(Color(hex: 0x3E637F).opacity(0.8))
+
+                Divider()
+                    .overlay(Color(hex: 0x3E637F).opacity(0.15))
+                    .padding(.top, 2)
+
+                ZeloToggleRow(
+                    isOn: model.zeloNaReuniao && model.zeloAvailable,
+                    isEnabled: model.zeloAvailable,
+                    isLoading: model.isLoadingZelo,
+                    description: ZeloText.newSession(model.zelo, loading: !model.zeloLoaded)
+                ) { model.zeloNaReuniao = $0 }
+                .task { await model.loadZeloIfNeeded() }
             }
         }
         .padding(14)

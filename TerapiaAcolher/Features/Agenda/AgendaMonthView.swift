@@ -12,6 +12,11 @@ struct AgendaMonthView: View {
         ScrollView {
             VStack(spacing: 14) {
                 monthHeader
+
+                if model.showsGoogleWarning {
+                    GoogleAgendaWarning()
+                }
+
                 calendarCard
 
                 if let day = model.selectedDay {
@@ -76,13 +81,17 @@ struct AgendaMonthView: View {
                         if let day = cell {
                             dayCell(day)
                         } else {
-                            Color.clear.frame(height: 58)
+                            Color.clear.frame(height: cellHeight)
                         }
                     }
                 }
             }
         }
     }
+
+    /// Célula um pouco mais alta com o Google na tela: cabem as duas
+    /// contagens empilhadas ("2 sess" + "1 G").
+    private var cellHeight: CGFloat { model.effectiveOrigin.showsGoogle ? 64 : 58 }
 
     /// Dias do mês com espaços vazios antes do dia 1 (semana começa no domingo).
     private var cells: [Int?] {
@@ -95,7 +104,8 @@ struct AgendaMonthView: View {
 
     private func dayCell(_ day: Int) -> some View {
         let date = dateFor(day: day)
-        let count = model.monthCounts[day] ?? 0
+        let count = model.visibleMonthCounts[day] ?? 0
+        let googleCount = googleCounts[day] ?? 0
         let isToday = calendar.isDateInToday(date)
         let isSelected = model.selectedDay.map { calendar.isDate($0, inSameDayAs: date) } ?? false
 
@@ -117,22 +127,44 @@ struct AgendaMonthView: View {
                         .controlSize(.mini)
                         .tint(Theme.primary)
                         .frame(height: 15)
-                } else if count > 0 {
-                    Text("\(count) sess")
-                        .font(Theme.body(9, weight: .bold))
-                        .foregroundStyle(Theme.success)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Theme.primarySoft)
-                        .clipShape(Capsule())
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                } else if count > 0 || googleCount > 0 {
+                    VStack(spacing: 2) {
+                        if count > 0 {
+                            Text("\(count) sess")
+                                .font(Theme.body(9, weight: .bold))
+                                .foregroundStyle(Theme.success)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Theme.primarySoft)
+                                .clipShape(Capsule())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        if googleCount > 0 {
+                            Text("\(googleCount) G")
+                                .font(Theme.body(9, weight: .bold))
+                                .foregroundStyle(GoogleAgendaStyle.text)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(GoogleAgendaStyle.soft)
+                                .clipShape(Capsule())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .accessibilityLabel("\(googleCount) na agenda do Google")
+                        }
+                    }
+                } else if model.isLoadingGoogle, model.effectiveOrigin == .mine {
+                    // Só o Google na tela e ainda chegando: marca de espera.
+                    Capsule()
+                        .fill(Theme.border.opacity(0.6))
+                        .frame(width: 26, height: 10)
+                        .frame(height: 15)
                 } else {
                     Color.clear.frame(height: 15)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
+            .frame(height: cellHeight)
             .background(
                 isSelected ? Theme.primarySoft.opacity(0.55) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 8)
@@ -141,6 +173,9 @@ struct AgendaMonthView: View {
         }
         .buttonStyle(.pressableSubtle)
     }
+
+    /// Calculado uma vez por desenho, não por célula.
+    private var googleCounts: [Int: Int] { model.monthGoogleCounts }
 
     private func dateFor(day: Int) -> Date {
         var components = calendar.dateComponents([.year, .month], from: model.monthAnchor)
@@ -175,20 +210,28 @@ struct AgendaMonthView: View {
                     Task { await model.loadDay(day) }
                 }
                 .padding(.vertical, 8)
-            } else if model.daySessions.isEmpty {
-                Text("Nenhuma sessão neste dia.")
+            } else if model.selectedDayItems.isEmpty {
+                Text(model.effectiveOrigin == .mine
+                    ? "Nenhum compromisso na sua agenda do Google neste dia."
+                    : "Nenhuma sessão neste dia.")
                     .font(Theme.body(14))
                     .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 18)
             } else {
-                ForEach(model.daySessions) { session in
-                    NavigationLink {
-                        AgendaSessionDetailView(sessionId: session.id, preloaded: session)
-                    } label: {
-                        AgendaSessionCardRow(session: session)
+                ForEach(model.selectedDayItems) { item in
+                    switch item {
+                    case .session(let session):
+                        NavigationLink {
+                            AgendaSessionDetailView(sessionId: session.id, preloaded: session)
+                        } label: {
+                            AgendaSessionCardRow(session: session)
+                        }
+                        .buttonStyle(.pressableSubtle)
+                    case .google(let event):
+                        GoogleAgendaEventListItem(event: event)
                     }
-                    .buttonStyle(.pressableSubtle)
                 }
             }
         }

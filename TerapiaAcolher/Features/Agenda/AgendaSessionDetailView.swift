@@ -27,6 +27,17 @@ final class AgendaSessionDetailModel {
     var isLoadingTranscript = false
     var transcriptError: String?
 
+    // MARK: Zelo na reunião
+    /// Plano e cota (GET sessions/zelo).
+    var zelo: ZeloAvailability?
+    /// Presença agora (GET sessions/:id/zelo), consultada a cada 30 s.
+    var zeloNow: ZeloInSession?
+    var isChangingZelo = false
+    var isRemovingZelo = false
+    var confirmingZeloRemoval = false
+    /// Só consulta com o app em primeiro plano (a tela controla).
+    var isForeground = true
+
     init(sessionId: String, preloaded: AgendaSession?) {
         self.sessionId = sessionId
         session = preloaded
@@ -140,6 +151,95 @@ final class AgendaSessionDetailModel {
         }
     }
 
+    /// A chave do Zelo só faz sentido em sala nossa, ainda por acontecer.
+    var showsZelo: Bool {
+        guard let session else { return false }
+        return session.salaDaClinica == true && session.isScheduled && session.meetEndedAt == nil
+    }
+
+    /// Zelo dentro da sala? Sem resposta do Google (nil), vale o esperado:
+    /// no horário, chave não desligada e com crédito.
+    var zeloInRoom: Bool {
+        guard let zeloNow else { return false }
+        if zeloNow.zeloNaSala == true { return true }
+        return zeloNow.zeloNaSala == nil
+            && zeloNow.noHorario
+            && session?.zeloNaReuniao != false
+            && zelo?.disponivel == true
+    }
+
+    @MainActor
+    func loadZeloAvailability() async {
+        guard showsZelo, zelo == nil else { return }
+        zelo = try? await APIClient.shared.get("sessions/zelo")
+    }
+
+    /// Pergunta ao Google a cada 30 s se a reunião está acontecendo com o
+    /// Zelo dentro. Vive com a tela (a Task morre ao sair) e pula as voltas
+    /// com o app em segundo plano.
+    @MainActor
+    func pollZeloPresence() async {
+        while !Task.isCancelled {
+            // A sessão pode ainda estar chegando: espera sem gastar rede.
+            guard session != nil else {
+                try? await Task.sleep(for: .milliseconds(300))
+                continue
+            }
+            await loadZeloAvailability()
+            if isForeground, showsZelo, session?.zeloRetiradoEm == nil {
+                if let now: ZeloInSession = try? await APIClient.shared.get("sessions/\(sessionId)/zelo") {
+                    zeloNow = now
+                }
+            }
+            try? await Task.sleep(for: .seconds(30))
+        }
+    }
+
+    @MainActor
+    func setZelo(_ on: Bool) async {
+        struct Body: Encodable { let zeloNaReuniao: Bool }
+        guard !isChangingZelo else { return }
+        isChangingZelo = true
+        defer { isChangingZelo = false }
+        do {
+            let _: AgendaSession = try await APIClient.shared.patch(
+                "sessions/\(sessionId)", body: Body(zeloNaReuniao: on)
+            )
+            await load()
+            Haptics.success()
+            toast = AgendaToastData(
+                message: on ? "O Zelo vai entrar na reunião." : "O Zelo não vai entrar nesta reunião.",
+                showUndo: false
+            )
+        } catch is CancellationError {
+            // troca de tela — silencioso
+        } catch let error as APIError {
+            actionError = error.message
+        } catch {
+            actionError = "Não foi possível concluir. Tente de novo."
+        }
+    }
+
+    @MainActor
+    func removeZelo() async {
+        guard !isRemovingZelo else { return }
+        isRemovingZelo = true
+        defer { isRemovingZelo = false }
+        do {
+            let updated: AgendaSession = try await APIClient.shared.post("sessions/\(sessionId)/zelo/retirar")
+            session = updated
+            zeloNow = nil
+            Haptics.success()
+            toast = AgendaToastData(message: "O Zelo está saindo da reunião.", showUndo: false)
+        } catch is CancellationError {
+            // troca de tela — silencioso
+        } catch let error as APIError {
+            actionError = error.message
+        } catch {
+            actionError = "Não foi possível concluir. Tente de novo."
+        }
+    }
+
     /// Só busca quando o terapeuta pede: a primeira chamada vai ao Google.
     @MainActor
     func loadTranscript() async {
@@ -182,6 +282,7 @@ struct AgendaSessionDetailView: View {
     @State private var showCancelDialog = false
     @State private var showRescheduleSheet = false
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     init(sessionId: String, preloaded: AgendaSession? = nil) {
         _model = State(initialValue: AgendaSessionDetailModel(sessionId: sessionId, preloaded: preloaded))
@@ -207,6 +308,19 @@ struct AgendaSessionDetailView: View {
         .task {
             await model.load()
             await model.aguardarTranscricao()
+        }
+        // Zelo: plano/cota uma vez e presença a cada 30 s, só com a tela aberta.
+        .task { await model.pollZeloPresence() }
+        .onChange(of: scenePhase) { _, phase in
+            model.isForeground = phase == .active
+        }
+        .alert("Retirar o Zelo da reunião?", isPresented: Bindable(model).confirmingZeloRemoval) {
+            Button("Retirar o Zelo", role: .destructive) {
+                Task { await model.removeZelo() }
+            }
+            Button("Voltar", role: .cancel) {}
+        } message: {
+            Text("O Zelo sai da reunião em até 30 segundos e não poderá voltar nesta sessão, nem se você ligar de novo. A partir daí, esta reunião não é mais transcrita.")
         }
         .agendaToast(Bindable(model).toast)
         .alert("Não deu certo", isPresented: .init(
@@ -508,6 +622,8 @@ struct AgendaSessionDetailView: View {
                     }
                 }
 
+                zeloSection(session)
+
                 if session.salaDaClinica == true {
                     Divider().padding(.vertical, 2)
                     Button {
@@ -537,6 +653,80 @@ struct AgendaSessionDetailView: View {
         .padding(14)
         .background(Color(hex: 0xDDEAF3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: Zelo na reunião (retirado · na sala · chave)
+
+    @ViewBuilder
+    private func zeloSection(_ session: AgendaSession) -> some View {
+        if let retiradoEm = session.zeloRetiradoEm {
+            VStack(alignment: .leading, spacing: 3) {
+                Divider().padding(.bottom, 7)
+                Text("Zelo retirado da reunião")
+                    .font(Theme.body(14.5, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Retirado às \(AgendaFormat.time.string(from: retiradoEm)). Ele não volta nesta sessão.")
+                    .font(Theme.body(12.5))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        } else if model.showsZelo && model.zeloInRoom {
+            VStack(alignment: .leading, spacing: 3) {
+                Divider().padding(.bottom, 7)
+                HStack(spacing: 8) {
+                    ZeloPulseDot()
+                    Text(model.zeloNow?.zeloNaSala == true
+                         ? "O Zelo está na reunião"
+                         : "O Zelo deve estar na reunião")
+                        .font(Theme.body(14.5, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                }
+                Text(model.zeloNow?.emAndamento == true
+                     ? "Reunião em andamento. A transcrição está sendo feita."
+                     : "A transcrição é feita enquanto ele estiver na sala.")
+                    .font(Theme.body(12.5))
+                    .foregroundStyle(Theme.textSecondary)
+
+                Button {
+                    Haptics.tap()
+                    model.confirmingZeloRemoval = true
+                } label: {
+                    HStack(spacing: 8) {
+                        if model.isRemovingZelo {
+                            ProgressView().controlSize(.small).tint(Theme.danger)
+                        } else {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        Text("RETIRAR O ZELO DA REUNIÃO")
+                            .font(Theme.body(11, weight: .bold))
+                            .tracking(0.8)
+                    }
+                    .foregroundStyle(Theme.danger)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.danger.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .disabled(model.isRemovingZelo)
+                .padding(.top, 9)
+            }
+        } else if model.showsZelo {
+            VStack(alignment: .leading, spacing: 0) {
+                Divider().padding(.bottom, 10)
+                // nil = sessão de antes da chave: o robô entra se tiver crédito.
+                ZeloToggleRow(
+                    isOn: session.zeloNaReuniao != false && model.zelo?.disponivel == true,
+                    isEnabled: !model.isChangingZelo
+                        && (model.zelo?.disponivel == true || session.zeloNaReuniao == true),
+                    isLoading: model.isChangingZelo,
+                    description: ZeloText.detail(model.zelo)
+                ) { on in
+                    Task { await model.setZelo(on) }
+                }
+            }
+        }
     }
 
     private func meetURL(_ link: String) -> URL? {
@@ -1109,5 +1299,29 @@ struct AgendaTranscriptSheet: View {
 
     private static func semAcento(_ s: String) -> String {
         s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pt_BR"))
+    }
+}
+
+/// Ponto pulsando: o Zelo está ao vivo na sala.
+private struct ZeloPulseDot: View {
+    @State private var pulsing = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Theme.primary.opacity(0.6))
+                .frame(width: 10, height: 10)
+                .scaleEffect(pulsing ? 2.2 : 1)
+                .opacity(pulsing ? 0 : 0.6)
+            Circle()
+                .fill(Theme.primary)
+                .frame(width: 10, height: 10)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) {
+                pulsing = true
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

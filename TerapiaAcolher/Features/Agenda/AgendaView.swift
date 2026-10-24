@@ -74,7 +74,147 @@ final class AgendaViewModel {
     /// quando temos certeza de que está desconectada (a conexão é opcional).
     var googleConnected: Bool?
 
+    // MARK: Origem (Agenda Acolher / Minha Agenda / Todos)
+
+    /// Escolhida no seletor. Vive no view model compartilhado: dura enquanto o
+    /// app está aberto e volta à Agenda Acolher no logout (instância nova).
+    var origin: AgendaOrigin = .acolher
+    /// O seletor só existe com o Google conectado.
+    var showsOriginPicker: Bool { googleConnected == true }
+    /// A que vale de fato: sem Google conectado é sempre a Agenda Acolher.
+    var effectiveOrigin: AgendaOrigin { showsOriginPicker ? origin : .acolher }
+
+    // Compromissos do Google por visão (crus; o filtro da origem é na tela).
+    var googleToday: [GoogleAgendaEvent] = []
+    var googleList: [GoogleAgendaEvent] = []
+    var googleWeek: [GoogleAgendaEvent] = []
+    var googleMonth: [GoogleAgendaEvent] = []
+    var isLoadingGoogle = false
+    /// A leitura do Google falhou: aviso na tela, a agenda segue de pé.
+    var googleFailed = false
+
     private let calendar = AgendaFormat.calendar
+
+    // MARK: Itens visíveis (sessões + Google pela origem)
+
+    var todayItems: [AgendaItem] {
+        AgendaTimeline.merge(sessions: todaySessions, events: googleToday, origin: effectiveOrigin)
+    }
+
+    var listSections: [(day: Date, items: [AgendaItem])] {
+        AgendaTimeline.sections(
+            AgendaTimeline.merge(sessions: listSessions, events: googleList, origin: effectiveOrigin),
+            calendar: calendar
+        )
+    }
+
+    var visibleWeekSessions: [AgendaSession] {
+        effectiveOrigin.showsSessions ? weekSessions : []
+    }
+
+    var visibleWeekEvents: [GoogleAgendaEvent] {
+        AgendaTimeline.visibleEvents(googleWeek, origin: effectiveOrigin)
+    }
+
+    var visibleMonthCounts: [Int: Int] {
+        effectiveOrigin.showsSessions ? monthCounts : [:]
+    }
+
+    var monthGoogleCounts: [Int: Int] {
+        AgendaTimeline.countsByDay(
+            AgendaTimeline.visibleEvents(googleMonth, origin: effectiveOrigin),
+            monthAnchor: monthAnchor,
+            calendar: calendar
+        )
+    }
+
+    var selectedDayItems: [AgendaItem] {
+        guard let selectedDay else { return [] }
+        let events = AgendaTimeline.events(on: selectedDay, in: googleMonth, calendar: calendar)
+        return AgendaTimeline.merge(sessions: daySessions, events: events, origin: effectiveOrigin)
+    }
+
+    /// Aviso de falha só quando o Google está na tela.
+    var showsGoogleWarning: Bool { googleFailed && effectiveOrigin.showsGoogle }
+
+    /// Troca a origem e busca o Google da visão atual, se passou a aparecer.
+    @MainActor
+    func selectOrigin(_ newOrigin: AgendaOrigin) async {
+        origin = newOrigin
+        guard effectiveOrigin.showsGoogle else { return }
+        await loadGoogleForCurrent()
+    }
+
+    /// Google da visão atual, no mesmo intervalo das sessões dela.
+    @MainActor
+    func loadGoogleForCurrent() async {
+        switch mode {
+        case .today:
+            let (from, to) = todayRange()
+            await loadGoogle(from: from, to: to) { self.googleToday = $0 }
+        case .list:
+            let from = calendar.startOfDay(for: .now)
+            let to = max(listLoadedThrough, calendar.date(byAdding: .day, value: Self.firstWindowDays, to: from) ?? from)
+            await loadGoogle(from: from, to: to) { self.googleList = $0 }
+        case .week:
+            await loadGoogle(from: weekStart, to: weekEnd()) { self.googleWeek = $0 }
+        case .month:
+            let (from, to) = monthRange()
+            await loadGoogle(from: from, to: to) { self.googleMonth = $0 }
+        }
+    }
+
+    /// Busca e atribui — só com o Google na tela. Falha vira aviso, nunca
+    /// erro de tela cheia: as sessões continuam aparecendo.
+    @MainActor
+    private func loadGoogle(from: Date, to: Date, assign: @escaping ([GoogleAgendaEvent]) -> Void) async {
+        guard effectiveOrigin.showsGoogle else { return }
+        isLoadingGoogle = true
+        defer { isLoadingGoogle = false }
+        guard let result = await fetchGoogle(from: from, to: to) else { return }
+        assign(result.events)
+        googleFailed = result.failed
+    }
+
+    /// Agenda do Google em pedaços de até 60 dias (o backend aceita 62).
+    /// `nil` = cancelada (troca de tela); aí nada muda.
+    @MainActor
+    private func fetchGoogle(from: Date, to: Date) async -> (events: [GoogleAgendaEvent], failed: Bool)? {
+        var events: [GoogleAgendaEvent] = []
+        var seen = Set<String>()
+        var failed = false
+        for chunk in AgendaTimeline.chunks(from: from, to: to) {
+            do {
+                let payload: GoogleAgendaPayload = try await APIClient.shared.get("sessions/google-agenda", query: [
+                    "from": AgendaFormat.isoQuery.string(from: chunk.from),
+                    "to": AgendaFormat.isoQuery.string(from: chunk.to),
+                ])
+                if payload.erro { failed = true }
+                // Evento que cruza a borda do pedaço vem nos dois.
+                for event in payload.eventos where seen.insert(event.id).inserted {
+                    events.append(event)
+                }
+            } catch is CancellationError {
+                return nil
+            } catch {
+                failed = true
+            }
+        }
+        return (events, failed)
+    }
+
+    private func todayRange() -> (Date, Date) {
+        let from = calendar.startOfDay(for: .now)
+        return (from, calendar.date(byAdding: .day, value: 1, to: from) ?? from)
+    }
+
+    private func weekEnd() -> Date {
+        calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+    }
+
+    private func monthRange() -> (Date, Date) {
+        (monthAnchor, calendar.date(byAdding: .month, value: 1, to: monthAnchor) ?? monthAnchor)
+    }
 
     // MARK: Carregamento
 
@@ -103,7 +243,16 @@ final class AgendaViewModel {
     func loadToday() async {
         let from = calendar.startOfDay(for: .now)
         let to = calendar.date(byAdding: DateComponents(day: 1, second: -1), to: from) ?? from
+        async let google: Void = loadGoogleForMode(.today)
         await fetch(from: from, to: to) { self.todaySessions = $0.sorted { $0.startsAt < $1.startsAt } }
+        await google
+    }
+
+    /// Google em paralelo com as sessões, só se a visão ainda é a mesma.
+    @MainActor
+    private func loadGoogleForMode(_ expected: AgendaMode) async {
+        guard mode == expected else { return }
+        await loadGoogleForCurrent()
     }
 
     /// Primeira janela (e recarga do pull-to-refresh): zera a paginação.
@@ -112,7 +261,11 @@ final class AgendaViewModel {
         let from = calendar.startOfDay(for: .now)
         let to = calendar.date(byAdding: .day, value: Self.firstWindowDays, to: from) ?? from
         reachedEndOfList = false
+        // Mesma janela das sessões: Google além dela apareceria sem as
+        // sessões do mesmo período em "Todos".
+        async let google: Void = loadGoogle(from: from, to: to) { self.googleList = $0 }
         await fetch(from: from, to: to) { self.listSessions = $0 }
+        await google
         if errorMessage == nil { listLoadedThrough = to }
     }
 
@@ -134,13 +287,22 @@ final class AgendaViewModel {
             let from = cursor.addingTimeInterval(1)
             let to = calendar.date(byAdding: .day, value: Self.nextWindowDays, to: from) ?? from
             guard let batch = await fetchWindow(from: from, to: to) else { return } // erro: mantém o já carregado
+            var googleBatch: [GoogleAgendaEvent] = []
+            if effectiveOrigin.showsGoogle, let result = await fetchGoogle(from: from, to: to) {
+                if result.failed { googleFailed = true }
+                googleBatch = result.events
+            }
             cursor = to
             listLoadedThrough = to
-            if !batch.isEmpty {
-                let known = Set(listSessions.map(\.id))
-                listSessions.append(contentsOf: batch.filter { !known.contains($0.id) })
-                return
-            }
+            let known = Set(listSessions.map(\.id))
+            listSessions.append(contentsOf: batch.filter { !known.contains($0.id) })
+            let knownGoogle = Set(googleList.map(\.id))
+            googleList.append(contentsOf: googleBatch.filter { !knownGoogle.contains($0.id) })
+            // Para no primeiro bloco com algo VISÍVEL na origem: em "Minha
+            // Agenda" uma janela só com sessões não faria a lista crescer.
+            let visibleSessions = effectiveOrigin.showsSessions && !batch.isEmpty
+            let visibleGoogle = !AgendaTimeline.visibleEvents(googleBatch, origin: effectiveOrigin).isEmpty
+            if visibleSessions || visibleGoogle { return }
         }
         reachedEndOfList = true
     }
@@ -148,11 +310,20 @@ final class AgendaViewModel {
     @MainActor
     func loadWeek() async {
         let to = calendar.date(byAdding: DateComponents(day: 7, second: -1), to: weekStart) ?? weekStart
+        async let google: Void = loadGoogleForMode(.week)
         await fetch(from: weekStart, to: to) { self.weekSessions = $0 }
+        await google
     }
 
     @MainActor
     func loadMonth() async {
+        async let google: Void = loadGoogleForMode(.month)
+        await loadMonthCounts()
+        await google
+    }
+
+    @MainActor
+    private func loadMonthCounts() async {
         isLoading = monthCounts.isEmpty
         errorMessage = nil
         defer { isLoading = false }
@@ -241,6 +412,7 @@ final class AgendaViewModel {
     @MainActor
     func shiftWeek(_ delta: Int) async {
         weekStart = calendar.date(byAdding: .day, value: delta * 7, to: weekStart) ?? weekStart
+        googleWeek = []
         await loadWeek()
     }
 
@@ -250,6 +422,7 @@ final class AgendaViewModel {
         selectedDay = nil
         daySessions = []
         monthCounts = [:]
+        googleMonth = []
         await loadMonth()
     }
 }
@@ -274,7 +447,16 @@ struct AgendaView: View {
                 modePicker
                     .padding(.horizontal, Theme.screenPadding)
                     .padding(.top, 8)
+                    .padding(.bottom, model.showsOriginPicker ? 8 : 12)
+
+                if model.showsOriginPicker {
+                    AgendaOriginPicker(selection: model.effectiveOrigin) { origin in
+                        Task { await model.selectOrigin(origin) }
+                    }
+                    .padding(.horizontal, Theme.screenPadding)
                     .padding(.bottom, 12)
+                    .transition(.opacity)
+                }
 
                 content
             }
@@ -401,7 +583,9 @@ struct AgendaView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.isLoading {
+        // Mês tem o próprio indicador por célula; nas outras visões a chegada
+        // do Google (troca de origem) também desenha o esqueleto.
+        if model.isLoading || (model.isLoadingGoogle && model.mode != .month) {
             // Esqueleto no lugar do spinner: já desenha a lista, então a
             // chegada do dado é troca de conteúdo, não salto de layout.
             SkeletonList(linhas: 7, avatarSize: 46)
@@ -540,26 +724,46 @@ struct AgendaSessionListItem: View {
 struct AgendaListView: View {
     let model: AgendaViewModel
 
-    private var sections: [(day: Date, sessions: [AgendaSession])] {
-        AgendaFormat.sections(from: model.listSessions)
+    private var sections: [(day: Date, items: [AgendaItem])] {
+        model.listSections
+    }
+
+    private var emptyMessage: String {
+        model.effectiveOrigin == .mine
+            ? "Nenhum compromisso na sua agenda do Google nos próximos 30 dias."
+            : "Nenhuma sessão nos próximos 30 dias. Toque em + pra agendar."
     }
 
     var body: some View {
-        if model.listSessions.isEmpty {
+        if sections.isEmpty {
             ScrollView {
-                EmptyStateView(
-                    icon: "calendar.badge.plus",
-                    title: "Agenda livre",
-                    message: "Nenhuma sessão nos próximos 30 dias. Toque em + pra agendar."
-                )
-                .padding(.top, 60)
+                VStack(spacing: 12) {
+                    if model.showsGoogleWarning {
+                        GoogleAgendaWarning()
+                    }
+                    EmptyStateView(
+                        icon: "calendar.badge.plus",
+                        title: "Agenda livre",
+                        message: emptyMessage
+                    )
+                    .padding(.top, model.showsGoogleWarning ? 36 : 60)
+                }
+                .padding(.horizontal, Theme.screenPadding)
             }
             .refreshable { await model.loadList() }
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    if model.showsGoogleWarning {
+                        GoogleAgendaWarning()
+                    }
+
                     ForEach(Array(sections.enumerated()), id: \.element.day) { index, section in
-                        AgendaDayHeader(day: section.day, count: section.sessions.count)
+                        AgendaDayHeader(
+                            day: section.day,
+                            count: section.items.filter(\.isSession).count,
+                            googleCount: section.items.filter { !$0.isSession }.count
+                        )
                             .padding(.top, 10)
                             .onAppear {
                                 // Gatilho no PENÚLTIMO grupo, não no último: a
@@ -569,8 +773,8 @@ struct AgendaListView: View {
                                     Task { await model.loadMoreList() }
                                 }
                             }
-                        ForEach(section.sessions) { session in
-                            AgendaSessionListItem(session: session)
+                        ForEach(section.items) { item in
+                            AgendaTimelineRow(item: item)
                         }
                     }
 
@@ -603,22 +807,33 @@ struct AgendaListView: View {
 struct AgendaTodayView: View {
     let model: AgendaViewModel
 
+    /// Contagem e "próxima" falam de sessões; em "Minha Agenda" elas somem.
+    private var sessions: [AgendaSession] {
+        model.effectiveOrigin.showsSessions ? model.todaySessions : []
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 header
 
-                if model.todaySessions.isEmpty {
+                if model.showsGoogleWarning {
+                    GoogleAgendaWarning()
+                }
+
+                if model.todayItems.isEmpty {
                     EmptyStateView(
                         icon: "calendar",
                         title: "Nada hoje",
-                        message: "Nenhuma sessão marcada para hoje. Veja a Lista para os próximos dias."
+                        message: model.effectiveOrigin == .mine
+                            ? "Nenhum compromisso na sua agenda do Google hoje."
+                            : "Nenhuma sessão marcada para hoje. Veja a Lista para os próximos dias."
                     )
                     .padding(.top, 40)
                     .frame(maxWidth: .infinity)
                 } else {
-                    ForEach(model.todaySessions) { session in
-                        AgendaSessionListItem(session: session)
+                    ForEach(model.todayItems) { item in
+                        AgendaTimelineRow(item: item)
                     }
                 }
             }
@@ -638,8 +853,8 @@ struct AgendaTodayView: View {
                     .font(Theme.body(13))
                     .foregroundStyle(Theme.textSecondary)
                 Spacer()
-                if !model.todaySessions.isEmpty {
-                    Text(model.todaySessions.count == 1 ? "1 SESSÃO" : "\(model.todaySessions.count) SESSÕES")
+                if !sessions.isEmpty {
+                    Text(sessions.count == 1 ? "1 SESSÃO" : "\(sessions.count) SESSÕES")
                         .font(Theme.body(10, weight: .bold))
                         .tracking(0.6)
                         .padding(.horizontal, 10)
@@ -663,14 +878,14 @@ struct AgendaTodayView: View {
     /// que a próxima é às 15h esconde justamente a que está acontecendo.
     private var resumo: String? {
         let agora = Date()
-        if let emAndamento = model.todaySessions.first(where: {
+        if let emAndamento = sessions.first(where: {
             $0.startsAt <= agora && $0.endsAt > agora
         }) {
             return "Em andamento até \(AgendaFormat.time.string(from: emAndamento.endsAt))"
         }
-        if let proxima = model.todaySessions.first(where: { $0.startsAt > agora }) {
+        if let proxima = sessions.first(where: { $0.startsAt > agora }) {
             return "Próxima às \(AgendaFormat.time.string(from: proxima.startsAt))"
         }
-        return model.todaySessions.isEmpty ? nil : "Todas as sessões de hoje já passaram"
+        return sessions.isEmpty ? nil : "Todas as sessões de hoje já passaram"
     }
 }
